@@ -1,0 +1,111 @@
+# ─────────────────────────────────────
+# Secrets — HECH QACHON commit qilmang
+# ─────────────────────────────────────
+.env
+.env.local
+.env.production
+*.pem
+*.key
+
+# ─────────────────────────────────────
+# Python / Django
+# ─────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+*.manifest
+*.spec
+pip-log.txt
+pip-delete-this-directory.txt
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+*.mo
+*.pot
+db.sqlite3
+db.sqlite3-journal
+local_settings.py
+media/
+staticfiles/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# ─────────────────────────────────────
+# Node / Next.js
+# ─────────────────────────────────────
+node_modules/
+.next/
+out/
+build/
+.DS_Store
+*.pem
+.npm
+.eslintcache
+.stylelintcache
+.vercel
+*.tsbuildinfo
+next-env.d.ts
+
+# ─────────────────────────────────────
+# IDE
+# ─────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ─────────────────────────────────────
+# Docker
+# ─────────────────────────────────────
+# (docker-compose.yml commit qilinadi, volumes emas)
+
+# ─────────────────────────────────────
+# Logs
+# ─────────────────────────────────────
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ─────────────────────────────────────
+# Test output
+# ─────────────────────────────────────
+htmlcov/
+.pytest_cache/
+jest-coverage/
+playwright-report/
+test-results/

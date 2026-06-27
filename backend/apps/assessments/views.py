@@ -1,0 +1,168 @@
+"""
+DSAT LMS v2 — Assessment Views (Test Engine)
+Domain: Assessments
+Description: Session lifecycle — start, fetch (recovery), auto-save (timer-checked),
+            answer, submit (grade), result.
+Permissions: IsAuthenticated (global). Sessions are owner-scoped (others get 404).
+             Academy-only exams require user.has_full_access to start.
+"""
+
+import logging
+
+from django.utils import timezone
+from rest_framework.exceptions import NotFound, PermissionDenied
+from rest_framework.views import APIView
+
+from common.exceptions import ExamSessionError
+from common.responses import created_response, success_response
+
+from .models import ExamQuestion, ExamResponse, ExamSession, ExamTemplate
+from .serializers import (
+    AnswerSerializer,
+    AutoSaveSerializer,
+    ResponseSerializer,
+    ResultSerializer,
+    SessionDetailSerializer,
+    StartSessionSerializer,
+)
+from .services import TIME_GRACE_SECONDS, grade_session, is_expired, server_time_remaining
+
+logger = logging.getLogger("apps.assessments")
+
+
+def _owned_session(request, pk):
+    """Fetch a session owned by the requester, or 404 (no existence leak)."""
+    try:
+        return ExamSession.objects.select_related("exam").get(pk=pk, user=request.user)
+    except ExamSession.DoesNotExist:
+        raise NotFound("Session not found.") from None
+
+
+class SessionStartView(APIView):
+    def post(self, request):
+        serializer = StartSessionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        exam = ExamTemplate.objects.get(id=serializer.validated_data["exam"])
+
+        if (
+            exam.access_level == ExamTemplate.AccessLevel.ACADEMY
+            and not request.user.has_full_access
+        ):
+            raise PermissionDenied("This exam is available to academy members only.")
+
+        session = ExamSession.objects.create(
+            user=request.user,
+            exam=exam,
+            status=ExamSession.Status.IN_PROGRESS,
+            time_remaining=exam.time_limit * 60 if exam.time_limit else None,
+        )
+        return created_response(SessionDetailSerializer(session).data)
+
+
+class SessionDetailView(APIView):
+    def get(self, request, pk):
+        session = _owned_session(request, pk)
+        return success_response(SessionDetailSerializer(session).data)
+
+    def patch(self, request, pk):
+        """Auto-save navigation + client state, with server-authoritative timer."""
+        session = _owned_session(request, pk)
+        if session.status != ExamSession.Status.IN_PROGRESS:
+            return ExamSessionError("Session is not in progress.").to_response()
+
+        serializer = AutoSaveSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        remaining = server_time_remaining(session)
+        if remaining is not None:
+            if remaining <= 0:
+                return ExamSessionError("Time is up. Please submit the session.").to_response()
+            claimed = data.get("time_remaining")
+            if claimed is not None and claimed > remaining + TIME_GRACE_SECONDS:
+                return ExamSessionError(
+                    "Reported time exceeds the server clock.", field="time_remaining"
+                ).to_response()
+
+        for field in ("current_section", "current_question", "client_session_data"):
+            if field in data:
+                setattr(session, field, data[field])
+        if "time_remaining" in data:
+            session.time_remaining = (
+                min(data["time_remaining"], remaining)
+                if remaining is not None
+                else data["time_remaining"]
+            )
+        session.save()
+        return success_response(SessionDetailSerializer(session).data)
+
+
+class SessionAnswerView(APIView):
+    def post(self, request, pk):
+        session = _owned_session(request, pk)
+        if session.status != ExamSession.Status.IN_PROGRESS:
+            return ExamSessionError("Session is not in progress.").to_response()
+        if is_expired(session):
+            return ExamSessionError("Time is up. Please submit the session.").to_response()
+
+        serializer = AnswerSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        question_id = data["question"]
+
+        if not ExamQuestion.objects.filter(
+            section__exam=session.exam, question_id=question_id
+        ).exists():
+            return ExamSessionError(
+                "That question is not part of this exam.", field="question"
+            ).to_response()
+
+        response, _ = ExamResponse.objects.update_or_create(
+            session=session,
+            question_id=question_id,
+            defaults={
+                "chosen_answer": data.get("chosen_answer", ""),
+                "time_spent": data.get("time_spent"),
+            },
+        )
+        return success_response(ResponseSerializer(response).data)
+
+
+class SessionSubmitView(APIView):
+    def post(self, request, pk):
+        session = _owned_session(request, pk)
+
+        if session.status == ExamSession.Status.COMPLETED:
+            result = getattr(session, "result", None) or grade_session(session)
+            return success_response(ResultSerializer(result).data)
+
+        if session.status not in (
+            ExamSession.Status.IN_PROGRESS,
+            ExamSession.Status.PAUSED,
+        ):
+            return ExamSessionError("This session cannot be submitted.").to_response()
+
+        result = grade_session(session)
+        session.status = ExamSession.Status.COMPLETED
+        session.submitted_at = timezone.now()
+        session.save(update_fields=["status", "submitted_at"])
+
+        # Async post-processing (percentile, future stats). Best-effort: a broker
+        # outage must not fail the submit. Lazy import keeps the dependency one-way.
+        try:
+            from apps.analytics.tasks import calculate_percentile
+
+            calculate_percentile.delay(result.id)
+        except Exception:  # noqa: BLE001
+            logger.exception("Failed to enqueue percentile calc for result %s", result.id)
+
+        return success_response(ResultSerializer(result).data)
+
+
+class SessionResultView(APIView):
+    def get(self, request, pk):
+        session = _owned_session(request, pk)
+        result = getattr(session, "result", None)
+        if result is None:
+            return ExamSessionError("No result yet — submit the session first.").to_response()
+        return success_response(ResultSerializer(result).data)

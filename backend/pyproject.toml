@@ -1,0 +1,57 @@
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+exclude = [
+    ".git",
+    "__pycache__",
+    "*/migrations/*",
+    ".venv",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # Pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+    "N",   # pep8-naming
+]
+ignore = [
+    "E501",  # line too long (formatter handles)
+    "B008",  # do not perform function calls in argument defaults
+    "N806",  # variable in function should be lowercase
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Django settings legitimately use star imports + late/conditional imports.
+"config/settings/*" = ["F403", "F405", "E402"]
+# DSATAPIException is the established base-exception name across the codebase.
+"common/exceptions.py" = ["N818"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["apps", "common", "config", "infrastructure"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = false
+warn_return_any = true
+warn_unused_ignores = true
+ignore_missing_imports = true
+exclude = [
+    "migrations",
+    ".venv",
+]
+
+[tool.black]
+line-length = 100
+target-version = ["py312"]
+exclude = '''
+/(
+    \.git
+  | migrations
+  | \.venv
+)/
+'''

@@ -1,0 +1,47 @@
+# ═══════════════════════════════════════
+# DSAT LMS v2 — Base Requirements
+# ═══════════════════════════════════════
+
+# Django Core
+Django==5.1.*
+djangorestframework==3.15.*
+django-cors-headers==4.4.*
+django-filter==24.*
+django-environ==0.11.*
+
+# Auth
+djangorestframework-simplejwt==5.3.*
+PyJWT==2.8.*
+
+# Database
+psycopg2-binary==2.9.*
+dj-database-url==2.2.*
+
+# Cache & Background Jobs
+redis==5.1.*
+django-redis==5.4.*
+celery==5.4.*
+django-celery-beat==2.7.*
+django-celery-results==2.5.*
+
+# Storage
+django-storages==1.14.*
+boto3==1.35.*           # For R2 (S3-compatible)
+
+# API
+drf-spectacular==0.27.*  # OpenAPI/Swagger
+
+# Utilities
+Pillow==10.4.*           # Image processing
+python-slugify==8.0.*
+shortuuid==1.0.*
+
+# Email
+resend==2.4.*
+
+# Security
+django-ratelimit==4.1.*
+cryptography==43.*
+
+# Monitoring
+sentry-sdk[django]==2.14.*
