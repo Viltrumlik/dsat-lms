@@ -218,3 +218,77 @@ class TestSubmitAndResult:
         r = auth_client.get(f"{SESSIONS}{sid}/result/")
         assert r.status_code == 200
         assert r.data["data"]["total_questions"] == 3
+
+
+class TestHistory:
+    def test_lists_my_sessions(self, auth_client):
+        exam, _ = make_exam()
+        start(auth_client, exam)
+        start(auth_client, exam)
+        r = auth_client.get(SESSIONS)
+        assert r.status_code == 200
+        assert r.data["success"] is True
+        assert len(r.data["data"]) == 2
+        assert "pagination" in r.data["meta"]
+
+    def test_excludes_other_users(self, auth_client):
+        exam, _ = make_exam()
+        start(auth_client, exam)
+        other = APIClient()
+        other.force_authenticate(UserFactory())
+        assert len(other.get(SESSIONS).data["data"]) == 0
+
+
+class TestPauseResume:
+    def test_pause_then_resume(self, auth_client):
+        exam, _ = make_exam(time_limit=30)
+        sid = start(auth_client, exam).data["data"]["id"]
+        r = auth_client.post(f"{SESSIONS}{sid}/pause/", {}, format="json")
+        assert r.status_code == 200
+        assert r.data["data"]["status"] == "paused"
+        r2 = auth_client.post(f"{SESSIONS}{sid}/resume/", {}, format="json")
+        assert r2.status_code == 200
+        assert r2.data["data"]["status"] == "in_progress"
+
+    def test_cannot_answer_while_paused(self, auth_client):
+        exam, qs = make_exam()
+        sid = start(auth_client, exam).data["data"]["id"]
+        auth_client.post(f"{SESSIONS}{sid}/pause/", {}, format="json")
+        r = auth_client.post(
+            f"{SESSIONS}{sid}/answer/",
+            {"question": str(qs[0].id), "chosen_answer": "A"},
+            format="json",
+        )
+        assert r.status_code == 400
+        assert r.data["error"]["code"] == "EXAM_SESSION_ERROR"
+
+    def test_cannot_pause_completed(self, auth_client):
+        exam, _ = make_exam()
+        sid = start(auth_client, exam).data["data"]["id"]
+        auth_client.post(f"{SESSIONS}{sid}/submit/", {}, format="json")
+        assert auth_client.post(f"{SESSIONS}{sid}/pause/", {}, format="json").status_code == 400
+
+    def test_cannot_resume_in_progress(self, auth_client):
+        exam, _ = make_exam()
+        sid = start(auth_client, exam).data["data"]["id"]
+        assert auth_client.post(f"{SESSIONS}{sid}/resume/", {}, format="json").status_code == 400
+
+    def test_paused_timer_is_frozen(self):
+        """While paused, remaining is measured to paused_at, not now."""
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        from apps.assessments.services import server_time_remaining
+        from apps.assessments.tests.factories import ExamSessionFactory
+
+        exam = ExamTemplateFactory(time_limit=30)
+        session = ExamSessionFactory(
+            user=UserFactory(), exam=exam, status=ExamSession.Status.PAUSED
+        )
+        # Started 10 min ago, paused 4 min ago → only 6 min counted (≈24 min left).
+        session.started_at = timezone.now() - timedelta(minutes=10)
+        session.paused_at = timezone.now() - timedelta(minutes=4)
+        session.save()
+        remaining = server_time_remaining(session)
+        assert 1430 <= remaining <= 1440  # ~1440s, NOT ~1200s if it used "now"

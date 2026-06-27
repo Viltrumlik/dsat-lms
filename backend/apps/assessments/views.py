@@ -14,6 +14,7 @@ from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.views import APIView
 
 from common.exceptions import ExamSessionError
+from common.pagination import CursorPagination
 from common.responses import created_response, success_response
 
 from .models import ExamQuestion, ExamResponse, ExamSession, ExamTemplate
@@ -23,6 +24,7 @@ from .serializers import (
     ResponseSerializer,
     ResultSerializer,
     SessionDetailSerializer,
+    SessionListItemSerializer,
     StartSessionSerializer,
 )
 from .services import TIME_GRACE_SECONDS, grade_session, is_expired, server_time_remaining
@@ -38,7 +40,18 @@ def _owned_session(request, pk):
         raise NotFound("Session not found.") from None
 
 
-class SessionStartView(APIView):
+class SessionListCreateView(APIView):
+    def get(self, request):
+        """The current user's session history (newest first, cursor-paginated)."""
+        sessions = (
+            ExamSession.objects.filter(user=request.user)
+            .select_related("exam")
+            .order_by("-created_at")
+        )
+        paginator = CursorPagination()
+        page = paginator.paginate_queryset(sessions, request, view=self)
+        return paginator.get_paginated_response(SessionListItemSerializer(page, many=True).data)
+
     def post(self, request):
         serializer = StartSessionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -94,6 +107,31 @@ class SessionDetailView(APIView):
                 else data["time_remaining"]
             )
         session.save()
+        return success_response(SessionDetailSerializer(session).data)
+
+
+class SessionPauseView(APIView):
+    def post(self, request, pk):
+        session = _owned_session(request, pk)
+        if session.status != ExamSession.Status.IN_PROGRESS:
+            return ExamSessionError("Only an in-progress session can be paused.").to_response()
+        session.status = ExamSession.Status.PAUSED
+        session.paused_at = timezone.now()
+        session.save(update_fields=["status", "paused_at"])
+        return success_response(SessionDetailSerializer(session).data)
+
+
+class SessionResumeView(APIView):
+    def post(self, request, pk):
+        session = _owned_session(request, pk)
+        if session.status != ExamSession.Status.PAUSED:
+            return ExamSessionError("Only a paused session can be resumed.").to_response()
+        if session.paused_at:
+            # Shift the effective start forward so the paused span doesn't count.
+            session.started_at = session.started_at + (timezone.now() - session.paused_at)
+        session.paused_at = None
+        session.status = ExamSession.Status.IN_PROGRESS
+        session.save(update_fields=["status", "paused_at", "started_at"])
         return success_response(SessionDetailSerializer(session).data)
 
 

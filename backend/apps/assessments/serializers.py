@@ -69,6 +69,16 @@ class ResponseSerializer(serializers.ModelSerializer):
         fields = ["question", "chosen_answer", "is_correct", "time_spent", "answered_at"]
 
 
+class SessionListItemSerializer(serializers.ModelSerializer):
+    """Lightweight session shape for the history list."""
+
+    exam = ExamMiniSerializer(read_only=True)
+
+    class Meta:
+        model = ExamSession
+        fields = ["id", "exam", "status", "started_at", "submitted_at", "created_at"]
+
+
 class SessionDetailSerializer(serializers.ModelSerializer):
     exam = ExamMiniSerializer(read_only=True)
     sections = serializers.SerializerMethodField()

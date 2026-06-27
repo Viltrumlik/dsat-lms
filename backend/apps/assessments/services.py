@@ -11,18 +11,27 @@ from decimal import Decimal
 
 from django.utils import timezone
 
-from .models import ExamQuestion, ExamResult
+from .models import ExamQuestion, ExamResult, ExamSession
 
 # Allowance for network/render latency when validating client-reported time.
 TIME_GRACE_SECONDS = 5
 
 
 def server_time_remaining(session):
-    """Seconds left per the server clock, or None for an untimed exam."""
+    """Seconds left per the server clock, or None for an untimed exam.
+
+    While paused, the clock is frozen at paused_at; resume shifts started_at forward
+    by the paused duration so elapsed time never counts paused periods.
+    """
     limit = session.exam.time_limit
     if not limit:
         return None
-    elapsed = (timezone.now() - session.started_at).total_seconds()
+    now = (
+        session.paused_at
+        if session.status == ExamSession.Status.PAUSED and session.paused_at
+        else timezone.now()
+    )
+    elapsed = (now - session.started_at).total_seconds()
     return max(0, int(limit * 60 - elapsed))
 
 
