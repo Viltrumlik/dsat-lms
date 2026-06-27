@@ -1,10 +1,7 @@
 """
 DSAT LMS v2 — Academy Models
 Domain: Academy
-Description: PHASE 0 STUB. Only `Class` is defined here so that
-            assessments.ExamAssignment.assigned_class (FK -> "academy.Class")
-            resolves and the system check passes. Enrollment, attendance,
-            schedules, teacher↔class wiring, etc. are added in a later phase.
+Description: Classes (owned by a teacher) and student enrollment.
 """
 
 from django.db import models
@@ -13,9 +10,17 @@ from common.models import BaseModel
 
 
 class Class(BaseModel):
-    """Akademiya sinfi — Phase 0 stub (minimal fields only)."""
+    """An academy class, owned by a teacher."""
 
     name = models.CharField(max_length=200)
+    teacher = models.ForeignKey(
+        "identity.User",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="teaching_classes",
+    )
+    is_active = models.BooleanField(default=True)
 
     class Meta:
         db_table = "classes"
@@ -24,3 +29,32 @@ class Class(BaseModel):
 
     def __str__(self):
         return self.name
+
+
+class ClassEnrollment(BaseModel):
+    """A student's membership in a class (created_at = enrolled-at)."""
+
+    class Status(models.TextChoices):
+        ACTIVE = "active", "Active"
+        INACTIVE = "inactive", "Inactive"
+        REMOVED = "removed", "Removed"
+
+    klass = models.ForeignKey(
+        Class,
+        on_delete=models.CASCADE,
+        related_name="enrollments",
+    )
+    student = models.ForeignKey(
+        "identity.User",
+        on_delete=models.CASCADE,
+        related_name="enrollments",
+    )
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE)
+
+    class Meta:
+        db_table = "class_enrollments"
+        unique_together = [("klass", "student")]
+        indexes = [models.Index(fields=["klass", "status"])]
+
+    def __str__(self):
+        return f"{self.student_id} in {self.klass_id} ({self.status})"
