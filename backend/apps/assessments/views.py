@@ -147,14 +147,15 @@ class SessionSubmitView(APIView):
         session.submitted_at = timezone.now()
         session.save(update_fields=["status", "submitted_at"])
 
-        # Async post-processing (percentile, future stats). Best-effort: a broker
-        # outage must not fail the submit. Lazy import keeps the dependency one-way.
+        # Async post-processing. Best-effort: a broker outage must not fail the
+        # submit. Lazy import keeps the domain dependency one-way.
         try:
-            from apps.analytics.tasks import calculate_percentile
+            from apps.analytics.tasks import calculate_percentile, update_category_stats
 
             calculate_percentile.delay(result.id)
+            update_category_stats.delay(session.user_id)
         except Exception:  # noqa: BLE001
-            logger.exception("Failed to enqueue percentile calc for result %s", result.id)
+            logger.exception("Failed to enqueue post-submit analytics for result %s", result.id)
 
         return success_response(ResultSerializer(result).data)
 

@@ -33,3 +33,41 @@ def calculate_percentile(result_id):
     result.percentile = percentile
     result.save(update_fields=["percentile"])
     return float(percentile)
+
+
+@shared_task
+def update_category_stats(user_id):
+    """Recompute the user's per-category stats from their graded responses."""
+    from django.db.models import Count, Max, Q
+
+    from apps.assessments.models import ExamResponse
+
+    from .models import UserCategoryStat
+
+    rows = (
+        ExamResponse.objects.filter(session__user_id=user_id, is_correct__isnull=False)
+        .values("question__category")
+        .annotate(
+            answered=Count("id"),
+            correct=Count("id", filter=Q(is_correct=True)),
+            last=Max("answered_at"),
+        )
+    )
+
+    touched = 0
+    for row in rows:
+        answered = row["answered"]
+        correct = row["correct"]
+        accuracy = Decimal(str(round(correct / answered * 100, 2))) if answered else None
+        UserCategoryStat.objects.update_or_create(
+            user_id=user_id,
+            category_id=row["question__category"],
+            defaults={
+                "total_answered": answered,
+                "total_correct": correct,
+                "accuracy_pct": accuracy,
+                "last_practiced_at": row["last"],
+            },
+        )
+        touched += 1
+    return touched
