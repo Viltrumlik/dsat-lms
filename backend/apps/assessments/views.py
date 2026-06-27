@@ -195,6 +195,18 @@ class SessionSubmitView(APIView):
         except Exception:  # noqa: BLE001
             logger.exception("Failed to enqueue post-submit analytics for result %s", result.id)
 
+        try:
+            from apps.notifications.services import notify
+
+            notify(
+                session.user,
+                "exam_graded",
+                f"Your results for {session.exam.title} are ready.",
+                data={"session_id": str(session.id)},
+            )
+        except Exception:  # noqa: BLE001
+            logger.exception("Failed to create exam-graded notification for %s", session.user_id)
+
         return success_response(ResultSerializer(result).data)
 
 
