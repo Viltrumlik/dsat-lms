@@ -167,6 +167,7 @@ class ExamSession(BaseModel):
 
     # Timer
     started_at = models.DateTimeField(auto_now_add=True)
+    section_started_at = models.DateTimeField(null=True, blank=True)  # per-section clock
     paused_at = models.DateTimeField(null=True, blank=True)
     submitted_at = models.DateTimeField(null=True, blank=True)
     time_remaining = models.IntegerField(null=True, blank=True)  # seconds

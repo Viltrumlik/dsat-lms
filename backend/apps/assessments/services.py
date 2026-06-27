@@ -12,27 +12,41 @@ from decimal import Decimal
 from django.utils import timezone
 
 from .models import ExamQuestion, ExamResult, ExamSession
+from .scoring import scaled_section_score
 
 # Allowance for network/render latency when validating client-reported time.
 TIME_GRACE_SECONDS = 5
 
 
-def server_time_remaining(session):
-    """Seconds left per the server clock, or None for an untimed exam.
+def current_section(session):
+    """The ExamSection matching the session's current_section number, if any."""
+    return session.exam.sections.filter(section_number=session.current_section).first()
 
-    While paused, the clock is frozen at paused_at; resume shifts started_at forward
-    by the paused duration so elapsed time never counts paused periods.
+
+def server_time_remaining(session):
+    """Seconds left per the server clock, or None for an untimed exam/section.
+
+    Per-section: if the current section has its own time_limit, the clock runs from
+    section_started_at (falling back to started_at). Otherwise the whole-exam limit
+    applies. While paused, the clock is frozen at paused_at; resume shifts the start
+    timestamps forward by the paused duration so paused time never counts.
     """
-    limit = session.exam.time_limit
-    if not limit:
+    section = current_section(session)
+    if section and section.time_limit:
+        limit_seconds = section.time_limit * 60
+        start = session.section_started_at or session.started_at
+    elif session.exam.time_limit:
+        limit_seconds = session.exam.time_limit * 60
+        start = session.started_at
+    else:
         return None
+
     now = (
         session.paused_at
         if session.status == ExamSession.Status.PAUSED and session.paused_at
         else timezone.now()
     )
-    elapsed = (now - session.started_at).total_seconds()
-    return max(0, int(limit * 60 - elapsed))
+    return max(0, int(limit_seconds - (now - start).total_seconds()))
 
 
 def is_expired(session) -> bool:
@@ -53,6 +67,7 @@ def grade_session(session):
 
     correct = incorrect = skipped = total = 0
     categories = {}
+    modules = {}  # module -> {correct, total} for scaled section scores
 
     for exam_question in exam_questions:
         total += 1
@@ -62,6 +77,8 @@ def grade_session(session):
             {"name": question.category.name, "correct": 0, "total": 0},
         )
         bucket["total"] += 1
+        module_bucket = modules.setdefault(question.module, {"correct": 0, "total": 0})
+        module_bucket["total"] += 1
 
         response = responses.get(question.id)
         if response is None or not (response.chosen_answer or "").strip():
@@ -80,6 +97,7 @@ def grade_session(session):
         if is_correct:
             correct += 1
             bucket["correct"] += 1
+            module_bucket["correct"] += 1
         else:
             incorrect += 1
 
@@ -87,6 +105,14 @@ def grade_session(session):
         bucket["accuracy"] = (
             round(bucket["correct"] / bucket["total"] * 100, 2) if bucket["total"] else 0.0
         )
+
+    # Scaled section scores (200–800) and SAT total (400–1600 for a full test).
+    math = modules.get("math", {"correct": 0, "total": 0})
+    rw = modules.get("reading_writing", {"correct": 0, "total": 0})
+    math_score = scaled_section_score(math["correct"], math["total"]) if math["total"] else None
+    rw_score = scaled_section_score(rw["correct"], rw["total"]) if rw["total"] else None
+    section_scores = [s for s in (math_score, rw_score) if s is not None]
+    total_score = sum(section_scores) if section_scores else None
 
     accuracy = Decimal(str(round(correct / total * 100, 2))) if total else Decimal("0.00")
     time_spent = int((timezone.now() - session.started_at).total_seconds())
@@ -96,6 +122,9 @@ def grade_session(session):
         defaults={
             "user": session.user,
             "exam": session.exam,
+            "total_score": total_score,
+            "math_score": math_score,
+            "rw_score": rw_score,
             "total_correct": correct,
             "total_incorrect": incorrect,
             "total_skipped": skipped,

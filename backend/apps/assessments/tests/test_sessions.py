@@ -292,3 +292,65 @@ class TestPauseResume:
         session.save()
         remaining = server_time_remaining(session)
         assert 1430 <= remaining <= 1440  # ~1440s, NOT ~1200s if it used "now"
+
+
+class TestScaledScoring:
+    def test_section_scores_and_total(self, auth_client):
+        from apps.question_bank.tests.factories import QuestionFactory
+
+        exam = ExamTemplateFactory(access_level="public", time_limit=30)
+        section = ExamSectionFactory(exam=exam, section_number=1)
+        qm1 = QuestionFactory(module="math", correct_answer="A")
+        qm2 = QuestionFactory(module="math", correct_answer="A")
+        qr1 = QuestionFactory(module="reading_writing", correct_answer="A")
+        qr2 = QuestionFactory(module="reading_writing", correct_answer="A")
+        for i, q in enumerate([qm1, qm2, qr1, qr2], start=1):
+            ExamQuestionFactory(section=section, question=q, position=i)
+
+        sid = start(auth_client, exam).data["data"]["id"]
+        answer = f"{SESSIONS}{sid}/answer/"
+        auth_client.post(answer, {"question": str(qm1.id), "chosen_answer": "A"}, format="json")
+        auth_client.post(answer, {"question": str(qr1.id), "chosen_answer": "A"}, format="json")
+        auth_client.post(answer, {"question": str(qr2.id), "chosen_answer": "A"}, format="json")
+        # qm2 unanswered
+
+        d = auth_client.post(f"{SESSIONS}{sid}/submit/", {}, format="json").data["data"]
+        assert d["math_score"] == 500  # 1/2 → 200 + 0.5*600
+        assert d["rw_score"] == 800  # 2/2 → 800
+        assert d["total_score"] == 1300
+
+
+class TestPerSectionTimer:
+    def test_uses_current_section_limit(self):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        from apps.assessments.services import server_time_remaining
+        from apps.assessments.tests.factories import ExamSessionFactory
+
+        exam = ExamTemplateFactory(time_limit=None)  # no whole-exam limit
+        ExamSectionFactory(exam=exam, section_number=1, time_limit=10)  # 10-min section
+        session = ExamSessionFactory(
+            user=UserFactory(),
+            exam=exam,
+            current_section=1,
+            status=ExamSession.Status.IN_PROGRESS,
+        )
+        session.started_at = timezone.now() - timedelta(minutes=3)
+        session.save()
+        remaining = server_time_remaining(session)
+        assert 415 <= remaining <= 420  # ~7 min left of the 10-min section
+
+    def test_advancing_section_resets_clock(self, auth_client):
+        from apps.question_bank.tests.factories import QuestionFactory
+
+        exam = ExamTemplateFactory(access_level="public", time_limit=None)
+        s1 = ExamSectionFactory(exam=exam, section_number=1, time_limit=10)
+        ExamSectionFactory(exam=exam, section_number=2, time_limit=10)
+        ExamQuestionFactory(section=s1, question=QuestionFactory(), position=1)
+
+        sid = start(auth_client, exam).data["data"]["id"]
+        r = auth_client.patch(f"{SESSIONS}{sid}/", {"current_section": 2}, format="json")
+        assert r.status_code == 200
+        assert r.data["data"]["server_time_remaining"] >= 595  # fresh 10-min section

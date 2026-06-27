@@ -97,6 +97,9 @@ class SessionDetailView(APIView):
                     "Reported time exceeds the server clock.", field="time_remaining"
                 ).to_response()
 
+        # Moving to a new section starts that section's clock.
+        if "current_section" in data and data["current_section"] != session.current_section:
+            session.section_started_at = timezone.now()
         for field in ("current_section", "current_question", "client_session_data"):
             if field in data:
                 setattr(session, field, data[field])
@@ -127,11 +130,14 @@ class SessionResumeView(APIView):
         if session.status != ExamSession.Status.PAUSED:
             return ExamSessionError("Only a paused session can be resumed.").to_response()
         if session.paused_at:
-            # Shift the effective start forward so the paused span doesn't count.
-            session.started_at = session.started_at + (timezone.now() - session.paused_at)
+            # Shift the start timestamps forward so the paused span doesn't count.
+            delta = timezone.now() - session.paused_at
+            session.started_at = session.started_at + delta
+            if session.section_started_at:
+                session.section_started_at = session.section_started_at + delta
         session.paused_at = None
         session.status = ExamSession.Status.IN_PROGRESS
-        session.save(update_fields=["status", "paused_at", "started_at"])
+        session.save(update_fields=["status", "paused_at", "started_at", "section_started_at"])
         return success_response(SessionDetailSerializer(session).data)
 
 
