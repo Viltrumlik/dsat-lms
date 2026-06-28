@@ -12,6 +12,7 @@
 import * as React from 'react'
 import { useRouter } from 'next/navigation'
 import { sessionAPI } from '@/lib/api/sessions'
+import { resetAnswerQueue } from '@/lib/hooks/useAnswerSync'
 import { useSessionStore } from '@/lib/stores/sessionStore'
 import type {
   EngineSection,
@@ -75,6 +76,7 @@ export function useSession(sessionId: string): { state: SessionLoadState } {
     // first cleanup would otherwise discard the only fetch's result (stuck loading).
     if (started.current) return
     started.current = true
+    resetAnswerQueue() // drop any chains from a previous session
 
     ;(async () => {
       try {

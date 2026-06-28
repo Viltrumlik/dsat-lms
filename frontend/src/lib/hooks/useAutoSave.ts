@@ -24,15 +24,14 @@ export function useAutoSave({
 }: UseAutoSaveOptions = {}) {
   const meta = useSessionStore((s) => s.meta)
   const status = useSessionStore((s) => s.status)
-  const currentSectionIndex = useSessionStore((s) => s.currentSectionIndex)
   const currentQuestionIndex = useSessionStore((s) => s.currentQuestionIndex)
   const questionStates = useSessionStore((s) => s.questionStates)
 
   const isSavingRef = useRef(false)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  // time_remaining is intentionally omitted — server-authoritative clock; see
-  // selectAutoSavePayload for why sending it caused false cheat-rejections.
+  // time_remaining + current_section are intentionally omitted — see
+  // selectAutoSavePayload (server-authoritative clock; forward-only sections).
   const save = useCallback(async () => {
     if (!meta?.sessionId) return
     if (isSavingRef.current) return  // Avvalgi save hali tugamagan
@@ -42,7 +41,6 @@ export function useAutoSave({
 
     try {
       await sessionAPI.autoSave(meta.sessionId, {
-        currentSection: currentSectionIndex + 1,
         currentQuestion: currentQuestionIndex + 1,
         clientSessionData: { questions: questionStates },
       })
@@ -55,7 +53,7 @@ export function useAutoSave({
     } finally {
       isSavingRef.current = false
     }
-  }, [meta?.sessionId, status, currentSectionIndex, currentQuestionIndex, questionStates, onError])
+  }, [meta?.sessionId, status, currentQuestionIndex, questionStates, onError])
 
   // Start/stop interval
   useEffect(() => {
@@ -86,7 +84,6 @@ export function useAutoSave({
     const token = getAccessToken()
     const body = JSON.stringify(
       decamelizeKeys({
-        currentSection: currentSectionIndex + 1,
         currentQuestion: currentQuestionIndex + 1,
         clientSessionData: { questions: questionStates },
       })
@@ -105,7 +102,7 @@ export function useAutoSave({
     } catch {
       // navigator may reject keepalive on very large bodies — best-effort only
     }
-  }, [status, meta?.sessionId, currentSectionIndex, currentQuestionIndex, questionStates])
+  }, [status, meta?.sessionId, currentQuestionIndex, questionStates])
 
   useEffect(() => {
     const onPageHide = () => flush()

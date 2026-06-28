@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import { useSessionStore, selectAutoSavePayload } from '@/lib/stores/sessionStore'
 import { useAutoSave } from '@/lib/hooks/useAutoSave'
+import { queueAnswer, flushAnswers } from '@/lib/hooks/useAnswerSync'
 import { sessionAPI } from '@/lib/api/sessions'
 import { useToast } from '@/components/ui/toast'
 import { parseApiError } from '@/lib/api/errors'
@@ -51,15 +52,13 @@ export function TestShell() {
     setSubmitting(true)
     setStatus('submitting')
     try {
-      // Reconcile every recorded answer before grading (covers any dropped POSTs).
-      const answers = Object.entries(questionStates).filter(
-        ([, st]) => st.answer != null && st.answer !== ''
-      )
-      await Promise.allSettled(
-        answers.map(([qid, st]) =>
-          sessionAPI.answer(meta.sessionId, { question: qid, chosenAnswer: String(st.answer) })
-        )
-      )
+      // Queue the final value for every answered question (each chains AFTER any
+      // in-flight write for that question), then await the whole queue so the
+      // latest answer has landed before grading reads responses.
+      Object.entries(questionStates)
+        .filter(([, st]) => st.answer != null && st.answer !== '')
+        .forEach(([qid, st]) => queueAnswer(meta.sessionId, qid, String(st.answer)))
+      await flushAnswers()
       await sessionAPI.submit(meta.sessionId)
       // Dashboard stats + session history are now stale.
       queryClient.invalidateQueries({ queryKey: ['sessions'] })

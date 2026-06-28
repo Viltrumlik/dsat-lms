@@ -19,10 +19,12 @@ import type {
 } from '@/types'
 
 export interface AutoSavePayload {
-  currentSection: number
+  // current_section is sent ONLY on a forward section transition (BreakScreen);
+  // the periodic autosave omits it so a cross-section review jump can't move the
+  // server section backward and reset its clock. time_remaining is never sent —
+  // the server clock is authoritative. (See selectAutoSavePayload.)
+  currentSection?: number
   currentQuestion: number
-  // time_remaining is omitted on purpose — the server clock is authoritative
-  // (see selectAutoSavePayload). Optional so a caller may still send it if needed.
   timeRemaining?: number | null
   clientSessionData: ClientSessionData
 }

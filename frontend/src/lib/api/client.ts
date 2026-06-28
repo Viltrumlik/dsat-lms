@@ -15,8 +15,10 @@ import { camelizeKeys, decamelizeKeys } from '@/lib/utils/case'
 // Create instance
 // ─────────────────────────────────────
 
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? '') + '/api/v1'
+
 export const apiClient: AxiosInstance = axios.create({
-  baseURL: (process.env.NEXT_PUBLIC_API_URL ?? '') + '/api/v1',
+  baseURL: API_BASE,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -27,6 +29,25 @@ export const apiClient: AxiosInstance = axios.create({
 // ─────────────────────────────────────
 // Token management (in-memory)
 // ─────────────────────────────────────
+
+// Bare client used ONLY for token refresh: no interceptors and, crucially, no
+// Authorization header. The refresh view is AllowAny but DRF still runs
+// JWTAuthentication on any Bearer header present — sending an expired access token
+// would 401 the refresh before the valid HttpOnly cookie is read, logging the user
+// out. The refresh cookie travels via withCredentials.
+const refreshClient: AxiosInstance = axios.create({
+  baseURL: API_BASE,
+  headers: { 'Content-Type': 'application/json' },
+  withCredentials: true,
+  timeout: 15_000,
+})
+
+/** Exchange the HttpOnly refresh cookie for a fresh access token. */
+export async function refreshAccessToken(): Promise<string> {
+  const response = await refreshClient.post('/auth/refresh/')
+  const data = camelizeKeys(response.data) as APISuccess<{ accessToken: string }>
+  return data.data.accessToken
+}
 
 let accessToken: string | null = null
 
@@ -123,11 +144,8 @@ apiClient.interceptors.response.use(
       isRefreshing = true
 
       try {
-        // Response interceptor camelizes → data.data.accessToken
-        const response = await apiClient.post<APISuccess<{ accessToken: string }>>(
-          '/auth/refresh/'
-        )
-        const newToken = response.data.data.accessToken
+        // Bare client → no stale Authorization header on the refresh call.
+        const newToken = await refreshAccessToken()
         setAccessToken(newToken)
 
         refreshQueue.forEach((item) => item.resolve(newToken))

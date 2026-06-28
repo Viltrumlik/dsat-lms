@@ -82,9 +82,10 @@ describe('sessionStore', () => {
     useSessionStore.getState().navigateTo(1, 0)
     useSessionStore.getState().setAnswer('q3', 'A')
     const payload = selectAutoSavePayload(useSessionStore.getState())
-    expect(payload.currentSection).toBe(2)
     expect(payload.currentQuestion).toBe(1)
-    // time_remaining is intentionally NOT sent (server-authoritative clock).
+    // current_section + time_remaining are intentionally NOT sent (forward-only
+    // sections; server-authoritative clock).
+    expect('currentSection' in payload).toBe(false)
     expect('timeRemaining' in payload).toBe(false)
     expect(payload.clientSessionData.questions.q3.answer).toBe('A')
   })

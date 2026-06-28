@@ -7,7 +7,7 @@
 //   POSTs them to the matching /confirm/ endpoint.
 // ═══════════════════════════════════════
 
-import { post, get } from './client'
+import { post, get, refreshAccessToken } from './client'
 import type { AuthSession, User } from '@/types'
 
 export interface RegisterPayload {
@@ -29,8 +29,10 @@ export const authAPI = {
 
   logout: () => post<unknown>('/auth/logout/'),
 
-  /** Exchange the refresh cookie for a fresh access token. */
-  refresh: () => post<{ accessToken: string }>('/auth/refresh/'),
+  /** Exchange the refresh cookie for a fresh access token (bare client — no Bearer). */
+  refresh: async (): Promise<{ accessToken: string }> => ({
+    accessToken: await refreshAccessToken(),
+  }),
 
   me: () => get<{ user: User }>('/auth/me/'),
 

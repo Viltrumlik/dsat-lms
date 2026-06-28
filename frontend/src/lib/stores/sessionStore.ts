@@ -303,13 +303,15 @@ export const selectSectionProgress = (state: SessionState, sectionIndex: number)
 }
 
 // Auto-save uchun minimal payload.
-// NOTE: time_remaining is intentionally NOT sent. The timer is server-authoritative
-// (computed from started_at), and the client's value is briefly stale right after
-// load (captured at GET, before the display timer ticks) — sending it tripped the
-// server's cheat-check and rejected the whole autosave, losing flag/note/cross-out
-// state. Omitting it is safe: the server clock stays the single source of truth.
+// NOTE: neither time_remaining NOR current_section is sent.
+//  - time_remaining: the timer is server-authoritative (computed from started_at);
+//    the client value is briefly stale right after load, which tripped the server's
+//    cheat-check and rejected the whole save, losing flag/note/cross-out state.
+//  - current_section: the backend resets section_started_at on ANY section change,
+//    so an autosave carrying a *lower* section (e.g. a cross-section review jump)
+//    would hand the user a fresh section clock. Section advances are therefore
+//    forward-only and persisted explicitly by the section transition (BreakScreen).
 export const selectAutoSavePayload = (state: SessionState) => ({
-  currentSection: state.currentSectionIndex + 1,
   currentQuestion: state.currentQuestionIndex + 1,
   clientSessionData: {
     questions: state.questionStates,
