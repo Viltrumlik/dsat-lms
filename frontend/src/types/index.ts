@@ -1,21 +1,27 @@
 // ═══════════════════════════════════════
 // DSAT LMS v2 — Core TypeScript Types
 // Domain: All
+// Description: Frontend types. These mirror the backend serializers AFTER the
+//   client.ts snake→camel transform. Backend fields are snake_case on the wire;
+//   here they are camelCase. Decimal fields (accuracy, percentile, scores) may
+//   arrive as strings (DRF coerces Decimal→string) — use `num()` to read them.
 // ═══════════════════════════════════════
 
 // ─────────────────────────────────────
 // API Response Wrappers
 // ─────────────────────────────────────
 
+export interface Pagination {
+  count: number | null
+  next: string | null
+  previous: string | null
+}
+
 export interface APISuccess<T> {
   success: true
   data: T
   meta?: {
-    pagination?: {
-      count: number | null
-      next: string | null
-      previous: string | null
-    }
+    pagination?: Pagination
   }
 }
 
@@ -30,6 +36,9 @@ export interface APIError {
 }
 
 export type APIResponse<T> = APISuccess<T> | APIError
+
+/** A decimal field that DRF may serialize as a string. Read via num(). */
+export type Decimalish = number | string | null
 
 // ─────────────────────────────────────
 // Identity
@@ -48,12 +57,14 @@ export interface User {
   avatarUrl: string | null
   satTargetScore: number | null
   examDate: string | null // ISO date
+  timezone: string
   createdAt: string
 }
 
-export interface AuthTokens {
-  access: string
-  // refresh is HttpOnly cookie — JS ko'rmaydi
+/** Shape of POST /auth/login and /auth/register `data`. */
+export interface AuthSession {
+  user: User
+  accessToken: string
 }
 
 // ─────────────────────────────────────
@@ -61,16 +72,23 @@ export interface AuthTokens {
 // ─────────────────────────────────────
 
 export type QuestionModule = 'math' | 'reading_writing'
-export type QuestionStatus = 'draft' | 'review' | 'published' | 'archived'
 export type AnswerType = 'mcq' | 'grid_in'
+export type ChoiceLabel = 'A' | 'B' | 'C' | 'D'
 
 export interface QuestionCategory {
   id: string
   module: QuestionModule
   name: string
   slug: string
-  parentId: string | null
-  children?: QuestionCategory[]
+  parent: string | null
+  sortOrder: number
+}
+
+/** Compact category as nested inside question list/detail. */
+export interface QuestionCategoryRef {
+  id: string
+  name: string
+  module: QuestionModule
 }
 
 export interface QuestionTag {
@@ -81,62 +99,158 @@ export interface QuestionTag {
 }
 
 export interface QuestionChoice {
-  id: string
-  label: 'A' | 'B' | 'C' | 'D'
+  label: ChoiceLabel
   text: string
   imageUrl: string | null
+  sortOrder: number
 }
 
-export interface Question {
+/** Question list item (browsing) — no correct answer / explanation. */
+export interface QuestionListItem {
   id: string
-  version: number
   module: QuestionModule
-  category: QuestionCategory
+  category: QuestionCategoryRef
   difficulty: 1 | 2 | 3 | 4 | 5
-  status: QuestionStatus
+  answerType: AnswerType
+  hasMath: boolean
+  stem: string
+  tags: string[] // slugs
+  version: number
+  createdAt: string
+}
+
+/** Question detail (study view) — includes answer + explanation. */
+export interface QuestionDetail {
+  id: string
+  module: QuestionModule
+  category: QuestionCategoryRef
+  difficulty: 1 | 2 | 3 | 4 | 5
+  answerType: AnswerType
+  hasMath: boolean
   stem: string
   stemImageUrl: string | null
-  hasMath: boolean
   passage: string | null
   passageImageUrl: string | null
-  answerType: AnswerType
-  choices: QuestionChoice[]  // empty for grid_in
+  choices: QuestionChoice[]
+  correctAnswer: string
   explanation: string | null
   explanationImageUrl: string | null
+  source: 'official' | 'custom' | 'imported'
+  sourceRef: string | null
   tags: QuestionTag[]
+  version: number
   createdAt: string
-  publishedAt: string | null
 }
-
-// Public view — no correct answer
-export type QuestionPublic = Omit<Question, 'status' | 'version'>
 
 // ─────────────────────────────────────
 // Test Engine / Sessions
 // ─────────────────────────────────────
 
-export type ExamType = 'practice' | 'past_paper' | 'mock' | 'midterm' | 'assessment' | 'homework'
+export type ExamType =
+  | 'practice'
+  | 'past_paper'
+  | 'mock'
+  | 'midterm'
+  | 'assessment'
+  | 'homework'
+
+export type ExamModule = 'math' | 'reading_writing' | 'full'
 export type SessionStatus = 'in_progress' | 'paused' | 'completed' | 'abandoned'
 
-export interface ExamTemplate {
+export type AccessLevel = 'public' | 'academy'
+
+/** Compact exam template nested in session list/detail. */
+export interface ExamSummary {
+  id: string
+  title: string
+  type: ExamType
+  module: ExamModule
+  timeLimit: number | null // minutes
+  isAdaptive: boolean
+}
+
+/** GET /exams/ — a startable exam template for the dashboard. */
+export interface ExamListItem {
   id: string
   type: ExamType
   title: string
   description: string | null
-  module: 'math' | 'reading_writing' | 'full'
+  module: ExamModule
   timeLimit: number | null // minutes
   isAdaptive: boolean
-  accessLevel: 'public' | 'academy'
-  sections: ExamSection[]
+  accessLevel: AccessLevel
+  sectionCount: number
+  questionCount: number
+  createdAt: string
 }
 
-export interface ExamSection {
+/** The question shape returned inside a test session (no answer/explanation). */
+export interface SessionQuestion {
   id: string
+  module: QuestionModule
+  stem: string
+  stemImageUrl: string | null
+  passage: string | null
+  passageImageUrl: string | null
+  answerType: AnswerType
+  hasMath: boolean
+  choices: QuestionChoice[] // empty for grid_in
+}
+
+/** Section as returned by the backend (questions wrapped with position). */
+export interface SessionSectionRaw {
+  sectionNumber: number
   title: string
   module: QuestionModule
+  timeLimit: number | null // minutes
+  questions: Array<{ position: number; question: SessionQuestion }>
+}
+
+/** Flattened section used by the engine store. */
+export interface EngineSection {
   sectionNumber: number
+  title: string
+  module: QuestionModule
   timeLimit: number | null
-  questions: QuestionPublic[]
+  questions: SessionQuestion[]
+}
+
+export interface SessionResponse {
+  question: string
+  chosenAnswer: string
+  isCorrect: boolean | null
+  timeSpent: number | null
+  answeredAt: string
+}
+
+export interface ClientSessionData {
+  questions?: Record<string, QuestionClientState>
+}
+
+/** GET /sessions/:id — the full session-detail object. */
+export interface SessionDetail {
+  id: string
+  exam: ExamSummary
+  status: SessionStatus
+  currentSection: number // 1-indexed
+  currentQuestion: number // 1-indexed
+  timeRemaining: number | null // seconds
+  serverTimeRemaining: number | null // seconds — authoritative
+  startedAt: string
+  submittedAt: string | null
+  clientSessionData: ClientSessionData
+  sections: SessionSectionRaw[]
+  responses: SessionResponse[]
+}
+
+/** GET /sessions/ — history list item. */
+export interface SessionListItem {
+  id: string
+  exam: ExamSummary
+  status: SessionStatus
+  startedAt: string
+  submittedAt: string | null
+  createdAt: string
 }
 
 // Per-question client state (stored in Zustand + auto-saved)
@@ -144,35 +258,26 @@ export interface QuestionClientState {
   answer: string | null
   flagged: boolean
   note: string
-  crossedOut: ('A' | 'B' | 'C' | 'D')[]
+  crossedOut: ChoiceLabel[]
   highlight: HighlightData | null
 }
 
 export interface HighlightData {
-  // Serialize qilingan highlight ma'lumoti
   ranges: Array<{ start: number; end: number; color: string }>
-}
-
-export interface ExamSession {
-  id: string
-  examId: string
-  status: SessionStatus
-  currentSection: number
-  currentQuestion: number
-  timeRemaining: number | null // seconds
-  startedAt: string
-  submittedAt: string | null
 }
 
 // ─────────────────────────────────────
 // Results
 // ─────────────────────────────────────
 
+export interface CategoryBreakdown {
+  name: string
+  correct: number
+  total: number
+  accuracy: Decimalish
+}
+
 export interface ExamResult {
-  id: string
-  sessionId: string
-  examTitle: string
-  examType: ExamType
   totalScore: number | null
   mathScore: number | null
   rwScore: number | null
@@ -180,16 +285,11 @@ export interface ExamResult {
   totalIncorrect: number
   totalSkipped: number
   totalQuestions: number
-  accuracyPct: number
+  accuracyPct: Decimalish
   timeSpentSecs: number
-  percentile: number | null
+  percentile: Decimalish
   scoreBreakdown: {
-    categories: Record<string, {
-      name: string
-      correct: number
-      total: number
-      accuracy: number
-    }>
+    categories: Record<string, CategoryBreakdown>
   }
   computedAt: string
 }
@@ -198,71 +298,34 @@ export interface ExamResult {
 // Analytics
 // ─────────────────────────────────────
 
-export interface AnalyticsOverview {
-  totalQuestionsAnswered: number
-  overallAccuracy: number // percent
-  mathAccuracy: number
-  rwAccuracy: number
-  timeSpentSecs: number
-  estimatedScore: number | null
-  weakAreas: WeakArea[]
-  recommendation: StudyRecommendation
+export interface AnalyticsSummary {
+  totalAnswered: number
+  totalCorrect: number
+  overallAccuracy: number
+  examsCompleted: number
+  bestExamAccuracy: number | null
 }
 
-export interface WeakArea {
-  categoryId: string
+export interface CategoryProgress {
+  category: string
   categoryName: string
   module: QuestionModule
+  totalAnswered: number
+  totalCorrect: number
+  accuracyPct: Decimalish
+  lastPracticedAt: string | null
+}
+
+export interface RankingEntry {
+  rank: number
+  name: string
   accuracy: number
   totalAnswered: number
-}
-
-export interface StudyRecommendation {
-  type: 'weak_area' | 'new_topic' | 'practice_test'
-  categoryId?: string
-  categoryName?: string
-  reason: string
-  actionLabel: string
-  actionUrl: string
+  isMe: boolean
 }
 
 // ─────────────────────────────────────
-// Academy
-// ─────────────────────────────────────
-
-export interface Class {
-  id: string
-  name: string
-  code: string
-  teacherId: string
-  teacherName: string
-  isActive: boolean
-  startsAt: string | null
-  endsAt: string | null
-  studentCount: number
-}
-
-export interface HomeworkAssignment {
-  id: string
-  classId: string
-  title: string
-  instructions: string | null
-  dueAt: string
-  timeLimit: number | null
-  questionCount: number
-  mySubmission: HomeworkSubmission | null
-}
-
-export interface HomeworkSubmission {
-  id: string
-  submittedAt: string | null
-  score: number | null
-  teacherNote: string | null
-  gradedAt: string | null
-}
-
-// ─────────────────────────────────────
-// Notifications
+// Notifications (Phase 2 — kept for reference)
 // ─────────────────────────────────────
 
 export type NotificationType =

@@ -474,4 +474,55 @@ Bularni hech qachon buzmang:
 
 ---
 
-*Oxirgi yangilangan: Arxitektura finalized — MVP boshlash tayyor.*
+## PHASE 1 — FRONTEND CORE SLICE (CURRENT)
+
+> **Goal:** ship a usable student flow end-to-end against the live backend —
+> **auth → student dashboard → take a practice test (test engine) → see results.**
+> Teacher/admin, analytics charts, question-bank browsing, academy/homework UIs = Phase 2+.
+
+### Current state — do NOT rebuild
+**Backend = DONE** (on GitHub, CI green). All endpoints live; responses use the
+`{ success, data, meta }` envelope with **snake_case** fields.
+**Frontend plumbing = DONE — reuse, don't rewrite:**
+- `src/lib/api/client.ts` — axios + Bearer + refresh-token queue; `get/post/patch/put/del<T>` unwrap `response.data.data`.
+- `src/lib/stores/sessionStore.ts` — Zustand (persist key `dsat-session`); 19 actions + selectors (`selectAutoSavePayload`, `selectCurrentQuestion`…).
+- `src/lib/hooks/useAutoSave.ts` (30s + `beforeunload`), `src/lib/hooks/useTimer.ts` (display-only countdown).
+- `src/types/index.ts` (domain types), `tailwind.config.ts` (design tokens, dark mode).
+
+**Frontend UI = EMPTY** — build it.
+
+### ⚠️ FIRST TASK — reconcile the API layer with the real backend
+The existing `lib/api` was written against an assumed API and drifted. Fix before building UI:
+1. **Casing:** add a transform in `client.ts` (snake→camel on responses, camel→snake on request bodies) — recommended — or switch types to snake_case. One approach, applied consistently.
+2. **client.ts refresh bug:** it reads `response.data.data.access` but the backend returns `{ access_token }`. Login/register also return `{ user, access_token }`. Fix the field names.
+3. **sessions.ts:** start body = `{ exam: "<uuid>" }`; autosave fields = `current_section/current_question/time_remaining/client_session_data`; result path = `/sessions/{id}/result/` (singular); submit returns the `ExamResult`. **Add** `answer(id, { question, chosen_answer })` → POST `/{id}/answer/`, `resume(id)` → POST `/{id}/resume/`, `list()` → GET `/`. `start`/`get` return the full session-detail object (nested `exam` + `sections` + `server_time_remaining`), not `{ session, exam }`.
+4. Add `lib/api/auth.ts` (needed now); `questions.ts`/`analytics.ts`/`notifications.ts` as you reach them.
+
+### Backend API surface (live, under `/api/v1/`)
+- **auth/**: POST `register` `login` `refresh` `logout`; GET `me`; POST `verify-email/confirm` `verify-email/resend` `password/reset` `password/reset/confirm` `password/change`. Access token in body (`access_token`); refresh = HttpOnly cookie scoped to `/api/v1/auth/`.
+- **questions/**: GET `` (filters: module, difficulty, difficulty_min/max, category, tag, has_math, source; `search`; cursor pagination), `<id>/`, `categories/`, `tags/`.
+- **sessions/**: POST `` (start), GET `<id>/`, PATCH `<id>/` (autosave), POST `<id>/answer/` `<id>/pause/` `<id>/resume/` `<id>/submit/`, GET `<id>/result/`, GET `` (history).
+- **analytics/**: GET `progress/` `summary/` `rankings/`.  **notifications/**: GET `` (`?unread=1`) `unread-count/`; POST `<id>/read/` `read-all/`.
+
+### Deliverables (core slice)
+1. **Foundation:** `app/layout.tsx`, `globals.css` (import KaTeX CSS), providers (TanStack Query, theme). Init **shadcn/ui** (Button, Input, Card, Dialog, Label, Toast, Badge, Progress) in `components/ui/`.
+2. **Auth `(public)`:** login, register, verify-email, forgot/reset pages (React Hook Form + Zod). `AuthProvider` (Context) holding user + access token (`setAccessToken`), restoring via `GET /auth/me` on load. `middleware.ts` (or layout guard) protecting `(student)`/`(session)`.
+3. **Student shell + dashboard `(student)`:** `layout.tsx` (Navbar + Sidebar in `components/common/`); dashboard = summary (`GET /analytics/summary/`) + available practice tests + recent sessions (`GET /sessions/`).
+4. **Test engine UI `(session)` — the core, hardest part:** fullscreen, no nav. Wire `sessionStore` + `useTimer` + `useAutoSave` to: a **question renderer** (markdown + KaTeX via `react-markdown` + `remark-math` + `rehype-katex`), MCQ choices + grid-in, flag/cross-out/note, **timer** (warning/danger), section + question navigator, pause/resume, submit (confirm dialog). **Session recovery:** hydrate localStorage → `GET /sessions/{id}/` to sync (server wins).
+5. **Results screen:** score card (total/math/rw), accuracy, per-category breakdown (`GET /sessions/{id}/result/`).
+
+### Conventions (see also §2 tech stack, §7 test engine)
+TanStack Query for server state; **Zustand only** for the session engine. shadcn/ui + Radix (installed), **KaTeX** (not MathJax), React Hook Form + Zod, Recharts lazy (Phase 2). TypeScript strict, no `any`, `@/*` → `src/*`. Timer is **server-authoritative** (client display only). Route groups: `(public)` `(student)` `(session)`; `(teacher)`/`(admin)` = Phase 2.
+
+### Verification (end-to-end)
+1. Backend: `cd backend && source .venv/bin/activate && python manage.py runserver` (dev = Celery eager + SQLite, no Redis/Postgres). Seed a public `ExamTemplate` (type=practice) with a section + a few published questions via `/admin/`.
+2. Frontend: `cd frontend && npm install && npm run dev` → http://localhost:3000.
+3. Flow: register → verify (dev prints the link to the backend console) → dashboard → start practice test → answer (KaTeX renders) → timer counts down → flag/cross-out work → auto-save PATCH every 30s → **refresh mid-test and confirm recovery** → submit → results screen.
+4. `npm run type-check` + `npm run lint` clean. Add vitest tests for the API reconciliation + a couple store/hook tests; Playwright e2e for the happy path (stretch).
+
+### Out of scope (Phase 2+)
+Teacher & admin surfaces, analytics charts, public/marketing pages, question-bank browsing UI, academy/homework UI, notifications UI, i18n, official SAT scaling tables, deployment.
+
+---
+
+*Oxirgi yangilangan: Phase 0 done (backend complete, CI green) — Phase 1 (frontend core slice) ready to start.*
