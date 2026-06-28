@@ -149,9 +149,7 @@ class Command(BaseCommand):
             or User.objects.order_by("created_at").first()
         )
         if owner is None:
-            raise CommandError(
-                "No users exist. Create one first: python manage.py createsuperuser"
-            )
+            raise CommandError("No users exist. Create one first: python manage.py createsuperuser")
 
         existing = ExamTemplate.all_objects.filter(title=EXAM_TITLE).first()
         if existing and not options["reset"]:
