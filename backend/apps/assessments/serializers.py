@@ -63,6 +63,32 @@ class ExamMiniSerializer(serializers.ModelSerializer):
         fields = ["id", "title", "type", "module", "time_limit", "is_adaptive"]
 
 
+class ExamListSerializer(serializers.ModelSerializer):
+    """Available exam templates for the dashboard ('start a test' cards).
+
+    section_count / question_count are annotated by the view.
+    """
+
+    section_count = serializers.IntegerField(read_only=True)
+    question_count = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = ExamTemplate
+        fields = [
+            "id",
+            "type",
+            "title",
+            "description",
+            "module",
+            "time_limit",
+            "is_adaptive",
+            "access_level",
+            "section_count",
+            "question_count",
+            "created_at",
+        ]
+
+
 class ResponseSerializer(serializers.ModelSerializer):
     class Meta:
         model = ExamResponse
