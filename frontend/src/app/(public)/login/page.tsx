@@ -12,23 +12,12 @@ import { useAuth } from '@/lib/auth/AuthProvider'
 import { useToast } from '@/components/ui/toast'
 import { parseApiError } from '@/lib/api/errors'
 import { loginSchema, type LoginValues } from '@/lib/validations/auth'
+import { safeNextPath } from '@/lib/utils/url'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { FieldError } from '@/components/ui/field-error'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-
-/**
- * Only allow same-origin, absolute internal paths as a post-login redirect.
- * Rejects external URLs, protocol-relative ("//evil.com"), and "javascript:"
- * schemes so a crafted ?next= can't redirect users off the app.
- */
-function safeNextPath(raw: string | null): string {
-  if (!raw || !raw.startsWith('/') || raw.startsWith('//') || raw.startsWith('/\\')) {
-    return '/dashboard'
-  }
-  return raw
-}
 
 function LoginForm() {
   const router = useRouter()
