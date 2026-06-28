@@ -18,6 +18,7 @@ urlpatterns = [
     # API v1
     path(API_V1 + "auth/", include("apps.identity.urls")),
     path(API_V1 + "questions/", include("apps.question_bank.urls")),
+    path(API_V1 + "exams/", include("apps.assessments.exams_urls")),
     path(API_V1 + "sessions/", include("apps.assessments.urls")),
     path(API_V1 + "analytics/", include("apps.analytics.urls")),
     path(API_V1 + "teacher/", include("apps.academy.urls.teacher")),

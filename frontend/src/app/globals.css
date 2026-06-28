@@ -1,0 +1,101 @@
+/* ═══════════════════════════════════════
+   DSAT LMS v2 — Global styles
+   Domain: All
+   - Tailwind layers
+   - Semantic CSS-variable tokens (light + dark)
+   - KaTeX styles (math rendering)
+   ═══════════════════════════════════════ */
+
+@import 'katex/dist/katex.min.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: #ffffff;
+    --foreground: #0f172a; /* neutral-900 */
+
+    --card: #ffffff;
+    --card-foreground: #0f172a;
+
+    --popover: #ffffff;
+    --popover-foreground: #0f172a;
+
+    --muted: #f1f5f9; /* neutral-100 */
+    --muted-foreground: #64748b; /* neutral-500 */
+
+    --accent: #eef2ff; /* primary-50 */
+    --accent-foreground: #3730a3; /* primary-700 */
+
+    --destructive: #ef4444;
+    --destructive-foreground: #ffffff;
+
+    --border: #e2e8f0; /* neutral-200 */
+    --input: #e2e8f0;
+    --ring: #4f46e5; /* primary-500 */
+  }
+
+  .dark {
+    --background: #0f172a; /* neutral-900 */
+    --foreground: #f1f5f9;
+
+    --card: #1e293b; /* neutral-800 */
+    --card-foreground: #f1f5f9;
+
+    --popover: #1e293b;
+    --popover-foreground: #f1f5f9;
+
+    --muted: #1e293b;
+    --muted-foreground: #94a3b8; /* neutral-400 */
+
+    --accent: #312e81; /* primary-800 */
+    --accent-foreground: #e0e7ff; /* primary-100 */
+
+    --destructive: #ef4444;
+    --destructive-foreground: #ffffff;
+
+    --border: #334155; /* neutral-700 */
+    --input: #334155;
+    --ring: #818cf8; /* primary-400 */
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: 'rlig' 1, 'calt' 1;
+  }
+}
+
+@layer utilities {
+  /* Hide scrollbars in the test engine navigator while keeping scroll */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+/* Math renders inline-friendly; keep block math from overflowing on mobile */
+.katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 2px 0;
+}
+
+/* Markdown content spacing in question stems / passages */
+.prose-question p {
+  margin-bottom: 0.75rem;
+}
+.prose-question p:last-child {
+  margin-bottom: 0;
+}
+.prose-question strong {
+  font-weight: 600;
+}

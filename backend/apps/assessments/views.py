@@ -9,6 +9,7 @@ Permissions: IsAuthenticated (global). Sessions are owner-scoped (others get 404
 
 import logging
 
+from django.db.models import Count
 from django.utils import timezone
 from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.views import APIView
@@ -21,6 +22,7 @@ from .models import ExamQuestion, ExamResponse, ExamSession, ExamTemplate
 from .serializers import (
     AnswerSerializer,
     AutoSaveSerializer,
+    ExamListSerializer,
     ResponseSerializer,
     ResultSerializer,
     SessionDetailSerializer,
@@ -38,6 +40,34 @@ def _owned_session(request, pk):
         return ExamSession.objects.select_related("exam").get(pk=pk, user=request.user)
     except ExamSession.DoesNotExist:
         raise NotFound("Session not found.") from None
+
+
+class ExamListView(APIView):
+    """Startable exam templates for the current user (dashboard 'take a test').
+
+    Only exams that actually have questions are returned. Public exams are visible
+    to everyone; academy-only exams require academy access (student/teacher/admin).
+    Optional ?type= filter (practice, past_paper, ...).
+    """
+
+    def get(self, request):
+        queryset = (
+            ExamTemplate.objects.annotate(
+                section_count=Count("sections", distinct=True),
+                question_count=Count("sections__exam_questions", distinct=True),
+            )
+            .filter(section_count__gt=0, question_count__gt=0)
+            .order_by("type", "title")
+        )
+
+        if not request.user.has_full_access:
+            queryset = queryset.filter(access_level=ExamTemplate.AccessLevel.PUBLIC)
+
+        exam_type = request.query_params.get("type")
+        if exam_type:
+            queryset = queryset.filter(type=exam_type)
+
+        return success_response(ExamListSerializer(queryset, many=True).data)
 
 
 class SessionListCreateView(APIView):
