@@ -84,7 +84,8 @@ describe('sessionStore', () => {
     const payload = selectAutoSavePayload(useSessionStore.getState())
     expect(payload.currentSection).toBe(2)
     expect(payload.currentQuestion).toBe(1)
-    expect(payload.timeRemaining).toBe(900)
+    // time_remaining is intentionally NOT sent (server-authoritative clock).
+    expect('timeRemaining' in payload).toBe(false)
     expect(payload.clientSessionData.questions.q3.answer).toBe('A')
   })
 

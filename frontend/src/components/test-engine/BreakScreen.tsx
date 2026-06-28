@@ -5,6 +5,7 @@
 import * as React from 'react'
 import { ArrowRight, CheckCircle2 } from 'lucide-react'
 import { useSessionStore } from '@/lib/stores/sessionStore'
+import { sessionAPI } from '@/lib/api/sessions'
 import { Button } from '@/components/ui/button'
 
 export function BreakScreen() {
@@ -13,6 +14,9 @@ export function BreakScreen() {
   const questionStates = useSessionStore((s) => s.questionStates)
   const navigateTo = useSessionStore((s) => s.navigateTo)
   const setStatus = useSessionStore((s) => s.setStatus)
+  const setTimeRemaining = useSessionStore((s) => s.setTimeRemaining)
+
+  const [starting, setStarting] = React.useState(false)
 
   const finished = sections[sectionIndex]
   const next = sections[sectionIndex + 1]
@@ -26,8 +30,29 @@ export function BreakScreen() {
     return { answered, total: finished.questions.length }
   }, [finished, questionStates])
 
-  const begin = () => {
-    navigateTo(sectionIndex + 1, 0)
+  // Persist the section change BEFORE activating, then adopt the server's
+  // authoritative remaining time for the new section. This matters for exams
+  // with per-section time_limit: the PATCH starts the new section's clock
+  // (section_started_at) server-side, and we reset the display timer from the
+  // server instead of carrying over the previous section's countdown.
+  const begin = async () => {
+    const nextIndex = sectionIndex + 1
+    const meta = useSessionStore.getState().meta
+    setStarting(true)
+    if (meta?.sessionId) {
+      try {
+        const detail = await sessionAPI.autoSave(meta.sessionId, {
+          currentSection: nextIndex + 1, // 1-indexed
+          currentQuestion: 1,
+          clientSessionData: { questions: useSessionStore.getState().questionStates },
+        })
+        setTimeRemaining(detail.serverTimeRemaining ?? detail.timeRemaining ?? 0)
+      } catch {
+        // Network hiccup — fall back to local navigation; the next autosave
+        // re-syncs and the timer stays server-authoritative on reload.
+      }
+    }
+    navigateTo(nextIndex, 0)
     setStatus('active')
   }
 
@@ -47,7 +72,7 @@ export function BreakScreen() {
               <p className="font-semibold">{next.title || `Section ${next.sectionNumber}`}</p>
               <p className="text-sm text-muted-foreground">{next.questions.length} questions</p>
             </div>
-            <Button className="mt-6 w-full" onClick={begin}>
+            <Button className="mt-6 w-full" onClick={begin} loading={starting}>
               Begin next section <ArrowRight className="h-4 w-4" />
             </Button>
           </>

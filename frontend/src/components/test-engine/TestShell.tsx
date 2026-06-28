@@ -6,6 +6,7 @@
 
 import * as React from 'react'
 import { useRouter } from 'next/navigation'
+import { useQueryClient } from '@tanstack/react-query'
 import { useSessionStore, selectAutoSavePayload } from '@/lib/stores/sessionStore'
 import { useAutoSave } from '@/lib/hooks/useAutoSave'
 import { sessionAPI } from '@/lib/api/sessions'
@@ -22,6 +23,7 @@ import { SubmitDialog } from './SubmitDialog'
 export function TestShell() {
   const router = useRouter()
   const { toast } = useToast()
+  const queryClient = useQueryClient()
   useAutoSave()
 
   const status = useSessionStore((s) => s.status)
@@ -59,6 +61,9 @@ export function TestShell() {
         )
       )
       await sessionAPI.submit(meta.sessionId)
+      // Dashboard stats + session history are now stale.
+      queryClient.invalidateQueries({ queryKey: ['sessions'] })
+      queryClient.invalidateQueries({ queryKey: ['analytics'] })
       setSubmitOpen(false)
       router.replace(`/results/${meta.sessionId}`)
       useSessionStore.getState().resetSession()
@@ -71,7 +76,7 @@ export function TestShell() {
         description: parseApiError(err).message,
       })
     }
-  }, [router, toast, submitting])
+  }, [router, toast, submitting, queryClient])
 
   const handlePause = React.useCallback(async () => {
     const state = useSessionStore.getState()

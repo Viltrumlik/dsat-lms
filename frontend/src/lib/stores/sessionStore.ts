@@ -302,11 +302,15 @@ export const selectSectionProgress = (state: SessionState, sectionIndex: number)
   return { answered, flagged, total: section.questions.length }
 }
 
-// Auto-save uchun minimal payload
+// Auto-save uchun minimal payload.
+// NOTE: time_remaining is intentionally NOT sent. The timer is server-authoritative
+// (computed from started_at), and the client's value is briefly stale right after
+// load (captured at GET, before the display timer ticks) — sending it tripped the
+// server's cheat-check and rejected the whole autosave, losing flag/note/cross-out
+// state. Omitting it is safe: the server clock stays the single source of truth.
 export const selectAutoSavePayload = (state: SessionState) => ({
   currentSection: state.currentSectionIndex + 1,
   currentQuestion: state.currentQuestionIndex + 1,
-  timeRemaining: state.timeRemaining,
   clientSessionData: {
     questions: state.questionStates,
   },

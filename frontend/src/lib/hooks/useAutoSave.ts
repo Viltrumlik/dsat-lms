@@ -6,8 +6,10 @@
 // ═══════════════════════════════════════
 
 import { useEffect, useRef, useCallback } from 'react'
-import { useSessionStore, selectAutoSavePayload } from '@/lib/stores/sessionStore'
+import { useSessionStore } from '@/lib/stores/sessionStore'
 import { sessionAPI } from '@/lib/api/sessions'
+import { getAccessToken } from '@/lib/api/client'
+import { decamelizeKeys } from '@/lib/utils/case'
 
 interface UseAutoSaveOptions {
   intervalMs?: number    // Default: 30_000 (30 seconds)
@@ -24,12 +26,13 @@ export function useAutoSave({
   const status = useSessionStore((s) => s.status)
   const currentSectionIndex = useSessionStore((s) => s.currentSectionIndex)
   const currentQuestionIndex = useSessionStore((s) => s.currentQuestionIndex)
-  const timeRemaining = useSessionStore((s) => s.timeRemaining)
   const questionStates = useSessionStore((s) => s.questionStates)
 
   const isSavingRef = useRef(false)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
+  // time_remaining is intentionally omitted — server-authoritative clock; see
+  // selectAutoSavePayload for why sending it caused false cheat-rejections.
   const save = useCallback(async () => {
     if (!meta?.sessionId) return
     if (isSavingRef.current) return  // Avvalgi save hali tugamagan
@@ -41,7 +44,6 @@ export function useAutoSave({
       await sessionAPI.autoSave(meta.sessionId, {
         currentSection: currentSectionIndex + 1,
         currentQuestion: currentQuestionIndex + 1,
-        timeRemaining,
         clientSessionData: { questions: questionStates },
       })
     } catch (error) {
@@ -53,7 +55,7 @@ export function useAutoSave({
     } finally {
       isSavingRef.current = false
     }
-  }, [meta?.sessionId, status, currentSectionIndex, currentQuestionIndex, timeRemaining, questionStates, onError])
+  }, [meta?.sessionId, status, currentSectionIndex, currentQuestionIndex, questionStates, onError])
 
   // Start/stop interval
   useEffect(() => {
@@ -75,28 +77,48 @@ export function useAutoSave({
     }
   }, [enabled, meta?.sessionId, status, intervalMs, save])
 
-  // Page unload oldidan save
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (status === 'active' && meta?.sessionId) {
-        // Sync save (navigator.sendBeacon bilan)
-        const payload = JSON.stringify({
-          currentSection: currentSectionIndex + 1,
-          currentQuestion: currentQuestionIndex + 1,
-          timeRemaining,
-          clientSessionData: { questions: questionStates },
-        })
-        navigator.sendBeacon(
-          `/api/v1/sessions/${meta.sessionId}/`,
-          new Blob([payload], { type: 'application/json' })
-        )
-        e.preventDefault()
-      }
+  // Flush on tab hide / unload. sendBeacon can't carry an Authorization header,
+  // so we use fetch({ keepalive }) — same auth + base URL + snake_case transform
+  // as a normal request — which is allowed to outlive the page.
+  const flush = useCallback(() => {
+    if (status !== 'active' || !meta?.sessionId) return
+    const base = process.env.NEXT_PUBLIC_API_URL ?? ''
+    const token = getAccessToken()
+    const body = JSON.stringify(
+      decamelizeKeys({
+        currentSection: currentSectionIndex + 1,
+        currentQuestion: currentQuestionIndex + 1,
+        clientSessionData: { questions: questionStates },
+      })
+    )
+    try {
+      void fetch(`${base}/api/v1/sessions/${meta.sessionId}/`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body,
+        credentials: 'include',
+        keepalive: true,
+      }).catch(() => {})
+    } catch {
+      // navigator may reject keepalive on very large bodies — best-effort only
     }
+  }, [status, meta?.sessionId, currentSectionIndex, currentQuestionIndex, questionStates])
 
-    window.addEventListener('beforeunload', handleBeforeUnload)
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
-  }, [status, meta?.sessionId, currentSectionIndex, currentQuestionIndex, timeRemaining, questionStates])
+  useEffect(() => {
+    const onPageHide = () => flush()
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') flush()
+    }
+    window.addEventListener('pagehide', onPageHide)
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      window.removeEventListener('pagehide', onPageHide)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
+  }, [flush])
 
   return { save }
 }

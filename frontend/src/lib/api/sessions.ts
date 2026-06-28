@@ -21,7 +21,9 @@ import type {
 export interface AutoSavePayload {
   currentSection: number
   currentQuestion: number
-  timeRemaining: number | null
+  // time_remaining is omitted on purpose — the server clock is authoritative
+  // (see selectAutoSavePayload). Optional so a caller may still send it if needed.
+  timeRemaining?: number | null
   clientSessionData: ClientSessionData
 }
 

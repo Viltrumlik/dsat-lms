@@ -18,13 +18,25 @@ import { Label } from '@/components/ui/label'
 import { FieldError } from '@/components/ui/field-error'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
+/**
+ * Only allow same-origin, absolute internal paths as a post-login redirect.
+ * Rejects external URLs, protocol-relative ("//evil.com"), and "javascript:"
+ * schemes so a crafted ?next= can't redirect users off the app.
+ */
+function safeNextPath(raw: string | null): string {
+  if (!raw || !raw.startsWith('/') || raw.startsWith('//') || raw.startsWith('/\\')) {
+    return '/dashboard'
+  }
+  return raw
+}
+
 function LoginForm() {
   const router = useRouter()
   const params = useSearchParams()
   const { login, isAuthenticated, isLoading } = useAuth()
   const { toast } = useToast()
 
-  const next = params.get('next') || '/dashboard'
+  const next = safeNextPath(params.get('next'))
 
   React.useEffect(() => {
     if (!isLoading && isAuthenticated) router.replace(next)
