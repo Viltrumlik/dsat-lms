@@ -1,6 +1,6 @@
 // Domain: Common
-// Description: Left navigation for the student shell. Phase-2 destinations are
-//   shown disabled with a "Soon" tag.
+// Description: Left navigation for the student shell. Items may opt into a
+//   disabled "Soon" tag (soon: true) for not-yet-built destinations.
 'use client'
 
 import Link from 'next/link'
@@ -19,7 +19,7 @@ const NAV: NavItem[] = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { label: 'Practice Tests', href: '/dashboard#tests', icon: ListChecks },
   { label: 'Question Bank', href: '/questions', icon: BookOpen },
-  { label: 'Analytics', href: '#', icon: BarChart3, soon: true },
+  { label: 'Analytics', href: '/analytics', icon: BarChart3 },
 ]
 
 export function Sidebar() {
