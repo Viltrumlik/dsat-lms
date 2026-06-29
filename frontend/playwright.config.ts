@@ -15,10 +15,16 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
+  // The dev server compiles routes on first hit, so the first navigation into a
+  // heavy route (e.g. the test engine, /session/[id]) can take well over the 5s
+  // default. Give assertions and navigations room to absorb that cold compile.
+  expect: { timeout: 20_000 },
   use: {
     baseURL: BASE_URL,
     trace: 'on-first-retry',
     video: 'retain-on-failure',
+    navigationTimeout: 30_000,
+    actionTimeout: 15_000,
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
