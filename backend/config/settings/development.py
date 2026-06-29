@@ -23,6 +23,7 @@ def _tune_sqlite(sender, connection, **kwargs):  # noqa: ANN001, ARG001
         cursor.execute("PRAGMA synchronous=NORMAL;")
         cursor.execute("PRAGMA busy_timeout=20000;")
 
+
 # Dev'da email console'ga chiqadi
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
