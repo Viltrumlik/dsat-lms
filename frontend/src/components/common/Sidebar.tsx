@@ -29,7 +29,10 @@ export function Sidebar() {
     <aside className="hidden w-sidebar shrink-0 border-r border-border bg-card md:block">
       <nav className="sticky top-16 flex flex-col gap-1 p-3">
         {NAV.map((item) => {
-          const active = !item.soon && pathname === item.href.split('#')[0]
+          // In-page anchors (href contains '#') share a pathname with the page
+          // they scroll within, so they must not compete for the active state —
+          // only the real page link (no hash) highlights.
+          const active = !item.soon && !item.href.includes('#') && pathname === item.href
           const Icon = item.icon
           if (item.soon) {
             return (
