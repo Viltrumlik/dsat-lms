@@ -5,32 +5,49 @@
 import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
 import { formatDistanceToNow } from 'date-fns'
+import { uz as uzDate } from 'date-fns/locale'
 import { ChevronRight } from 'lucide-react'
 import { sessionAPI } from '@/lib/api/sessions'
+import { useI18n } from '@/lib/i18n/I18nProvider'
 import { Badge, type BadgeProps } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
+import type { Locale } from '@/lib/i18n/config'
 import type { SessionListItem, SessionStatus } from '@/types'
 
-const STATUS: Record<SessionStatus, { label: string; variant: BadgeProps['variant'] }> = {
-  in_progress: { label: 'In progress', variant: 'warning' },
-  paused: { label: 'Paused', variant: 'warning' },
-  completed: { label: 'Completed', variant: 'success' },
-  abandoned: { label: 'Abandoned', variant: 'secondary' },
+const STATUS_VARIANT: Record<SessionStatus, BadgeProps['variant']> = {
+  in_progress: 'warning',
+  paused: 'warning',
+  completed: 'success',
+  abandoned: 'secondary',
 }
 
-function relativeTime(iso: string) {
+const STATUS_KEY: Record<SessionStatus, string> = {
+  in_progress: 'dashboard.recent.inProgress',
+  paused: 'dashboard.recent.paused',
+  completed: 'dashboard.recent.completed',
+  abandoned: 'dashboard.recent.abandoned',
+}
+
+function relativeTime(iso: string, locale: Locale) {
   try {
-    return formatDistanceToNow(new Date(iso), { addSuffix: true })
+    return formatDistanceToNow(new Date(iso), {
+      addSuffix: true,
+      locale: locale === 'uz' ? uzDate : undefined,
+    })
   } catch {
     return ''
   }
 }
 
 function SessionRow({ session }: { session: SessionListItem }) {
-  const status = STATUS[session.status]
+  const { t, locale } = useI18n()
   const isResumable = session.status === 'in_progress' || session.status === 'paused'
   const href = session.status === 'completed' ? `/results/${session.id}` : `/session/${session.id}`
-  const cta = isResumable ? 'Resume' : session.status === 'completed' ? 'View results' : 'View'
+  const cta = isResumable
+    ? t('dashboard.recent.resume')
+    : session.status === 'completed'
+      ? t('dashboard.recent.viewResults')
+      : t('dashboard.recent.view')
 
   return (
     <Link
@@ -39,10 +56,12 @@ function SessionRow({ session }: { session: SessionListItem }) {
     >
       <div className="min-w-0">
         <p className="truncate font-medium">{session.exam.title}</p>
-        <p className="text-xs text-muted-foreground">Started {relativeTime(session.startedAt)}</p>
+        <p className="text-xs text-muted-foreground">
+          {t('dashboard.recent.started', { time: relativeTime(session.startedAt, locale) })}
+        </p>
       </div>
       <div className="flex shrink-0 items-center gap-3">
-        <Badge variant={status.variant}>{status.label}</Badge>
+        <Badge variant={STATUS_VARIANT[session.status]}>{t(STATUS_KEY[session.status])}</Badge>
         <span className="hidden items-center gap-0.5 text-sm font-medium text-primary sm:flex">
           {cta} <ChevronRight className="h-4 w-4" />
         </span>
@@ -52,6 +71,7 @@ function SessionRow({ session }: { session: SessionListItem }) {
 }
 
 export function RecentSessions() {
+  const t = useI18n().t
   const { data, isLoading, isError } = useQuery({
     queryKey: ['sessions'],
     queryFn: sessionAPI.list,
@@ -61,7 +81,7 @@ export function RecentSessions() {
 
   return (
     <section className="space-y-4">
-      <h2 className="text-xl font-semibold">Recent activity</h2>
+      <h2 className="text-xl font-semibold">{t('dashboard.recent.title')}</h2>
       <Card>
         {isLoading && (
           <CardContent className="space-y-3 p-5">
@@ -72,12 +92,12 @@ export function RecentSessions() {
         )}
         {isError && (
           <CardContent className="p-5 text-sm text-muted-foreground">
-            Couldn&apos;t load your sessions.
+            {t('dashboard.recent.loadFailed')}
           </CardContent>
         )}
         {!isLoading && !isError && sessions.length === 0 && (
           <CardContent className="p-8 text-center text-sm text-muted-foreground">
-            No sessions yet — start a practice test above.
+            {t('dashboard.recent.empty')}
           </CardContent>
         )}
         {sessions.length > 0 && (

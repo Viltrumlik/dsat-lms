@@ -7,23 +7,25 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { BarChart3, BookOpen, LayoutDashboard, ListChecks } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 interface NavItem {
-  label: string
+  labelKey: string
   href: string
   icon: React.ComponentType<{ className?: string }>
   soon?: boolean
 }
 
 const NAV: NavItem[] = [
-  { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { label: 'Practice Tests', href: '/dashboard#tests', icon: ListChecks },
-  { label: 'Question Bank', href: '/questions', icon: BookOpen },
-  { label: 'Analytics', href: '/analytics', icon: BarChart3 },
+  { labelKey: 'nav.dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { labelKey: 'nav.practiceTests', href: '/dashboard#tests', icon: ListChecks },
+  { labelKey: 'nav.questionBank', href: '/questions', icon: BookOpen },
+  { labelKey: 'nav.analytics', href: '/analytics', icon: BarChart3 },
 ]
 
 export function Sidebar() {
   const pathname = usePathname()
+  const t = useT()
 
   return (
     <aside className="hidden w-sidebar shrink-0 border-r border-border bg-card md:block">
@@ -42,22 +44,22 @@ export function Sidebar() {
           if (item.soon) {
             return (
               <span
-                key={item.label}
+                key={item.href}
                 className="flex cursor-not-allowed items-center justify-between rounded-md px-3 py-2 text-sm text-muted-foreground/60"
               >
                 <span className="flex items-center gap-3">
                   <Icon className="h-5 w-5" />
-                  {item.label}
+                  {t(item.labelKey)}
                 </span>
                 <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide">
-                  Soon
+                  {t('nav.soon')}
                 </span>
               </span>
             )
           }
           return (
             <Link
-              key={item.label}
+              key={item.href}
               href={item.href}
               className={cn(
                 'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
@@ -67,7 +69,7 @@ export function Sidebar() {
               )}
             >
               <Icon className="h-5 w-5" />
-              {item.label}
+              {t(item.labelKey)}
             </Link>
           )
         })}

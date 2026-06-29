@@ -3,7 +3,6 @@
 //   into the fullscreen test engine.
 'use client'
 
-import * as React from 'react'
 import { useRouter } from 'next/navigation'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { Clock, FileText, Layers, Play } from 'lucide-react'
@@ -11,21 +10,17 @@ import { examAPI } from '@/lib/api/exams'
 import { sessionAPI } from '@/lib/api/sessions'
 import { useSessionStore } from '@/lib/stores/sessionStore'
 import { useToast } from '@/components/ui/toast'
+import { useI18n, plural } from '@/lib/i18n/I18nProvider'
 import { parseApiError } from '@/lib/api/errors'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
-import type { ExamListItem, ExamModule } from '@/types'
-
-const MODULE_LABEL: Record<ExamModule, string> = {
-  math: 'Math',
-  reading_writing: 'Reading & Writing',
-  full: 'Full Test',
-}
+import type { ExamListItem } from '@/types'
 
 function ExamCard({ exam }: { exam: ExamListItem }) {
   const router = useRouter()
   const { toast } = useToast()
+  const { t, locale } = useI18n()
   const resetSession = useSessionStore((s) => s.resetSession)
 
   const start = useMutation({
@@ -35,7 +30,11 @@ function ExamCard({ exam }: { exam: ExamListItem }) {
       router.push(`/session/${session.id}`)
     },
     onError: (err) => {
-      toast({ variant: 'error', title: 'Could not start test', description: parseApiError(err).message })
+      toast({
+        variant: 'error',
+        title: t('dashboard.practice.startFailed'),
+        description: parseApiError(err).message,
+      })
     },
   })
 
@@ -49,27 +48,43 @@ function ExamCard({ exam }: { exam: ExamListItem }) {
               <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{exam.description}</p>
             )}
           </div>
-          <Badge variant={exam.module === 'math' ? 'math' : exam.module === 'reading_writing' ? 'rw' : 'secondary'}>
-            {MODULE_LABEL[exam.module]}
+          <Badge
+            variant={
+              exam.module === 'math' ? 'math' : exam.module === 'reading_writing' ? 'rw' : 'secondary'
+            }
+          >
+            {t(`modules.${exam.module}`)}
           </Badge>
         </div>
 
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
           <span className="flex items-center gap-1.5">
-            <Layers className="h-4 w-4" /> {exam.sectionCount} section{exam.sectionCount === 1 ? '' : 's'}
+            <Layers className="h-4 w-4" /> {exam.sectionCount}{' '}
+            {plural(
+              locale,
+              exam.sectionCount,
+              t('dashboard.practice.sectionsOne'),
+              t('dashboard.practice.sectionsOther')
+            )}
           </span>
           <span className="flex items-center gap-1.5">
-            <FileText className="h-4 w-4" /> {exam.questionCount} question{exam.questionCount === 1 ? '' : 's'}
+            <FileText className="h-4 w-4" /> {exam.questionCount}{' '}
+            {plural(
+              locale,
+              exam.questionCount,
+              t('dashboard.practice.questionsOne'),
+              t('dashboard.practice.questionsOther')
+            )}
           </span>
           {exam.timeLimit !== null && (
             <span className="flex items-center gap-1.5">
-              <Clock className="h-4 w-4" /> {exam.timeLimit} min
+              <Clock className="h-4 w-4" /> {exam.timeLimit} {t('dashboard.practice.minutes')}
             </span>
           )}
         </div>
 
         <Button className="mt-auto w-full" loading={start.isPending} onClick={() => start.mutate()}>
-          <Play className="h-4 w-4" /> Start test
+          <Play className="h-4 w-4" /> {t('dashboard.practice.start')}
         </Button>
       </CardContent>
     </Card>
@@ -77,6 +92,7 @@ function ExamCard({ exam }: { exam: ExamListItem }) {
 }
 
 export function AvailableTests() {
+  const t = useI18n().t
   const { data, isLoading, isError } = useQuery({
     queryKey: ['exams'],
     queryFn: () => examAPI.list(),
@@ -85,8 +101,8 @@ export function AvailableTests() {
   return (
     <section id="tests" className="space-y-4">
       <div>
-        <h2 className="text-xl font-semibold">Practice tests</h2>
-        <p className="text-sm text-muted-foreground">Pick a test to start a timed session.</p>
+        <h2 className="text-xl font-semibold">{t('dashboard.practice.title')}</h2>
+        <p className="text-sm text-muted-foreground">{t('dashboard.practice.subtitle')}</p>
       </div>
 
       {isLoading && (
@@ -106,7 +122,7 @@ export function AvailableTests() {
       {isError && (
         <Card>
           <CardContent className="p-5 text-sm text-muted-foreground">
-            Couldn&apos;t load tests. Please try again.
+            {t('dashboard.practice.loadFailed')}
           </CardContent>
         </Card>
       )}
@@ -114,11 +130,10 @@ export function AvailableTests() {
       {data && data.length === 0 && (
         <Card>
           <CardContent className="p-8 text-center text-sm text-muted-foreground">
-            No tests are available yet. Seed one with{' '}
+            {t('dashboard.practice.empty')}{' '}
             <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">
               python manage.py seed_demo_exam
             </code>
-            .
           </CardContent>
         </Card>
       )}

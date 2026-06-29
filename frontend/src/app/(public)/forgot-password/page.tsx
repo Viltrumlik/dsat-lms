@@ -8,6 +8,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { MailCheck } from 'lucide-react'
 import { authAPI } from '@/lib/api/auth'
+import { useT } from '@/lib/i18n/I18nProvider'
 import { forgotPasswordSchema, type ForgotPasswordValues } from '@/lib/validations/auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -16,6 +17,7 @@ import { FieldError } from '@/components/ui/field-error'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
 export default function ForgotPasswordPage() {
+  const t = useT()
   const [sent, setSent] = React.useState(false)
   const {
     register,
@@ -37,14 +39,12 @@ export default function ForgotPasswordPage() {
       <Card>
         <CardHeader className="items-center text-center">
           <MailCheck className="h-12 w-12 text-primary" />
-          <CardTitle>Check your email</CardTitle>
-          <CardDescription>
-            If an account exists for that address, a reset link is on its way.
-          </CardDescription>
+          <CardTitle>{t('auth.forgot.sentTitle')}</CardTitle>
+          <CardDescription>{t('auth.forgot.sentBody')}</CardDescription>
         </CardHeader>
         <CardContent>
           <Link href="/login" className="block text-center text-sm text-primary hover:underline">
-            Back to sign in
+            {t('auth.forgot.backToLogin')}
           </Link>
         </CardContent>
       </Card>
@@ -54,13 +54,13 @@ export default function ForgotPasswordPage() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Reset your password</CardTitle>
-        <CardDescription>We&apos;ll email you a link to choose a new one.</CardDescription>
+        <CardTitle>{t('auth.forgot.title')}</CardTitle>
+        <CardDescription>{t('auth.forgot.subtitle')}</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
           <div>
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">{t('auth.forgot.email')}</Label>
             <Input
               id="email"
               type="email"
@@ -71,13 +71,13 @@ export default function ForgotPasswordPage() {
             <FieldError message={errors.email?.message} />
           </div>
           <Button type="submit" className="w-full" loading={isSubmitting}>
-            Send reset link
+            {t('auth.forgot.submit')}
           </Button>
         </form>
       </CardContent>
       <div className="border-t border-border px-6 py-4 text-center text-sm text-muted-foreground">
         <Link href="/login" className="font-medium text-primary hover:underline">
-          Back to sign in
+          {t('auth.forgot.backToLogin')}
         </Link>
       </div>
     </Card>

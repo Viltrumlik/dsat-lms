@@ -11,6 +11,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { CheckCircle2, XCircle } from 'lucide-react'
 import { authAPI } from '@/lib/api/auth'
 import { useToast } from '@/components/ui/toast'
+import { useT } from '@/lib/i18n/I18nProvider'
 import { parseApiError } from '@/lib/api/errors'
 import { resetPasswordSchema, type ResetPasswordValues } from '@/lib/validations/auth'
 import { Button, buttonVariants } from '@/components/ui/button'
@@ -27,6 +28,7 @@ function ResetPasswordInner() {
   const token = params.get('token')
   const hasLink = Boolean(uid && token)
   const { toast } = useToast()
+  const t = useT()
   const [done, setDone] = React.useState(false)
 
   const {
@@ -49,7 +51,7 @@ function ResetPasswordInner() {
       if (parsed.fields.newPassword) {
         setError('password', { message: parsed.fields.newPassword })
       } else {
-        toast({ variant: 'error', title: 'Reset failed', description: parsed.message })
+        toast({ variant: 'error', title: t('auth.reset.failed'), description: parsed.message })
       }
     }
   }
@@ -59,15 +61,15 @@ function ResetPasswordInner() {
       <Card>
         <CardHeader className="items-center text-center">
           <XCircle className="h-12 w-12 text-error" />
-          <CardTitle>Invalid reset link</CardTitle>
-          <CardDescription>This link is missing or malformed.</CardDescription>
+          <CardTitle>{t('auth.reset.invalidTitle')}</CardTitle>
+          <CardDescription>{t('auth.reset.invalidBody')}</CardDescription>
         </CardHeader>
         <CardContent>
           <Link
             href="/forgot-password"
             className={cn(buttonVariants({ variant: 'outline' }), 'w-full')}
           >
-            Request a new link
+            {t('auth.reset.requestNew')}
           </Link>
         </CardContent>
       </Card>
@@ -79,12 +81,12 @@ function ResetPasswordInner() {
       <Card>
         <CardHeader className="items-center text-center">
           <CheckCircle2 className="h-12 w-12 text-success" />
-          <CardTitle>Password updated</CardTitle>
-          <CardDescription>You can now sign in with your new password.</CardDescription>
+          <CardTitle>{t('auth.reset.successTitle')}</CardTitle>
+          <CardDescription>{t('auth.reset.successDesc')}</CardDescription>
         </CardHeader>
         <CardContent>
           <Button className="w-full" onClick={() => router.replace('/login')}>
-            Sign in
+            {t('auth.reset.signIn')}
           </Button>
         </CardContent>
       </Card>
@@ -94,13 +96,13 @@ function ResetPasswordInner() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Choose a new password</CardTitle>
-        <CardDescription>Enter and confirm your new password.</CardDescription>
+        <CardTitle>{t('auth.reset.title')}</CardTitle>
+        <CardDescription>{t('auth.reset.subtitle')}</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
           <div>
-            <Label htmlFor="password">New password</Label>
+            <Label htmlFor="password">{t('auth.reset.password')}</Label>
             <Input
               id="password"
               type="password"
@@ -111,7 +113,7 @@ function ResetPasswordInner() {
             <FieldError message={errors.password?.message} />
           </div>
           <div>
-            <Label htmlFor="confirmPassword">Confirm password</Label>
+            <Label htmlFor="confirmPassword">{t('auth.reset.confirmPassword')}</Label>
             <Input
               id="confirmPassword"
               type="password"
@@ -122,7 +124,7 @@ function ResetPasswordInner() {
             <FieldError message={errors.confirmPassword?.message} />
           </div>
           <Button type="submit" className="w-full" loading={isSubmitting}>
-            Update password
+            {t('auth.reset.submit')}
           </Button>
         </form>
       </CardContent>

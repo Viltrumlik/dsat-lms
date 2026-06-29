@@ -5,6 +5,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Activity, CheckCircle2, Target, Trophy } from 'lucide-react'
 import { analyticsAPI } from '@/lib/api/analytics'
+import { useT } from '@/lib/i18n/I18nProvider'
 import { Card, CardContent } from '@/components/ui/card'
 import { pct } from '@/lib/utils/num'
 
@@ -33,6 +34,7 @@ function StatCard({
 }
 
 export function SummaryCards() {
+  const t = useT()
   const { data, isLoading, isError } = useQuery({
     queryKey: ['analytics', 'summary'],
     queryFn: analyticsAPI.summary,
@@ -60,7 +62,7 @@ export function SummaryCards() {
     return (
       <Card>
         <CardContent className="p-5 text-sm text-muted-foreground">
-          Stats are unavailable right now.
+          {t('dashboard.summary.failed')}
         </CardContent>
       </Card>
     )
@@ -68,11 +70,23 @@ export function SummaryCards() {
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      <StatCard label="Questions answered" value={String(data.totalAnswered)} icon={Activity} />
-      <StatCard label="Overall accuracy" value={pct(data.overallAccuracy)} icon={Target} />
-      <StatCard label="Tests completed" value={String(data.examsCompleted)} icon={CheckCircle2} />
       <StatCard
-        label="Best test accuracy"
+        label={t('dashboard.summary.questionsAnswered')}
+        value={String(data.totalAnswered)}
+        icon={Activity}
+      />
+      <StatCard
+        label={t('dashboard.summary.overallAccuracy')}
+        value={pct(data.overallAccuracy)}
+        icon={Target}
+      />
+      <StatCard
+        label={t('dashboard.summary.testsCompleted')}
+        value={String(data.examsCompleted)}
+        icon={CheckCircle2}
+      />
+      <StatCard
+        label={t('dashboard.summary.bestTestAccuracy')}
         value={data.bestExamAccuracy === null ? '—' : pct(data.bestExamAccuracy)}
         icon={Trophy}
       />
