@@ -18,7 +18,7 @@ interface NavItem {
 const NAV: NavItem[] = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { label: 'Practice Tests', href: '/dashboard#tests', icon: ListChecks },
-  { label: 'Question Bank', href: '#', icon: BookOpen, soon: true },
+  { label: 'Question Bank', href: '/questions', icon: BookOpen },
   { label: 'Analytics', href: '#', icon: BarChart3, soon: true },
 ]
 
@@ -31,8 +31,13 @@ export function Sidebar() {
         {NAV.map((item) => {
           // In-page anchors (href contains '#') share a pathname with the page
           // they scroll within, so they must not compete for the active state —
-          // only the real page link (no hash) highlights.
-          const active = !item.soon && !item.href.includes('#') && pathname === item.href
+          // only the real page link (no hash) highlights. Nested routes (e.g.
+          // /questions/:id) keep their section's nav item active.
+          const base = item.href.split('#')[0]
+          const active =
+            !item.soon &&
+            !item.href.includes('#') &&
+            (pathname === base || pathname.startsWith(base + '/'))
           const Icon = item.icon
           if (item.soon) {
             return (
