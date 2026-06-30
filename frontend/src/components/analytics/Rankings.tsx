@@ -10,12 +10,14 @@ import { analyticsAPI } from '@/lib/api/analytics'
 import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils/cn'
 import { pct } from '@/lib/utils/num'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 function statusOf(err: unknown): number | undefined {
   return err instanceof AxiosError ? err.response?.status : undefined
 }
 
 export function Rankings() {
+  const t = useT()
   const { data, isLoading, error, isError } = useQuery({
     queryKey: ['analytics', 'rankings'],
     queryFn: analyticsAPI.rankings,
@@ -32,8 +34,8 @@ export function Rankings() {
   return (
     <section className="space-y-4">
       <div>
-        <h2 className="text-xl font-semibold">Leaderboard</h2>
-        <p className="text-sm text-muted-foreground">Top academy students by accuracy.</p>
+        <h2 className="text-xl font-semibold">{t('analytics.rankings.heading')}</h2>
+        <p className="text-sm text-muted-foreground">{t('analytics.rankings.subtitle')}</p>
       </div>
 
       {isLoading && <div className="h-40 animate-pulse rounded-xl bg-muted" />}
@@ -42,9 +44,7 @@ export function Rankings() {
         <Card>
           <CardContent className="flex flex-col items-center gap-3 p-10 text-center">
             <Lock className="h-8 w-8 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">
-              The leaderboard is available to academy members.
-            </p>
+            <p className="text-sm text-muted-foreground">{t('analytics.rankings.academyOnly')}</p>
           </CardContent>
         </Card>
       )}
@@ -52,7 +52,7 @@ export function Rankings() {
       {isError && !academyOnly && (
         <Card>
           <CardContent className="p-5 text-sm text-muted-foreground">
-            Couldn&apos;t load the leaderboard. Please try again.
+            {t('analytics.rankings.loadFailed')}
           </CardContent>
         </Card>
       )}
@@ -61,7 +61,7 @@ export function Rankings() {
         <Card>
           <CardContent className="flex flex-col items-center gap-3 p-10 text-center">
             <Trophy className="h-8 w-8 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">No rankings yet — be the first to practice.</p>
+            <p className="text-sm text-muted-foreground">{t('analytics.rankings.empty')}</p>
           </CardContent>
         </Card>
       )}
@@ -82,10 +82,12 @@ export function Rankings() {
                 </span>
                 <span className="min-w-0 flex-1 truncate text-sm font-medium">
                   {row.name}
-                  {row.isMe && <span className="ml-2 text-xs text-primary">You</span>}
+                  {row.isMe && (
+                    <span className="ml-2 text-xs text-primary">{t('analytics.rankings.you')}</span>
+                  )}
                 </span>
                 <span className="shrink-0 text-sm tabular-nums text-muted-foreground">
-                  {row.totalAnswered} answered
+                  {t('analytics.rankings.answered', { count: row.totalAnswered })}
                 </span>
                 <span className="w-16 shrink-0 text-right text-sm font-semibold tabular-nums">
                   {pct(row.accuracy)}

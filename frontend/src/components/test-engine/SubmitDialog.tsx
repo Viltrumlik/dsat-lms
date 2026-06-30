@@ -12,6 +12,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { useI18n, plural } from '@/lib/i18n/I18nProvider'
 
 interface SubmitDialogProps {
   open: boolean
@@ -30,14 +31,17 @@ export function SubmitDialog({
   submitting,
   onConfirm,
 }: SubmitDialogProps) {
+  const { t, locale } = useI18n()
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Submit your test?</DialogTitle>
+          <DialogTitle>{t('testEngine.submit.title')}</DialogTitle>
           <DialogDescription>
-            You&apos;ve answered {totalCount - unansweredCount} of {totalCount} questions. Once
-            submitted, your test will be graded and can&apos;t be changed.
+            {t('testEngine.submit.description', {
+              answered: totalCount - unansweredCount,
+              total: totalCount,
+            })}
           </DialogDescription>
         </DialogHeader>
 
@@ -45,17 +49,22 @@ export function SubmitDialog({
           <div className="flex items-center gap-3 rounded-lg border border-warning/40 bg-warning-light/60 p-3 text-warning-dark">
             <AlertTriangle className="h-5 w-5 shrink-0" />
             <p className="text-sm">
-              {unansweredCount} question{unansweredCount === 1 ? '' : 's'} still unanswered.
+              {plural(
+                locale,
+                unansweredCount,
+                t('testEngine.submit.unansweredOne', { count: unansweredCount }),
+                t('testEngine.submit.unansweredOther', { count: unansweredCount })
+              )}
             </p>
           </div>
         )}
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Keep working
+            {t('testEngine.submit.keepWorking')}
           </Button>
           <Button onClick={onConfirm} loading={submitting}>
-            Submit test
+            {t('testEngine.submit.confirm')}
           </Button>
         </DialogFooter>
       </DialogContent>

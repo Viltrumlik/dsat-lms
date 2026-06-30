@@ -5,9 +5,11 @@
 
 import { Flag } from 'lucide-react'
 import { useSessionStore } from '@/lib/stores/sessionStore'
+import { useT } from '@/lib/i18n/I18nProvider'
 import { cn } from '@/lib/utils/cn'
 
 export function QuestionNavigator({ onJump }: { onJump?: () => void }) {
+  const t = useT()
   const sectionIndex = useSessionStore((s) => s.currentSectionIndex)
   const section = useSessionStore((s) => s.sections[s.currentSectionIndex])
   const currentQuestionIndex = useSessionStore((s) => s.currentQuestionIndex)
@@ -19,8 +21,12 @@ export function QuestionNavigator({ onJump }: { onJump?: () => void }) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between text-sm">
-        <span className="font-medium">{section.title || `Section ${section.sectionNumber}`}</span>
-        <span className="text-muted-foreground">{section.questions.length} questions</span>
+        <span className="font-medium">
+          {section.title || t('testEngine.section', { number: section.sectionNumber })}
+        </span>
+        <span className="text-muted-foreground">
+          {t('testEngine.questionsCount', { count: section.questions.length })}
+        </span>
       </div>
       <div className="grid grid-cols-6 gap-2 sm:grid-cols-8 md:grid-cols-10">
         {section.questions.map((q, idx) => {
@@ -56,13 +62,13 @@ export function QuestionNavigator({ onJump }: { onJump?: () => void }) {
       </div>
       <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
         <span className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded bg-primary" /> Answered
+          <span className="h-3 w-3 rounded bg-primary" /> {t('testEngine.answered')}
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded border border-border" /> Unanswered
+          <span className="h-3 w-3 rounded border border-border" /> {t('testEngine.unanswered')}
         </span>
         <span className="flex items-center gap-1.5">
-          <Flag className="h-3 w-3 fill-warning text-warning" /> Flagged
+          <Flag className="h-3 w-3 fill-warning text-warning" /> {t('testEngine.flaggedLegend')}
         </span>
       </div>
     </div>

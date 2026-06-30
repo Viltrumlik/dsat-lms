@@ -15,6 +15,7 @@ import {
   YAxis,
 } from 'recharts'
 import { num } from '@/lib/utils/num'
+import { useT } from '@/lib/i18n/I18nProvider'
 import type { CategoryProgress, QuestionModule } from '@/types'
 
 const MODULE_COLOR: Record<QuestionModule, string> = {
@@ -23,6 +24,7 @@ const MODULE_COLOR: Record<QuestionModule, string> = {
 }
 
 export default function AccuracyByCategoryChart({ data }: { data: CategoryProgress[] }) {
+  const t = useT()
   const rows = data.map((d) => ({
     name: d.categoryName,
     accuracy: num(d.accuracyPct) ?? 0,
@@ -49,7 +51,7 @@ export default function AccuracyByCategoryChart({ data }: { data: CategoryProgre
         />
         <Tooltip
           cursor={{ fill: 'var(--muted)', opacity: 0.4 }}
-          formatter={(value: number) => [`${value.toFixed(1)}%`, 'Accuracy']}
+          formatter={(value: number) => [`${value.toFixed(1)}%`, t('analytics.chart.accuracy')]}
           contentStyle={{
             background: 'var(--card)',
             border: '1px solid var(--border)',

@@ -15,23 +15,25 @@ import { Input } from '@/components/ui/input'
 import { FullPageSpinner } from '@/components/ui/spinner'
 import { MarkdownMath } from '@/components/test-engine/MarkdownMath'
 import { cn } from '@/lib/utils/cn'
+import { useT } from '@/lib/i18n/I18nProvider'
 import { DifficultyDots } from './DifficultyDots'
-import { MODULE_LABEL, ANSWER_TYPE_LABEL, DIFFICULTY_LABEL, moduleBadgeVariant } from './labels'
+import { MODULE_LABEL_KEY, ANSWER_TYPE_LABEL_KEY, DIFFICULTY_LABEL_KEY, moduleBadgeVariant } from './labels'
 import type { QuestionChoice } from '@/types'
 
-const SOURCE_LABEL: Record<string, string> = {
-  official: 'Official SAT',
-  custom: 'Custom',
-  imported: 'Imported',
+const SOURCE_LABEL_KEY: Record<string, string> = {
+  official: 'questionBank.source.official',
+  custom: 'questionBank.source.custom',
+  imported: 'questionBank.source.imported',
 }
 
 function BackLink() {
+  const t = useT()
   return (
     <Link
       href="/questions"
       className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
     >
-      <ArrowLeft className="h-4 w-4" /> Back to Question Bank
+      <ArrowLeft className="h-4 w-4" /> {t('questionBank.backToBank')}
     </Link>
   )
 }
@@ -86,6 +88,7 @@ function ChoiceRow({
 }
 
 export function QuestionStudy({ id }: { id: string }) {
+  const t = useT()
   const [selected, setSelected] = React.useState<string | null>(null)
   const [gridAnswer, setGridAnswer] = React.useState('')
   const [revealed, setRevealed] = React.useState(false)
@@ -102,14 +105,14 @@ export function QuestionStudy({ id }: { id: string }) {
     setRevealed(false)
   }, [id])
 
-  if (isLoading) return <FullPageSpinner label="Loading question…" />
+  if (isLoading) return <FullPageSpinner label={t('questionBank.loadingQuestion')} />
 
   if (isError || !q) {
     return (
       <div className="mx-auto flex max-w-3xl flex-col items-center gap-4 py-16 text-center">
-        <p className="text-muted-foreground">This question couldn&apos;t be found.</p>
+        <p className="text-muted-foreground">{t('questionBank.notFound')}</p>
         <Link href="/questions" className={cn(buttonVariants({ variant: 'outline' }))}>
-          Back to Question Bank
+          {t('questionBank.backToBank')}
         </Link>
       </div>
     )
@@ -127,10 +130,10 @@ export function QuestionStudy({ id }: { id: string }) {
 
       {/* Meta */}
       <div className="flex flex-wrap items-center gap-3">
-        <Badge variant={moduleBadgeVariant(q.module)}>{MODULE_LABEL[q.module]}</Badge>
-        <Badge variant="outline">{ANSWER_TYPE_LABEL[q.answerType]}</Badge>
+        <Badge variant={moduleBadgeVariant(q.module)}>{t(MODULE_LABEL_KEY[q.module])}</Badge>
+        <Badge variant="outline">{t(ANSWER_TYPE_LABEL_KEY[q.answerType])}</Badge>
         <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
-          <DifficultyDots level={q.difficulty} /> {DIFFICULTY_LABEL[q.difficulty]}
+          <DifficultyDots level={q.difficulty} /> {t(DIFFICULTY_LABEL_KEY[q.difficulty])}
         </span>
         {q.category?.name && (
           <span className="text-sm text-muted-foreground">· {q.category.name}</span>
@@ -168,13 +171,13 @@ export function QuestionStudy({ id }: { id: string }) {
       ) : (
         <div className="max-w-xs space-y-2">
           <label htmlFor="study-grid-in" className="text-sm font-medium">
-            Your answer
+            {t('questionBank.yourAnswer')}
           </label>
           <Input
             id="study-grid-in"
             inputMode="text"
             autoComplete="off"
-            placeholder="e.g. 3.5 or 7/2"
+            placeholder={t('questionBank.gridInPlaceholder')}
             maxLength={8}
             disabled={revealed}
             value={gridAnswer}
@@ -187,7 +190,7 @@ export function QuestionStudy({ id }: { id: string }) {
       {/* Reveal / verdict */}
       {!revealed ? (
         <Button onClick={() => setRevealed(true)} disabled={!canReveal}>
-          <Eye className="h-4 w-4" /> Reveal answer
+          <Eye className="h-4 w-4" /> {t('questionBank.revealAnswer')}
         </Button>
       ) : (
         <div className="space-y-4">
@@ -206,7 +209,8 @@ export function QuestionStudy({ id }: { id: string }) {
                 <XCircle className="h-5 w-5 text-muted-foreground" />
               )}
               <span>
-                Correct answer: <strong className="font-mono">{q.correctAnswer}</strong>
+                {t('questionBank.correctAnswer')}{' '}
+                <strong className="font-mono">{q.correctAnswer}</strong>
               </span>
             </div>
           )}
@@ -215,18 +219,19 @@ export function QuestionStudy({ id }: { id: string }) {
             <Card>
               <CardContent className="space-y-2 p-5">
                 <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                  Explanation
+                  {t('questionBank.explanation')}
                 </h2>
                 <MarkdownMath content={q.explanation} />
               </CardContent>
             </Card>
           ) : (
-            <p className="text-sm text-muted-foreground">No explanation provided for this question.</p>
+            <p className="text-sm text-muted-foreground">{t('questionBank.noExplanation')}</p>
           )}
 
           {q.sourceRef && (
             <p className="text-xs text-muted-foreground">
-              Source: {SOURCE_LABEL[q.source] ?? q.source} · {q.sourceRef}
+              {t('questionBank.sourceLine')}{' '}
+              {SOURCE_LABEL_KEY[q.source] ? t(SOURCE_LABEL_KEY[q.source]) : q.source} · {q.sourceRef}
             </p>
           )}
         </div>

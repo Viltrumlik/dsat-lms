@@ -4,6 +4,7 @@
 
 import { Strikethrough } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
+import { useT } from '@/lib/i18n/I18nProvider'
 import { MarkdownMath } from './MarkdownMath'
 import type { ChoiceLabel, QuestionChoice } from '@/types'
 
@@ -22,10 +23,11 @@ export function ChoiceList({
   onSelect,
   onToggleCrossOut,
 }: ChoiceListProps) {
+  const t = useT()
   const ordered = choices.slice().sort((a, b) => a.sortOrder - b.sortOrder)
 
   return (
-    <div className="space-y-3" role="radiogroup" aria-label="Answer choices">
+    <div className="space-y-3" role="radiogroup" aria-label={t('testEngine.answerChoices')}>
       {ordered.map((choice) => {
         const label = choice.label
         const selected = value === label
@@ -62,9 +64,13 @@ export function ChoiceList({
             <button
               type="button"
               onClick={() => onToggleCrossOut(label)}
-              aria-label={struck ? `Restore choice ${label}` : `Cross out choice ${label}`}
+              aria-label={
+                struck
+                  ? t('testEngine.restore', { label })
+                  : t('testEngine.crossOut', { label })
+              }
               aria-pressed={struck}
-              title={struck ? 'Undo cross-out' : 'Cross out'}
+              title={struck ? t('testEngine.undoCrossOut') : t('testEngine.crossOutTitle')}
               className={cn(
                 'flex w-11 shrink-0 items-center justify-center rounded-lg border transition-colors',
                 struck

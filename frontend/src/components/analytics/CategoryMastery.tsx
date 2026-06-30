@@ -11,12 +11,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { num, pct } from '@/lib/utils/num'
-import type { QuestionModule } from '@/types'
-
-const MODULE_LABEL: Record<QuestionModule, string> = {
-  math: 'Math',
-  reading_writing: 'Reading & Writing',
-}
+import { useT } from '@/lib/i18n/I18nProvider'
 
 const Chart = dynamic(() => import('./AccuracyByCategoryChart'), {
   ssr: false,
@@ -24,6 +19,7 @@ const Chart = dynamic(() => import('./AccuracyByCategoryChart'), {
 })
 
 export function CategoryMastery() {
+  const t = useT()
   const { data, isLoading, isError } = useQuery({
     queryKey: ['analytics', 'progress'],
     queryFn: analyticsAPI.progress,
@@ -32,8 +28,8 @@ export function CategoryMastery() {
   return (
     <section className="space-y-4">
       <div>
-        <h2 className="text-xl font-semibold">Accuracy by topic</h2>
-        <p className="text-sm text-muted-foreground">How you&apos;re doing in each area.</p>
+        <h2 className="text-xl font-semibold">{t('analytics.mastery.heading')}</h2>
+        <p className="text-sm text-muted-foreground">{t('analytics.mastery.subtitle')}</p>
       </div>
 
       {isLoading && <div className="h-64 animate-pulse rounded-xl bg-muted" />}
@@ -41,7 +37,7 @@ export function CategoryMastery() {
       {isError && (
         <Card>
           <CardContent className="p-5 text-sm text-muted-foreground">
-            Couldn&apos;t load your progress. Please try again.
+            {t('analytics.mastery.loadFailed')}
           </CardContent>
         </Card>
       )}
@@ -50,9 +46,7 @@ export function CategoryMastery() {
         <Card>
           <CardContent className="flex flex-col items-center gap-3 p-10 text-center">
             <BarChart3 className="h-8 w-8 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">
-              Answer some questions to see your topic breakdown.
-            </p>
+            <p className="text-sm text-muted-foreground">{t('analytics.mastery.empty')}</p>
           </CardContent>
         </Card>
       )}
@@ -70,7 +64,7 @@ export function CategoryMastery() {
               {data.map((r) => (
                 <div key={r.category} className="flex items-center gap-4 p-4">
                   <Badge variant={r.module === 'math' ? 'math' : 'rw'} className="shrink-0">
-                    {MODULE_LABEL[r.module]}
+                    {t(`modules.${r.module}`)}
                   </Badge>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-2">

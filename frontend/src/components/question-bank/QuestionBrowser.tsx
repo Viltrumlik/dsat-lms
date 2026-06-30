@@ -9,6 +9,7 @@ import { SearchX } from 'lucide-react'
 import { questionAPI, cursorFromUrl, type QuestionListParams } from '@/lib/api/questions'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { useI18n, plural } from '@/lib/i18n/I18nProvider'
 import { QuestionFilters, type QuestionUIFilters } from './QuestionFilters'
 import { QuestionCard } from './QuestionCard'
 
@@ -24,6 +25,7 @@ function useDebounced<T>(value: T, ms: number): T {
 }
 
 export function QuestionBrowser() {
+  const { t, locale } = useI18n()
   const [filters, setFilters] = React.useState<QuestionUIFilters>(EMPTY_FILTERS)
   const debouncedSearch = useDebounced(filters.search, 350)
 
@@ -91,7 +93,7 @@ export function QuestionBrowser() {
       {query.isError && (
         <Card>
           <CardContent className="p-5 text-sm text-muted-foreground">
-            Couldn&apos;t load questions. Please try again.
+            {t('questionBank.loadFailed')}
           </CardContent>
         </Card>
       )}
@@ -102,12 +104,12 @@ export function QuestionBrowser() {
             <SearchX className="h-8 w-8 text-muted-foreground" />
             <p className="text-sm text-muted-foreground">
               {hasActiveFilters
-                ? 'No questions match these filters.'
-                : 'No questions are published yet.'}
+                ? t('questionBank.emptyFiltered')
+                : t('questionBank.emptyAll')}
             </p>
             {hasActiveFilters && (
               <Button variant="outline" size="sm" onClick={() => setFilters(EMPTY_FILTERS)}>
-                Clear filters
+                {t('questionBank.filters.clear')}
               </Button>
             )}
           </CardContent>
@@ -129,11 +131,16 @@ export function QuestionBrowser() {
                 loading={query.isFetchingNextPage}
                 onClick={() => query.fetchNextPage()}
               >
-                Load more
+                {t('questionBank.loadMore')}
               </Button>
             ) : (
               <p className="text-sm text-muted-foreground">
-                {items.length} question{items.length === 1 ? '' : 's'} — that&apos;s all.
+                {plural(
+                  locale,
+                  items.length,
+                  t('questionBank.countAllOne', { count: items.length }),
+                  t('questionBank.countAllOther', { count: items.length })
+                )}
               </p>
             )}
           </div>

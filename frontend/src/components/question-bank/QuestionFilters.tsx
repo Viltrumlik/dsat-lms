@@ -6,7 +6,8 @@
 import { Search, X } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
 import { Input } from '@/components/ui/input'
-import { MODULE_LABEL, ANSWER_TYPE_LABEL, DIFFICULTY_LABEL } from './labels'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { MODULE_LABEL_KEY, ANSWER_TYPE_LABEL_KEY, DIFFICULTY_LABEL_KEY } from './labels'
 import type { AnswerType, QuestionCategory, QuestionModule } from '@/types'
 
 export interface QuestionUIFilters {
@@ -72,6 +73,7 @@ export function QuestionFilters({
   categories,
   hasActiveFilters,
 }: QuestionFiltersProps) {
+  const t = useT()
   // Toggle helper: clicking the active chip clears it back to "All".
   const toggle = <K extends keyof QuestionUIFilters>(key: K, v: QuestionUIFilters[K]) =>
     onChange({ [key]: value[key] === v ? undefined : v } as Partial<QuestionUIFilters>)
@@ -87,47 +89,47 @@ export function QuestionFilters({
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           type="search"
-          placeholder="Search questions…"
-          aria-label="Search questions"
+          placeholder={t('questionBank.searchPlaceholder')}
+          aria-label={t('questionBank.searchAria')}
           value={value.search}
           onChange={(e) => onChange({ search: e.target.value })}
           className="pl-9"
         />
       </div>
 
-      <FilterGroup label="Module">
+      <FilterGroup label={t('questionBank.filters.module')}>
         {MODULES.map((m) => (
           <Chip key={m} active={value.module === m} onClick={() => toggle('module', m)}>
-            {MODULE_LABEL[m]}
+            {t(MODULE_LABEL_KEY[m])}
           </Chip>
         ))}
       </FilterGroup>
 
-      <FilterGroup label="Difficulty">
+      <FilterGroup label={t('questionBank.filters.difficulty')}>
         {[1, 2, 3, 4, 5].map((d) => (
           <Chip key={d} active={value.difficulty === d} onClick={() => toggle('difficulty', d)}>
-            {DIFFICULTY_LABEL[d]}
+            {t(DIFFICULTY_LABEL_KEY[d])}
           </Chip>
         ))}
       </FilterGroup>
 
-      <FilterGroup label="Type">
-        {ANSWER_TYPES.map((t) => (
-          <Chip key={t} active={value.answerType === t} onClick={() => toggle('answerType', t)}>
-            {ANSWER_TYPE_LABEL[t]}
+      <FilterGroup label={t('questionBank.filters.type')}>
+        {ANSWER_TYPES.map((at) => (
+          <Chip key={at} active={value.answerType === at} onClick={() => toggle('answerType', at)}>
+            {t(ANSWER_TYPE_LABEL_KEY[at])}
           </Chip>
         ))}
       </FilterGroup>
 
       {visibleCategories.length > 0 && (
-        <FilterGroup label="Topic">
+        <FilterGroup label={t('questionBank.filters.topic')}>
           <select
-            aria-label="Category"
+            aria-label={t('questionBank.filters.category')}
             value={value.category ?? ''}
             onChange={(e) => onChange({ category: e.target.value || undefined })}
             className="h-9 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
-            <option value="">All topics</option>
+            <option value="">{t('questionBank.filters.allTopics')}</option>
             {visibleCategories.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
@@ -143,7 +145,7 @@ export function QuestionFilters({
           onClick={onReset}
           className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
         >
-          <X className="h-3.5 w-3.5" /> Clear filters
+          <X className="h-3.5 w-3.5" /> {t('questionBank.filters.clear')}
         </button>
       )}
     </div>

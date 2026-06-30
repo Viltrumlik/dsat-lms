@@ -6,6 +6,7 @@
 import * as React from 'react'
 import { ChevronLeft, ChevronRight, LayoutGrid } from 'lucide-react'
 import { useSessionStore } from '@/lib/stores/sessionStore'
+import { useT } from '@/lib/i18n/I18nProvider'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -17,6 +18,7 @@ import {
 import { QuestionNavigator } from './QuestionNavigator'
 
 export function BottomBar() {
+  const t = useT()
   const sections = useSessionStore((s) => s.sections)
   const sectionIndex = useSessionStore((s) => s.currentSectionIndex)
   const questionIndex = useSessionStore((s) => s.currentQuestionIndex)
@@ -29,7 +31,11 @@ export function BottomBar() {
   const isLastSection = sectionIndex === sections.length - 1
   const isLastInSection = section ? questionIndex === section.questions.length - 1 : false
 
-  const nextLabel = !isLastInSection ? 'Next' : isLastSection ? 'Review' : 'Finish section'
+  const nextLabel = !isLastInSection
+    ? t('testEngine.next')
+    : isLastSection
+      ? t('testEngine.review')
+      : t('testEngine.finishSection')
 
   return (
     <footer className="flex h-16 shrink-0 items-center justify-between gap-3 border-t border-border bg-card px-4 md:px-6">
@@ -37,9 +43,9 @@ export function BottomBar() {
         variant="outline"
         onClick={prevQuestion}
         disabled={questionIndex === 0}
-        aria-label="Previous question"
+        aria-label={t('testEngine.prevAria')}
       >
-        <ChevronLeft className="h-4 w-4" /> Back
+        <ChevronLeft className="h-4 w-4" /> {t('testEngine.back')}
       </Button>
 
       <Dialog open={navOpen} onOpenChange={setNavOpen}>
@@ -53,13 +59,13 @@ export function BottomBar() {
         </DialogTrigger>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Jump to a question</DialogTitle>
+            <DialogTitle>{t('testEngine.jumpToQuestion')}</DialogTitle>
           </DialogHeader>
           <QuestionNavigator onJump={() => setNavOpen(false)} />
         </DialogContent>
       </Dialog>
 
-      <Button onClick={nextQuestion} aria-label="Next question">
+      <Button onClick={nextQuestion} aria-label={t('testEngine.nextAria')}>
         {nextLabel} <ChevronRight className="h-4 w-4" />
       </Button>
     </footer>

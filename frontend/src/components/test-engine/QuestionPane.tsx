@@ -7,6 +7,7 @@ import * as React from 'react'
 import { Flag, StickyNote } from 'lucide-react'
 import { useSessionStore, selectCurrentQuestion } from '@/lib/stores/sessionStore'
 import { useAnswerSync } from '@/lib/hooks/useAnswerSync'
+import { useT } from '@/lib/i18n/I18nProvider'
 import { cn } from '@/lib/utils/cn'
 import { MarkdownMath } from './MarkdownMath'
 import { ChoiceList } from './ChoiceList'
@@ -14,6 +15,7 @@ import { GridIn } from './GridIn'
 import type { ChoiceLabel, QuestionClientState } from '@/types'
 
 export function QuestionPane() {
+  const t = useT()
   const question = useSessionStore(selectCurrentQuestion)
   const sectionIndex = useSessionStore((s) => s.currentSectionIndex)
   const questionIndex = useSessionStore((s) => s.currentQuestionIndex)
@@ -41,7 +43,7 @@ export function QuestionPane() {
   const [showNote, setShowNote] = React.useState(false)
 
   if (!question || !qState || !section) {
-    return <div className="p-8 text-muted-foreground">No question to display.</div>
+    return <div className="p-8 text-muted-foreground">{t('testEngine.noQuestion')}</div>
   }
 
   const handleSelect = (label: string) => {
@@ -70,7 +72,10 @@ export function QuestionPane() {
       <div className={cn('space-y-5', !(question.passage || question.passageImageUrl) && 'lg:col-span-2 mx-auto w-full max-w-3xl')}>
         <div className="flex items-center justify-between">
           <span className="text-sm font-semibold text-muted-foreground">
-            Question {questionIndex + 1} of {section.questions.length}
+            {t('testEngine.questionProgress', {
+              current: questionIndex + 1,
+              total: section.questions.length,
+            })}
           </span>
           <div className="flex items-center gap-1">
             <button
@@ -85,7 +90,7 @@ export function QuestionPane() {
               )}
             >
               <Flag className={cn('h-4 w-4', qState.flagged && 'fill-current')} />
-              {qState.flagged ? 'Flagged' : 'Flag'}
+              {qState.flagged ? t('testEngine.flagged') : t('testEngine.flag')}
             </button>
             <button
               type="button"
@@ -99,7 +104,7 @@ export function QuestionPane() {
               )}
             >
               <StickyNote className="h-4 w-4" />
-              Note
+              {t('testEngine.note')}
             </button>
           </div>
         </div>
@@ -119,7 +124,7 @@ export function QuestionPane() {
           <textarea
             value={qState.note}
             onChange={(e) => setNote(question.id, e.target.value)}
-            placeholder="Private note for this question…"
+            placeholder={t('testEngine.notePlaceholder')}
             rows={2}
             className="w-full rounded-md border border-input bg-background p-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
