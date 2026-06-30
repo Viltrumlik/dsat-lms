@@ -9,6 +9,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useAuth } from '@/lib/auth/AuthProvider'
 import { useToast } from '@/components/ui/toast'
+import { useT } from '@/lib/i18n/I18nProvider'
 import { parseApiError } from '@/lib/api/errors'
 import { registerSchema, type RegisterValues } from '@/lib/validations/auth'
 import { Button } from '@/components/ui/button'
@@ -23,6 +24,7 @@ export default function RegisterPage() {
   const router = useRouter()
   const { register: registerUser, isAuthenticated, isLoading } = useAuth()
   const { toast } = useToast()
+  const t = useT()
 
   // Set when this form just registered, so the "already-authed → dashboard"
   // guard below doesn't override the intentional redirect to /verify-email.
@@ -52,8 +54,8 @@ export default function RegisterPage() {
       })
       toast({
         variant: 'success',
-        title: 'Account created',
-        description: 'Check your email to verify your address.',
+        title: t('auth.register.createdTitle'),
+        description: t('auth.register.createdDesc'),
       })
       router.replace('/verify-email')
     } catch (err) {
@@ -66,7 +68,7 @@ export default function RegisterPage() {
         }
       }
       if (!mapped) {
-        toast({ variant: 'error', title: 'Registration failed', description: parsed.message })
+        toast({ variant: 'error', title: t('auth.register.failed'), description: parsed.message })
       }
     }
   }
@@ -74,14 +76,14 @@ export default function RegisterPage() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Create your account</CardTitle>
-        <CardDescription>Start practicing for the Digital SAT.</CardDescription>
+        <CardTitle>{t('auth.register.title')}</CardTitle>
+        <CardDescription>{t('auth.register.subtitle')}</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label htmlFor="firstName">First name</Label>
+              <Label htmlFor="firstName">{t('auth.register.firstName')}</Label>
               <Input
                 id="firstName"
                 autoComplete="given-name"
@@ -91,7 +93,7 @@ export default function RegisterPage() {
               <FieldError message={errors.firstName?.message} />
             </div>
             <div>
-              <Label htmlFor="lastName">Last name</Label>
+              <Label htmlFor="lastName">{t('auth.register.lastName')}</Label>
               <Input
                 id="lastName"
                 autoComplete="family-name"
@@ -102,7 +104,7 @@ export default function RegisterPage() {
             </div>
           </div>
           <div>
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">{t('auth.register.email')}</Label>
             <Input
               id="email"
               type="email"
@@ -113,7 +115,7 @@ export default function RegisterPage() {
             <FieldError message={errors.email?.message} />
           </div>
           <div>
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password">{t('auth.register.password')}</Label>
             <Input
               id="password"
               type="password"
@@ -124,7 +126,7 @@ export default function RegisterPage() {
             <FieldError message={errors.password?.message} />
           </div>
           <div>
-            <Label htmlFor="confirmPassword">Confirm password</Label>
+            <Label htmlFor="confirmPassword">{t('auth.register.confirmPassword')}</Label>
             <Input
               id="confirmPassword"
               type="password"
@@ -135,14 +137,14 @@ export default function RegisterPage() {
             <FieldError message={errors.confirmPassword?.message} />
           </div>
           <Button type="submit" className="w-full" loading={isSubmitting}>
-            Create account
+            {t('auth.register.submit')}
           </Button>
         </form>
       </CardContent>
       <div className="border-t border-border px-6 py-4 text-center text-sm text-muted-foreground">
-        Already have an account?{' '}
+        {t('auth.register.haveAccount')}{' '}
         <Link href="/login" className="font-medium text-primary hover:underline">
-          Sign in
+          {t('auth.register.signIn')}
         </Link>
       </div>
     </Card>

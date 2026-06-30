@@ -3,6 +3,7 @@
 'use client'
 
 import { Input } from '@/components/ui/input'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 interface GridInProps {
   value: string | null
@@ -10,24 +11,23 @@ interface GridInProps {
 }
 
 export function GridIn({ value, onChange }: GridInProps) {
+  const t = useT()
   return (
     <div className="max-w-xs space-y-2">
       <label htmlFor="grid-in" className="text-sm font-medium">
-        Your answer
+        {t('testEngine.yourAnswer')}
       </label>
       <Input
         id="grid-in"
         inputMode="text"
         autoComplete="off"
-        placeholder="e.g. 3.5 or 7/2"
+        placeholder={t('testEngine.gridInPlaceholder')}
         maxLength={8}
         value={value ?? ''}
         onChange={(e) => onChange(e.target.value)}
         className="text-lg font-mono"
       />
-      <p className="text-xs text-muted-foreground">
-        Enter a number. Fractions (7/2) and decimals (3.5) are allowed.
-      </p>
+      <p className="text-xs text-muted-foreground">{t('testEngine.gridInHelp')}</p>
     </div>
   )
 }

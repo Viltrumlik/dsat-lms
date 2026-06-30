@@ -6,9 +6,11 @@ import * as React from 'react'
 import { ArrowRight, CheckCircle2 } from 'lucide-react'
 import { useSessionStore } from '@/lib/stores/sessionStore'
 import { sessionAPI } from '@/lib/api/sessions'
+import { useT } from '@/lib/i18n/I18nProvider'
 import { Button } from '@/components/ui/button'
 
 export function BreakScreen() {
+  const t = useT()
   const sectionIndex = useSessionStore((s) => s.currentSectionIndex)
   const sections = useSessionStore((s) => s.sections)
   const questionStates = useSessionStore((s) => s.questionStates)
@@ -60,25 +62,34 @@ export function BreakScreen() {
     <div className="flex flex-1 items-center justify-center p-6">
       <div className="w-full max-w-md rounded-xl border border-border bg-card p-8 text-center shadow-sm">
         <CheckCircle2 className="mx-auto h-12 w-12 text-success" />
-        <h2 className="mt-4 text-xl font-bold">Section complete</h2>
+        <h2 className="mt-4 text-xl font-bold">{t('testEngine.break.heading')}</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          You answered {progress.answered} of {progress.total} questions in{' '}
-          {finished?.title || `Section ${finished?.sectionNumber}`}.
+          {t('testEngine.break.summary', {
+            answered: progress.answered,
+            total: progress.total,
+            section: finished?.title || t('testEngine.section', { number: finished?.sectionNumber ?? '' }),
+          })}
         </p>
         {next ? (
           <>
             <div className="mt-6 rounded-lg bg-muted p-4 text-left">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Up next</p>
-              <p className="font-semibold">{next.title || `Section ${next.sectionNumber}`}</p>
-              <p className="text-sm text-muted-foreground">{next.questions.length} questions</p>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                {t('testEngine.break.upNext')}
+              </p>
+              <p className="font-semibold">
+                {next.title || t('testEngine.section', { number: next.sectionNumber })}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {t('testEngine.questionsCount', { count: next.questions.length })}
+              </p>
             </div>
             <Button className="mt-6 w-full" onClick={begin} loading={starting}>
-              Begin next section <ArrowRight className="h-4 w-4" />
+              {t('testEngine.break.beginNext')} <ArrowRight className="h-4 w-4" />
             </Button>
           </>
         ) : (
           <Button className="mt-6 w-full" onClick={() => setStatus('review')}>
-            Review answers <ArrowRight className="h-4 w-4" />
+            {t('testEngine.break.reviewAnswers')} <ArrowRight className="h-4 w-4" />
           </Button>
         )}
       </div>

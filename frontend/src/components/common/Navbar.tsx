@@ -6,8 +6,10 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { GraduationCap, LogOut } from 'lucide-react'
 import { useAuth } from '@/lib/auth/AuthProvider'
+import { useT } from '@/lib/i18n/I18nProvider'
 import { Button } from '@/components/ui/button'
 import { ThemeToggle } from './ThemeToggle'
+import { LanguageSwitcher } from './LanguageSwitcher'
 
 function initials(first: string, last: string) {
   return `${first[0] ?? ''}${last[0] ?? ''}`.toUpperCase() || '?'
@@ -16,6 +18,7 @@ function initials(first: string, last: string) {
 export function Navbar() {
   const { user, logout } = useAuth()
   const router = useRouter()
+  const t = useT()
 
   const onLogout = async () => {
     await logout()
@@ -32,6 +35,7 @@ export function Navbar() {
       </Link>
 
       <div className="flex items-center gap-2">
+        <LanguageSwitcher />
         <ThemeToggle />
         {user && (
           <div className="flex items-center gap-3 pl-2">
@@ -42,7 +46,7 @@ export function Navbar() {
             <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-100 text-sm font-semibold text-primary-700">
               {initials(user.firstName, user.lastName)}
             </span>
-            <Button variant="ghost" size="icon" aria-label="Sign out" onClick={onLogout}>
+            <Button variant="ghost" size="icon" aria-label={t('common.signOut')} onClick={onLogout}>
               <LogOut className="h-5 w-5" />
             </Button>
           </div>

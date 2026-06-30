@@ -4,10 +4,12 @@
 
 import { Flag, Send } from 'lucide-react'
 import { useSessionStore } from '@/lib/stores/sessionStore'
+import { useT } from '@/lib/i18n/I18nProvider'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils/cn'
 
 export function ReviewScreen({ onSubmit }: { onSubmit: () => void }) {
+  const t = useT()
   const sections = useSessionStore((s) => s.sections)
   const questionStates = useSessionStore((s) => s.questionStates)
   const navigateTo = useSessionStore((s) => s.navigateTo)
@@ -22,10 +24,8 @@ export function ReviewScreen({ onSubmit }: { onSubmit: () => void }) {
     <div className="flex-1 overflow-y-auto">
       <div className="mx-auto max-w-3xl space-y-8 px-4 py-8 md:px-6">
         <div className="text-center">
-          <h2 className="text-2xl font-bold">Review your answers</h2>
-          <p className="mt-1 text-muted-foreground">
-            Tap any question to revisit it, or submit when you&apos;re ready.
-          </p>
+          <h2 className="text-2xl font-bold">{t('testEngine.reviewScreen.heading')}</h2>
+          <p className="mt-1 text-muted-foreground">{t('testEngine.reviewScreen.subtitle')}</p>
         </div>
 
         {sections.map((section, sIdx) => {
@@ -37,10 +37,13 @@ export function ReviewScreen({ onSubmit }: { onSubmit: () => void }) {
             <div key={sIdx} className="space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold">
-                  {section.title || `Section ${section.sectionNumber}`}
+                  {section.title || t('testEngine.section', { number: section.sectionNumber })}
                 </h3>
                 <span className="text-sm text-muted-foreground">
-                  {answered}/{section.questions.length} answered
+                  {t('testEngine.reviewScreen.answeredOf', {
+                    answered,
+                    total: section.questions.length,
+                  })}
                 </span>
               </div>
               <div className="grid grid-cols-6 gap-2 sm:grid-cols-8 md:grid-cols-10">
@@ -74,7 +77,7 @@ export function ReviewScreen({ onSubmit }: { onSubmit: () => void }) {
 
         <div className="sticky bottom-0 -mx-4 border-t border-border bg-card px-4 py-4 md:mx-0 md:rounded-lg md:border">
           <Button className="w-full" size="lg" onClick={onSubmit}>
-            <Send className="h-4 w-4" /> Submit test
+            <Send className="h-4 w-4" /> {t('testEngine.reviewScreen.submit')}
           </Button>
         </div>
       </div>

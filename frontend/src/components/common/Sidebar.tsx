@@ -1,55 +1,65 @@
 // Domain: Common
-// Description: Left navigation for the student shell. Phase-2 destinations are
-//   shown disabled with a "Soon" tag.
+// Description: Left navigation for the student shell. Items may opt into a
+//   disabled "Soon" tag (soon: true) for not-yet-built destinations.
 'use client'
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { BarChart3, BookOpen, LayoutDashboard, ListChecks } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 interface NavItem {
-  label: string
+  labelKey: string
   href: string
   icon: React.ComponentType<{ className?: string }>
   soon?: boolean
 }
 
 const NAV: NavItem[] = [
-  { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { label: 'Practice Tests', href: '/dashboard#tests', icon: ListChecks },
-  { label: 'Question Bank', href: '#', icon: BookOpen, soon: true },
-  { label: 'Analytics', href: '#', icon: BarChart3, soon: true },
+  { labelKey: 'nav.dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { labelKey: 'nav.practiceTests', href: '/dashboard#tests', icon: ListChecks },
+  { labelKey: 'nav.questionBank', href: '/questions', icon: BookOpen },
+  { labelKey: 'nav.analytics', href: '/analytics', icon: BarChart3 },
 ]
 
 export function Sidebar() {
   const pathname = usePathname()
+  const t = useT()
 
   return (
     <aside className="hidden w-sidebar shrink-0 border-r border-border bg-card md:block">
       <nav className="sticky top-16 flex flex-col gap-1 p-3">
         {NAV.map((item) => {
-          const active = !item.soon && pathname === item.href.split('#')[0]
+          // In-page anchors (href contains '#') share a pathname with the page
+          // they scroll within, so they must not compete for the active state —
+          // only the real page link (no hash) highlights. Nested routes (e.g.
+          // /questions/:id) keep their section's nav item active.
+          const base = item.href.split('#')[0]
+          const active =
+            !item.soon &&
+            !item.href.includes('#') &&
+            (pathname === base || pathname.startsWith(base + '/'))
           const Icon = item.icon
           if (item.soon) {
             return (
               <span
-                key={item.label}
+                key={item.href}
                 className="flex cursor-not-allowed items-center justify-between rounded-md px-3 py-2 text-sm text-muted-foreground/60"
               >
                 <span className="flex items-center gap-3">
                   <Icon className="h-5 w-5" />
-                  {item.label}
+                  {t(item.labelKey)}
                 </span>
                 <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide">
-                  Soon
+                  {t('nav.soon')}
                 </span>
               </span>
             )
           }
           return (
             <Link
-              key={item.label}
+              key={item.href}
               href={item.href}
               className={cn(
                 'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
@@ -59,7 +69,7 @@ export function Sidebar() {
               )}
             >
               <Icon className="h-5 w-5" />
-              {item.label}
+              {t(item.labelKey)}
             </Link>
           )
         })}

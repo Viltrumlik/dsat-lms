@@ -12,8 +12,16 @@ import { AxiosError } from 'axios'
 import { ThemeProvider } from '@/lib/theme/ThemeProvider'
 import { ToastProvider } from '@/components/ui/toast'
 import { AuthProvider } from '@/lib/auth/AuthProvider'
+import { I18nProvider } from '@/lib/i18n/I18nProvider'
+import type { Locale } from '@/lib/i18n/config'
 
-export function Providers({ children }: { children: React.ReactNode }) {
+export function Providers({
+  initialLocale,
+  children,
+}: {
+  initialLocale: Locale
+  children: React.ReactNode
+}) {
   const [queryClient] = React.useState(
     () =>
       new QueryClient({
@@ -35,12 +43,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
   )
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <ToastProvider>
-          <AuthProvider>{children}</AuthProvider>
-        </ToastProvider>
-      </ThemeProvider>
-    </QueryClientProvider>
+    <I18nProvider initialLocale={initialLocale}>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>
+          <ToastProvider>
+            <AuthProvider>{children}</AuthProvider>
+          </ToastProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </I18nProvider>
   )
 }

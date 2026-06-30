@@ -4,15 +4,17 @@
 
 import { Clock } from 'lucide-react'
 import { useTimer } from '@/lib/hooks/useTimer'
+import { useT } from '@/lib/i18n/I18nProvider'
 import { cn } from '@/lib/utils/cn'
 
 export function TimerDisplay({ onTimeUp }: { onTimeUp?: () => void }) {
+  const t = useT()
   const { formatted, isWarning, isDanger, timeRemaining } = useTimer({ onTimeUp })
 
   if (timeRemaining === null) {
     return (
       <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
-        <Clock className="h-4 w-4" /> Untimed
+        <Clock className="h-4 w-4" /> {t('testEngine.timerUntimed')}
       </span>
     )
   }

@@ -4,10 +4,12 @@
 
 import { Pause } from 'lucide-react'
 import { useSessionStore } from '@/lib/stores/sessionStore'
+import { useT } from '@/lib/i18n/I18nProvider'
 import { Button } from '@/components/ui/button'
 import { TimerDisplay } from './TimerDisplay'
 
 export function TopBar({ onTimeUp, onPause }: { onTimeUp: () => void; onPause: () => void }) {
+  const t = useT()
   const examTitle = useSessionStore((s) => s.meta?.examTitle)
   const section = useSessionStore((s) => s.sections[s.currentSectionIndex])
 
@@ -17,14 +19,14 @@ export function TopBar({ onTimeUp, onPause }: { onTimeUp: () => void; onPause: (
         <p className="truncate text-sm font-semibold">{examTitle}</p>
         {section && (
           <p className="truncate text-xs text-muted-foreground">
-            {section.title || `Section ${section.sectionNumber}`}
+            {section.title || t('testEngine.section', { number: section.sectionNumber })}
           </p>
         )}
       </div>
       <div className="flex items-center gap-2">
         <TimerDisplay onTimeUp={onTimeUp} />
-        <Button variant="ghost" size="sm" onClick={onPause} aria-label="Pause test">
-          <Pause className="h-4 w-4" /> Pause
+        <Button variant="ghost" size="sm" onClick={onPause} aria-label={t('testEngine.pauseAria')}>
+          <Pause className="h-4 w-4" /> {t('testEngine.pause')}
         </Button>
       </div>
     </header>

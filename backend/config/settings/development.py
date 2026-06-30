@@ -2,9 +2,27 @@
 DSAT LMS v2 — Development Settings
 """
 
+from django.db.backends.signals import connection_created
+from django.dispatch import receiver
+
 from .base import *  # noqa
 
 DEBUG = True
+
+
+# Dev runs on SQLite (no Docker/Postgres locally). With ATOMIC_REQUESTS + the
+# threaded dev server, overlapping writes (e.g. the test engine flushing several
+# answer POSTs at once) hit "database is locked" instead of queuing. WAL mode lets
+# readers and a writer coexist, and busy_timeout makes writers wait for the lock.
+# Prod uses Postgres, so this is dev-only.
+@receiver(connection_created)
+def _tune_sqlite(sender, connection, **kwargs):  # noqa: ANN001, ARG001
+    if connection.vendor == "sqlite":
+        cursor = connection.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL;")
+        cursor.execute("PRAGMA synchronous=NORMAL;")
+        cursor.execute("PRAGMA busy_timeout=20000;")
+
 
 # Dev'da email console'ga chiqadi
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"

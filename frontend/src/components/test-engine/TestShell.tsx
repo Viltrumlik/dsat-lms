@@ -12,6 +12,7 @@ import { useAutoSave } from '@/lib/hooks/useAutoSave'
 import { queueAnswer, flushAnswers } from '@/lib/hooks/useAnswerSync'
 import { sessionAPI } from '@/lib/api/sessions'
 import { useToast } from '@/components/ui/toast'
+import { useT } from '@/lib/i18n/I18nProvider'
 import { parseApiError } from '@/lib/api/errors'
 import { FullPageSpinner } from '@/components/ui/spinner'
 import { TopBar } from './TopBar'
@@ -24,6 +25,7 @@ import { SubmitDialog } from './SubmitDialog'
 export function TestShell() {
   const router = useRouter()
   const { toast } = useToast()
+  const t = useT()
   const queryClient = useQueryClient()
   useAutoSave()
 
@@ -71,11 +73,11 @@ export function TestShell() {
       useSessionStore.getState().setStatus('review')
       toast({
         variant: 'error',
-        title: 'Submit failed',
+        title: t('testEngine.submitFailed'),
         description: parseApiError(err).message,
       })
     }
-  }, [router, toast, submitting, queryClient])
+  }, [router, toast, submitting, queryClient, t])
 
   const handlePause = React.useCallback(async () => {
     const state = useSessionStore.getState()
@@ -90,13 +92,13 @@ export function TestShell() {
     } catch {
       // best-effort
     }
-    toast({ title: 'Test paused', description: 'Resume anytime from your dashboard.' })
+    toast({ title: t('testEngine.paused.title'), description: t('testEngine.paused.desc') })
     useSessionStore.getState().resetSession()
     router.push('/dashboard')
-  }, [router, toast])
+  }, [router, toast, t])
 
   if (status === 'submitting') {
-    return <FullPageSpinner label="Grading your test…" />
+    return <FullPageSpinner label={t('testEngine.grading')} />
   }
 
   if (status === 'break') {

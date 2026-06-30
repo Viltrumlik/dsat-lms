@@ -10,6 +10,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useAuth } from '@/lib/auth/AuthProvider'
 import { useToast } from '@/components/ui/toast'
+import { useT } from '@/lib/i18n/I18nProvider'
 import { parseApiError } from '@/lib/api/errors'
 import { loginSchema, type LoginValues } from '@/lib/validations/auth'
 import { safeNextPath } from '@/lib/utils/url'
@@ -24,6 +25,7 @@ function LoginForm() {
   const params = useSearchParams()
   const { login, isAuthenticated, isLoading } = useAuth()
   const { toast } = useToast()
+  const t = useT()
 
   const next = safeNextPath(params.get('next'))
 
@@ -52,7 +54,7 @@ function LoginForm() {
         }
       }
       if (!mappedField) {
-        toast({ variant: 'error', title: 'Sign in failed', description: parsed.message })
+        toast({ variant: 'error', title: t('auth.login.failed'), description: parsed.message })
       }
     }
   }
@@ -60,13 +62,13 @@ function LoginForm() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Welcome back</CardTitle>
-        <CardDescription>Sign in to continue your SAT prep.</CardDescription>
+        <CardTitle>{t('auth.login.title')}</CardTitle>
+        <CardDescription>{t('auth.login.subtitle')}</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
           <div>
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">{t('auth.login.email')}</Label>
             <Input
               id="email"
               type="email"
@@ -78,12 +80,12 @@ function LoginForm() {
           </div>
           <div>
             <div className="flex items-center justify-between">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{t('auth.login.password')}</Label>
               <Link
                 href="/forgot-password"
                 className="text-sm text-primary hover:underline"
               >
-                Forgot password?
+                {t('auth.login.forgotPassword')}
               </Link>
             </div>
             <Input
@@ -96,14 +98,14 @@ function LoginForm() {
             <FieldError message={errors.password?.message} />
           </div>
           <Button type="submit" className="w-full" loading={isSubmitting}>
-            Sign in
+            {t('auth.login.submit')}
           </Button>
         </form>
       </CardContent>
       <div className="border-t border-border px-6 py-4 text-center text-sm text-muted-foreground">
-        Don&apos;t have an account?{' '}
+        {t('auth.login.noAccount')}{' '}
         <Link href="/register" className="font-medium text-primary hover:underline">
-          Create one
+          {t('auth.login.createOne')}
         </Link>
       </div>
     </Card>
