@@ -1,12 +1,34 @@
 """
 DSAT LMS v2 — Assessment service tests
 Domain: Assessments
-Covers: answers_match — grid-in rational equivalence + string fallback.
+Covers: answers_match — grid-in rational equivalence + string fallback;
+        scaled_section_score — representative curve bounds + monotonicity.
 """
 
 import pytest
 
+from apps.assessments.scoring import SECTION_CEIL, SECTION_FLOOR, scaled_section_score
 from apps.assessments.services import answers_match
+
+
+class TestScaledSectionScore:
+    def test_floor_and_ceiling(self):
+        assert scaled_section_score(0, 10) == SECTION_FLOOR
+        assert scaled_section_score(10, 10) == SECTION_CEIL
+
+    def test_empty_section_floors(self):
+        assert scaled_section_score(0, 0) == SECTION_FLOOR
+
+    def test_half_correct_matches_curve_anchor(self):
+        assert scaled_section_score(1, 2) == 480
+
+    def test_scores_are_in_range_and_monotonic(self):
+        prev = SECTION_FLOOR - 1
+        for correct in range(0, 28):
+            score = scaled_section_score(correct, 27)
+            assert SECTION_FLOOR <= score <= SECTION_CEIL
+            assert score >= prev  # non-decreasing as raw rises
+            prev = score
 
 
 class TestAnswersMatch:

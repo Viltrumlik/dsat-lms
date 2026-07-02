@@ -130,6 +130,16 @@ export const en = {
       empty: 'No tests are available yet. Seed one with',
       loadFailed: "Couldn't load tests. Please try again.",
     },
+    goal: {
+      targetScore: 'Target score',
+      examOn: 'Exam on {date}',
+      examToday: 'Exam today',
+      examPassed: 'Exam passed',
+      daysToGoOne: '{count} day to go',
+      daysToGoOther: '{count} days to go',
+      emptyPrompt: 'Set a target score and exam date to track your goal.',
+      setGoal: 'Set your goal',
+    },
     recent: {
       title: 'Recent activity',
       empty: 'No sessions yet — start a practice test above.',

@@ -132,6 +132,16 @@ export const uz: Dictionary = {
       empty: 'Hozircha testlar mavjud emas. Buni quyidagi bilan yarating:',
       loadFailed: 'Testlarni yuklab boʻlmadi. Qayta urinib koʻring.',
     },
+    goal: {
+      targetScore: 'Maqsad ball',
+      examOn: 'Imtihon: {date}',
+      examToday: 'Imtihon bugun',
+      examPassed: 'Imtihon oʻtdi',
+      daysToGoOne: '{count} kun qoldi',
+      daysToGoOther: '{count} kun qoldi',
+      emptyPrompt: 'Maqsadingizni kuzatish uchun maqsad ball va imtihon sanasini kiriting.',
+      setGoal: 'Maqsad qoʻyish',
+    },
     recent: {
       title: 'Soʻnggi faollik',
       empty: 'Hali sessiyalar yoʻq — yuqoridan mashq testini boshlang.',
