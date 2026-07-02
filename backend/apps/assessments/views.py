@@ -238,9 +238,7 @@ class SessionSubmitView(APIView):
 
             complete_submissions_for_session(session)
         except Exception:  # noqa: BLE001
-            logger.exception(
-                "Failed to complete homework submissions for session %s", session.id
-            )
+            logger.exception("Failed to complete homework submissions for session %s", session.id)
 
         try:
             from apps.notifications.services import notify

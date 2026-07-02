@@ -104,9 +104,7 @@ class HomeworkListCreateView(APIView):
                     },
                 )
         except Exception:  # noqa: BLE001
-            logger.exception(
-                "Failed to create homework-assigned notifications for %s", homework.id
-            )
+            logger.exception("Failed to create homework-assigned notifications for %s", homework.id)
 
         return created_response(HomeworkSerializer(homework).data)
 
@@ -126,9 +124,7 @@ class HomeworkStartView(APIView):
             raise PermissionDenied("Only students can start homework.")
         homework = _accessible_homework(request.user, pk)
         if homework.exam_id is None:
-            return ValidationError(
-                "This homework has no linked test.", field="exam"
-            ).to_response()
+            return ValidationError("This homework has no linked test.", field="exam").to_response()
 
         # Visibility already implies active enrollment (academy access), so the
         # exam's access level needs no separate check here.

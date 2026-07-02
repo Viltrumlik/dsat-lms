@@ -47,9 +47,7 @@ class Command(BaseCommand):
             STUDENT_EMAIL, STUDENT_PASSWORD, "Aziza", "Karimova", role="student"
         )
 
-        klass, created = Class.objects.get_or_create(
-            name=CLASS_NAME, defaults={"teacher": teacher}
-        )
+        klass, created = Class.objects.get_or_create(name=CLASS_NAME, defaults={"teacher": teacher})
         self._note("class", klass.name, created)
 
         _, created = ClassEnrollment.objects.get_or_create(
@@ -87,8 +85,7 @@ class Command(BaseCommand):
             assigned_class=klass,
             defaults={
                 "description": (
-                    "Read the handout from class and note three example sentences "
-                    "of your own."
+                    "Read the handout from class and note three example sentences " "of your own."
                 ),
                 "assigned_by": teacher,
                 "due_at": timezone.now() + dt.timedelta(days=1),
