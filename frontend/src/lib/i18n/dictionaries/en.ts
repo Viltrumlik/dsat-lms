@@ -295,6 +295,18 @@ export const en = {
       you: 'You',
     },
   },
+  notifications: {
+    title: 'Notifications',
+    subtitle: 'What’s new across your prep.',
+    bellAria: 'Notifications',
+    unreadBadgeAria: 'Notifications — {count} unread',
+    markAllRead: 'Mark all read',
+    viewAll: 'View all',
+    empty: 'Nothing here yet — you’re all caught up.',
+    loadFailed: "Couldn't load notifications. Please try again.",
+    loadMore: 'Load more',
+    allCaughtUp: 'That’s everything.',
+  },
   homework: {
     title: 'Homework',
     subtitle: 'Assignments from your classes.',

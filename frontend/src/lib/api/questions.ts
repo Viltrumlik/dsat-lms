@@ -5,7 +5,7 @@
 //   with filters/search, study detail, and category/tag lists for filter UIs.
 // ═══════════════════════════════════════
 
-import { get, getPaginated } from './client'
+import { get, getPaginated, cursorFromUrl } from './client'
 import type {
   AnswerType,
   QuestionCategory,
@@ -14,6 +14,9 @@ import type {
   QuestionModule,
   QuestionTag,
 } from '@/types'
+
+// Re-exported for existing imports; canonical home is client.ts.
+export { cursorFromUrl }
 
 export interface QuestionListParams {
   module?: QuestionModule
@@ -27,16 +30,6 @@ export interface QuestionListParams {
   source?: string
   search?: string
   cursor?: string
-}
-
-/** Pull the opaque `cursor` value out of a DRF "next"/"previous" page URL. */
-export function cursorFromUrl(url: string | null): string | null {
-  if (!url) return null
-  try {
-    return new URL(url).searchParams.get('cursor')
-  } catch {
-    return null
-  }
 }
 
 export const questionAPI = {

@@ -7,6 +7,8 @@ Permissions: academy-only (has_full_access). Create/submissions = teacher/admin;
              submit = student. Everything is scoped (others 404 / 403).
 """
 
+import logging
+
 from django.db.models import Prefetch
 from django.utils import timezone
 from rest_framework.exceptions import NotFound, PermissionDenied
@@ -21,6 +23,8 @@ from .serializers import (
     HomeworkSerializer,
     HomeworkSubmissionSerializer,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _require_academy(user):
@@ -73,6 +77,28 @@ class HomeworkListCreateView(APIView):
         if not request.user.is_admin and klass.teacher_id != request.user.id:
             raise PermissionDenied("You can only assign homework to your own classes.")
         homework = serializer.save(assigned_by=request.user)
+
+        # Best-effort in-app notification to every actively enrolled student.
+        # Lazy import keeps the domain dependency one-way.
+        try:
+            from apps.notifications.services import notify
+
+            enrollments = klass.enrollments.filter(
+                status=ClassEnrollment.Status.ACTIVE
+            ).select_related("student")
+            for enrollment in enrollments:
+                notify(
+                    enrollment.student,
+                    "homework_assigned",
+                    f"New homework: {homework.title}",
+                    body=f"{klass.name} — due {homework.due_at:%b %d, %Y}",
+                    data={"homework_id": str(homework.id)},
+                )
+        except Exception:  # noqa: BLE001
+            logger.exception(
+                "Failed to create homework-assigned notifications for %s", homework.id
+            )
+
         return created_response(HomeworkSerializer(homework).data)
 
 

@@ -369,15 +369,16 @@ export interface HomeworkSubmission {
 }
 
 // ─────────────────────────────────────
-// Notifications (Phase 2 — kept for reference)
+// Notifications
 // ─────────────────────────────────────
 
 export type NotificationType =
-  | 'homework_assigned'
-  | 'homework_due_soon'
-  | 'exam_scheduled'
   | 'exam_graded'
-  | 'teacher_comment'
+  | 'exam_scheduled'
+  | 'homework_assigned'
+  | 'homework_due'
+  | 'announcement'
+  | 'system'
 
 export interface Notification {
   id: string

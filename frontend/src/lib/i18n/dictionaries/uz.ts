@@ -298,6 +298,18 @@ export const uz: Dictionary = {
       you: 'Siz',
     },
   },
+  notifications: {
+    title: 'Bildirishnomalar',
+    subtitle: 'Tayyorgarligingizdagi yangiliklar.',
+    bellAria: 'Bildirishnomalar',
+    unreadBadgeAria: 'Bildirishnomalar — {count} ta oʻqilmagan',
+    markAllRead: 'Hammasini oʻqilgan deb belgilash',
+    viewAll: 'Hammasini koʻrish',
+    empty: 'Hozircha hech narsa yoʻq — hammasi oʻqilgan.',
+    loadFailed: 'Bildirishnomalarni yuklab boʻlmadi. Qayta urinib koʻring.',
+    loadMore: 'Yana yuklash',
+    allCaughtUp: 'Hammasi shu.',
+  },
   homework: {
     title: 'Uy vazifalari',
     subtitle: 'Sinflaringizga berilgan vazifalar.',

@@ -8,6 +8,7 @@ import { GraduationCap, LogOut } from 'lucide-react'
 import { useAuth } from '@/lib/auth/AuthProvider'
 import { useT } from '@/lib/i18n/I18nProvider'
 import { Button } from '@/components/ui/button'
+import { NotificationBell } from '@/components/notifications/NotificationBell'
 import { ThemeToggle } from './ThemeToggle'
 import { LanguageSwitcher } from './LanguageSwitcher'
 
@@ -35,6 +36,7 @@ export function Navbar() {
       </Link>
 
       <div className="flex items-center gap-2">
+        {user && <NotificationBell />}
         <LanguageSwitcher />
         <ThemeToggle />
         {user && (

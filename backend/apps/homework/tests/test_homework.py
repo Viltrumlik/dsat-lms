@@ -76,6 +76,25 @@ class TestCreate:
         )
         assert r.status_code == 403
 
+    def test_create_notifies_enrolled_students(self):
+        from apps.notifications.models import Notification
+
+        teacher = UserFactory(role="teacher")
+        klass = ClassFactory(teacher=teacher)
+        student = UserFactory(role="student")
+        enroll(klass, student)
+        outsider = UserFactory(role="student")  # not enrolled — no notification
+
+        r = client_for(teacher).post(
+            BASE, {"title": "HW2", "assigned_class": str(klass.id), "due_at": DUE}, format="json"
+        )
+        assert r.status_code == 201
+
+        notification = Notification.objects.get(user=student)
+        assert notification.type == "homework_assigned"
+        assert notification.data["homework_id"] == r.data["data"]["id"]
+        assert not Notification.objects.filter(user=outsider).exists()
+
     def test_student_cannot_create(self):
         student = UserFactory(role="student")
         klass = ClassFactory()
