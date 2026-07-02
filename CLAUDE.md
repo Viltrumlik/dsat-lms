@@ -536,6 +536,9 @@ Teacher & admin surfaces, analytics charts, public/marketing pages, question-ban
 - ✅ **Question Bank** — `(student)/questions` + `/questions/[id]` (filters + infinite scroll; study view: MCQ reveal + grid-in). `lib/api/questions.ts`.
 - ✅ **Analytics** — `(student)/analytics` (summary, lazy Recharts accuracy chart, category mastery, academy leaderboard). `components/analytics/*`.
 - ✅ **i18n** — EN/UZ in-app toggle (cookie-persisted, flash-free SSR). `lib/i18n/*` (`useT`, `en.ts`/`uz.ts`). Whole app localized.
+- ✅ **2D Homework (student)** — `(student)/homework` + `[id]`; status badges incl. overdue; exam-backed Start → test engine; submit w/ confirm dialog. Backend adds `my_submission` to homework payloads + `seed_demo_academy` command. `lib/api/homework.ts`, `components/homework/*`.
+- ✅ **2E Notifications** — navbar bell (30s-polled unread badge, recent dropdown) + `(student)/notifications` (cursor list, mark-read/all). Deep links via `notification.data` (`components/notifications/link.ts`). Backend notifies enrolled students on homework create (`homework_assigned`). `ui/dropdown-menu.tsx`.
+- ✅ **2F Teacher surface** — `(teacher)` group under `/teacher`: classes (list/create), roster + enroll-by-email, homework assign dialog (class/exam selects) + per-student submissions. `RequireRole`, `TeacherSidebar`, role-gated "Teacher panel" entry in the student sidebar. `lib/api/teacher.ts`; `ui/{select,textarea,table}.tsx`.
 
 ### Reuse — do NOT rebuild
 API client (`lib/api/client.ts`: `get/post/patch/del/getPaginated` + snake↔camel transform, `cursorFromUrl`); TanStack Query (`useQuery`/`useInfiniteQuery`/`useMutation`); `parseApiError` + toasts; i18n (`useT`; **add every new key to BOTH `en.ts` and `uz.ts`** — `uz` is typed `as Dictionary`, so a missing key fails the build); shadcn/ui primitives; `RequireAuth`.
@@ -557,7 +560,7 @@ API client (`lib/api/client.ts`: `get/post/patch/del/getPaginated` + snake↔cam
 2. **Role-gating** — add `RequireRole` (or extend `components/common/RequireAuth.tsx`) to gate by `user.role`; add a `(teacher)` route group + layout (own Navbar/Sidebar). `(admin)` waits for Phase 3.
 3. **Types** (`types/index.ts`) — add `Homework`, `HomeworkSubmission`, `HomeworkStatus`, `TeacherClass`, `RosterEntry`, `ClassEnrollment`. (`Notification`/`NotificationType` already exist.)
 
-### Slices — recommended order
+### Slices — recommended order (ALL SHIPPED ✅ — kept for reference)
 
 **2D — Homework (student side) — FIRST.** Backend READY. Completes the student loop.
 - `lib/api/homework.ts`: `list()`, `get(id)`, `submit(id)`.
@@ -577,11 +580,11 @@ API client (`lib/api/client.ts`: `get/post/patch/del/getPaginated` + snake↔cam
 As Phase 1 (see §2, §6, §8). Role-scoped routing via route groups + `RequireRole`. All new text through `useT` (en + uz). Server state via TanStack Query; **Zustand only** for the test engine. Lists cursor-paginated. Teacher endpoints are already own-class-scoped server-side.
 
 ### Verification (per slice)
-`npm run type-check` + `lint` + `vitest` clean; `next build`; browser-verify against the live backend in **both en + uz** (seed: `seed_demo_exam`; create teacher/student users + a class via `/admin/`); extend the Playwright e2e for the new happy path; keep both CI jobs green.
+`npm run type-check` + `lint` + `vitest` clean; `next build` (⚠️ stop the dev server first — dev and build share `.next/` and corrupt each other); browser-verify against the live backend in **both en + uz** (seed: `seed_demo_exam` then `seed_demo_academy` — idempotent teacher/student creds + class + homework); extend the Playwright e2e for the new happy path (e2e runs `workers=1` — parallel auth writes lock the SQLite dev DB); keep both CI jobs green.
 
 ### Out of scope (Phase 3+)
 Admin content studio / exam builder / user management (+ their REST endpoints); teacher per-student analytics; realtime (websocket) notifications; attendance; bulk CSV import UI; official SAT scaling refinements; deployment/infra.
 
 ---
 
-*Oxirgi yangilangan: Phase 1 (frontend core slice) DONE. Phase 2 in progress — Question Bank + Analytics + i18n shipped; Homework/Notifications/Teacher next (branch feat/phase2-question-bank).*
+*Oxirgi yangilangan: Phase 2 COMPLETE — Question Bank, Analytics, i18n, Homework (2D), Notifications (2E), Teacher surface (2F) shipped (branch feat/phase2-question-bank). Keyingisi: Phase 3 — admin content studio / exam builder / user management (+ REST endpoints), teacher per-student analytics.*
