@@ -474,7 +474,7 @@ Bularni hech qachon buzmang:
 
 ---
 
-## PHASE 1 — FRONTEND CORE SLICE (CURRENT)
+## PHASE 1 — FRONTEND CORE SLICE (✅ COMPLETE)
 
 > **Goal:** ship a usable student flow end-to-end against the live backend —
 > **auth → student dashboard → take a practice test (test engine) → see results.**
@@ -525,4 +525,63 @@ Teacher & admin surfaces, analytics charts, public/marketing pages, question-ban
 
 ---
 
-*Oxirgi yangilangan: Phase 0 done (backend complete, CI green) — Phase 1 (frontend core slice) ready to start.*
+## PHASE 2 — ACADEMY & CONTENT SURFACES
+
+> **Goal:** grow past the public student core into the academy + content surfaces —
+> homework, notifications, and teacher class management — layering role-based routing
+> on top of the working Phase 1 shell. Admin authoring (content studio / exam builder /
+> user management) is **Phase 3** — it needs new backend REST endpoints first.
+
+### Already shipped (Phase 2, branch `feat/phase2-question-bank`)
+- ✅ **Question Bank** — `(student)/questions` + `/questions/[id]` (filters + infinite scroll; study view: MCQ reveal + grid-in). `lib/api/questions.ts`.
+- ✅ **Analytics** — `(student)/analytics` (summary, lazy Recharts accuracy chart, category mastery, academy leaderboard). `components/analytics/*`.
+- ✅ **i18n** — EN/UZ in-app toggle (cookie-persisted, flash-free SSR). `lib/i18n/*` (`useT`, `en.ts`/`uz.ts`). Whole app localized.
+
+### Reuse — do NOT rebuild
+API client (`lib/api/client.ts`: `get/post/patch/del/getPaginated` + snake↔camel transform, `cursorFromUrl`); TanStack Query (`useQuery`/`useInfiniteQuery`/`useMutation`); `parseApiError` + toasts; i18n (`useT`; **add every new key to BOTH `en.ts` and `uz.ts`** — `uz` is typed `as Dictionary`, so a missing key fails the build); shadcn/ui primitives; `RequireAuth`.
+
+### Backend readiness (verified against the live API)
+**READY — build now (REST endpoints exist):**
+- **Homework** — `GET/POST /homework/`, `GET /homework/{id}/`, `POST /homework/{id}/submit/` (student), `GET /homework/{id}/submissions/` (teacher). Class-scoped visibility.
+- **Notifications** — `GET /notifications/` (`?unread=1`), `GET /notifications/unread-count/`, `POST /notifications/read-all/`, `POST /notifications/{id}/read/` (IsAuthenticated, owner-scoped, cursor-paginated).
+- **Teacher classes** — `GET/POST /teacher/classes/`, `GET /teacher/classes/{id}/roster/`, `POST /teacher/classes/{id}/enroll/` (IsAdminOrTeacher; teacher sees only own classes).
+
+**NOT READY → Phase 3** (models + lifecycle methods + Django admin exist, but no REST endpoints):
+- Admin **content studio** — question authoring/review; `submit_for_review`/`approve`/`reject` live on `apps/question_bank/models.py` but are unexposed.
+- Admin **exam authoring + assignments** — `ExamTemplate`/`ExamSection`/`ExamQuestion`/`ExamAssignment` in `apps/assessments`.
+- Admin **user management** — `apps/identity/urls_admin.py` is an empty stub.
+- **Teacher per-student analytics** — `CanViewStudentData` exists (`common/permissions.py`); no endpoint yet.
+
+### Shared prerequisites (build as needed; mostly before the Teacher slice)
+1. **UI primitives** — add to `components/ui/`: `select.tsx`, `textarea.tsx`, `table.tsx` (Radix + CVA, match existing style). Needed by homework/teacher forms + tables.
+2. **Role-gating** — add `RequireRole` (or extend `components/common/RequireAuth.tsx`) to gate by `user.role`; add a `(teacher)` route group + layout (own Navbar/Sidebar). `(admin)` waits for Phase 3.
+3. **Types** (`types/index.ts`) — add `Homework`, `HomeworkSubmission`, `HomeworkStatus`, `TeacherClass`, `RosterEntry`, `ClassEnrollment`. (`Notification`/`NotificationType` already exist.)
+
+### Slices — recommended order
+
+**2D — Homework (student side) — FIRST.** Backend READY. Completes the student loop.
+- `lib/api/homework.ts`: `list()`, `get(id)`, `submit(id)`.
+- `(student)/homework` list + `(student)/homework/[id]` detail; status badges (assigned/submitted/graded). If exam-backed (`homework.exam`), "Start" launches a session via `sessionAPI.start` → the Phase 1 test engine; otherwise a simple submit. Add a Sidebar nav entry.
+
+**2E — Notifications UI.** Backend READY; `Notification` type already exists. Small, high-visibility.
+- `lib/api/notifications.ts`: `list({unread?})`, `unreadCount()`, `markRead(id)`, `markAllRead()`.
+- Navbar bell + unread badge (TanStack Query `refetchInterval` on `unread-count`); dropdown of recent; `(student)/notifications` page (cursor list, mark-read, mark-all). Deep-link via `notification.data` action URL.
+
+**2F — Teacher surface.** Backend READY for classes/roster/enroll/homework.
+- New `(teacher)` route group + role-guarded layout.
+- `lib/api/teacher.ts`: classes list/create, roster, enroll; homework create + submissions.
+- Pages: classes list + create dialog; class detail (roster `table` + enroll-by-email form); homework assign (form: class `select`, exam `select`, due date, `textarea`) + submissions view (`table`, status per student).
+- ⚠️ **Deferred to Phase 3:** per-student analytics drilldown (needs `GET /teacher/students/{id}/analytics/`).
+
+### Conventions
+As Phase 1 (see §2, §6, §8). Role-scoped routing via route groups + `RequireRole`. All new text through `useT` (en + uz). Server state via TanStack Query; **Zustand only** for the test engine. Lists cursor-paginated. Teacher endpoints are already own-class-scoped server-side.
+
+### Verification (per slice)
+`npm run type-check` + `lint` + `vitest` clean; `next build`; browser-verify against the live backend in **both en + uz** (seed: `seed_demo_exam`; create teacher/student users + a class via `/admin/`); extend the Playwright e2e for the new happy path; keep both CI jobs green.
+
+### Out of scope (Phase 3+)
+Admin content studio / exam builder / user management (+ their REST endpoints); teacher per-student analytics; realtime (websocket) notifications; attendance; bulk CSV import UI; official SAT scaling refinements; deployment/infra.
+
+---
+
+*Oxirgi yangilangan: Phase 1 (frontend core slice) DONE. Phase 2 in progress — Question Bank + Analytics + i18n shipped; Homework/Notifications/Teacher next (branch feat/phase2-question-bank).*
