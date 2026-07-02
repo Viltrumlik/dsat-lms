@@ -67,6 +67,15 @@ export interface AuthSession {
   accessToken: string
 }
 
+/** Compact user as nested in rosters and homework submissions. */
+export interface StudentMini {
+  id: string
+  email: string
+  firstName: string
+  lastName: string
+  fullName: string
+}
+
 // ─────────────────────────────────────
 // Question Bank
 // ─────────────────────────────────────
@@ -322,6 +331,41 @@ export interface RankingEntry {
   accuracy: number
   totalAnswered: number
   isMe: boolean
+}
+
+// ─────────────────────────────────────
+// Homework
+// ─────────────────────────────────────
+
+export type HomeworkStatus = 'assigned' | 'submitted' | 'graded'
+
+/** The requesting student's own submission, embedded in homework payloads. */
+export interface HomeworkMySubmission {
+  status: HomeworkStatus
+  submittedAt: string | null
+}
+
+export interface Homework {
+  id: string
+  title: string
+  description: string
+  assignedClass: string // Class id
+  className: string
+  exam: string | null // ExamTemplate id — when set, the homework is exam-backed
+  examTitle: string | null
+  dueAt: string
+  isPublished: boolean
+  mySubmission: HomeworkMySubmission | null // null for teachers and for students with no submission yet
+  createdAt: string
+}
+
+/** Submission row (teacher submissions view; also returned by submit). */
+export interface HomeworkSubmission {
+  id: string
+  student: StudentMini
+  status: HomeworkStatus
+  submittedAt: string | null
+  createdAt: string
 }
 
 // ─────────────────────────────────────

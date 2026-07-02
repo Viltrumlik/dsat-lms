@@ -1,36 +1,43 @@
 // Domain: Common
 // Description: Left navigation for the student shell. Items may opt into a
-//   disabled "Soon" tag (soon: true) for not-yet-built destinations.
+//   disabled "Soon" tag (soon: true) for not-yet-built destinations, or into
+//   academyOnly (hidden from public users — the API enforces server-side too).
 'use client'
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { BarChart3, BookOpen, LayoutDashboard, ListChecks } from 'lucide-react'
+import { BarChart3, BookOpen, ClipboardList, LayoutDashboard, ListChecks } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
 import { useT } from '@/lib/i18n/I18nProvider'
+import { useAuth } from '@/lib/auth/AuthProvider'
 
 interface NavItem {
   labelKey: string
   href: string
   icon: React.ComponentType<{ className?: string }>
   soon?: boolean
+  academyOnly?: boolean
 }
 
 const NAV: NavItem[] = [
   { labelKey: 'nav.dashboard', href: '/dashboard', icon: LayoutDashboard },
   { labelKey: 'nav.practiceTests', href: '/dashboard#tests', icon: ListChecks },
   { labelKey: 'nav.questionBank', href: '/questions', icon: BookOpen },
+  { labelKey: 'nav.homework', href: '/homework', icon: ClipboardList, academyOnly: true },
   { labelKey: 'nav.analytics', href: '/analytics', icon: BarChart3 },
 ]
 
 export function Sidebar() {
   const pathname = usePathname()
   const t = useT()
+  const { user } = useAuth()
+
+  const items = NAV.filter((item) => !item.academyOnly || (user && user.role !== 'public'))
 
   return (
     <aside className="hidden w-sidebar shrink-0 border-r border-border bg-card md:block">
       <nav className="sticky top-16 flex flex-col gap-1 p-3">
-        {NAV.map((item) => {
+        {items.map((item) => {
           // In-page anchors (href contains '#') share a pathname with the page
           // they scroll within, so they must not compete for the active state —
           // only the real page link (no hash) highlights. Nested routes (e.g.

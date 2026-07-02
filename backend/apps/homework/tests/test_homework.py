@@ -85,6 +85,37 @@ class TestCreate:
         assert r.status_code == 403
 
 
+class TestMySubmission:
+    def test_student_sees_own_submission_status(self):
+        teacher = UserFactory(role="teacher")
+        klass = ClassFactory(teacher=teacher)
+        homework = HomeworkFactory(assigned_class=klass)
+        student = UserFactory(role="student")
+        enroll(klass, student)
+        client = client_for(student)
+
+        assert client.get(BASE).data["data"][0]["my_submission"] is None
+
+        client.post(f"{BASE}{homework.id}/submit/", {}, format="json")
+        row = client.get(BASE).data["data"][0]
+        assert row["my_submission"]["status"] == "submitted"
+        assert row["my_submission"]["submitted_at"] is not None
+
+        detail = client.get(f"{BASE}{homework.id}/").data["data"]
+        assert detail["my_submission"]["status"] == "submitted"
+
+    def test_teacher_gets_null_my_submission(self):
+        teacher = UserFactory(role="teacher")
+        klass = ClassFactory(teacher=teacher)
+        homework = HomeworkFactory(assigned_class=klass)
+        student = UserFactory(role="student")
+        enroll(klass, student)
+        client_for(student).post(f"{BASE}{homework.id}/submit/", {}, format="json")
+
+        data = client_for(teacher).get(BASE).data["data"]
+        assert data[0]["my_submission"] is None
+
+
 class TestSubmit:
     def test_enrolled_student_submits(self):
         teacher = UserFactory(role="teacher")

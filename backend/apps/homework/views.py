@@ -7,6 +7,7 @@ Permissions: academy-only (has_full_access). Create/submissions = teacher/admin;
              submit = student. Everything is scoped (others 404 / 403).
 """
 
+from django.db.models import Prefetch
 from django.utils import timezone
 from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.views import APIView
@@ -33,11 +34,21 @@ def _visible_homeworks(user):
         return queryset
     if user.is_teacher:
         return queryset.filter(assigned_class__teacher=user)
-    return queryset.filter(
-        assigned_class__enrollments__student=user,
-        assigned_class__enrollments__status=ClassEnrollment.Status.ACTIVE,
-        is_published=True,
-    ).distinct()
+    return (
+        queryset.filter(
+            assigned_class__enrollments__student=user,
+            assigned_class__enrollments__status=ClassEnrollment.Status.ACTIVE,
+            is_published=True,
+        )
+        .distinct()
+        .prefetch_related(
+            Prefetch(
+                "submissions",
+                queryset=HomeworkSubmission.objects.filter(student=user),
+                to_attr="my_submissions",
+            )
+        )
+    )
 
 
 def _accessible_homework(user, pk):
