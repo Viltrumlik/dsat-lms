@@ -583,6 +583,12 @@ API client (`lib/api/client.ts`: `get/post/patch/del/getPaginated` + snake↔cam
 4. ✅ **`send_homework_due_reminders()`** — `apps/notifications/tasks.py`: daily beat task (CELERY_BEAT_SCHEDULE, installed into the DB by django_celery_beat on beat startup) — `homework_due` to actively-enrolled, unsubmitted students for homework due within 24h, deduped per user+homework.
 5. ✅ **Notifications polish** — All/Unread filter on the notifications page + `e2e/notifications.spec.ts` (bell → localized template → deep link → linked-test auto-submit → mark-all-read).
 
+### Phase 1 retro-fixes (found in post-Phase-2 audit)
+1. **Grid-in equivalence grading** — grading is exact string match (`services.py` `strip().lower()` equality; same naive compare in `QuestionStudy`), so `3.5` vs `7/2`, `.5` vs `0.5`, `36.0` vs `36` are mismarked while the UI promises "Fractions (7/2) and decimals (3.5) are allowed". Fix: exact rational comparison (backend `answers_match()` via `Fraction`; frontend `lib/utils/answers.ts` via BigInt cross-multiplication), string fallback for non-numeric answers (MCQ letters unaffected).
+2. **Abandoned-session sweep** — `ExamSession.Status.ABANDONED` is defined and rendered but nothing ever sets it; expired sessions sit on the dashboard as "Resume" forever. Fix: daily beat task `abandon_stale_sessions` (timed sessions expired >24h ago; untimed ones untouched >7 days); abandoned rows on the dashboard become non-clickable.
+3. **Settings page** — `POST /auth/password/change/` had no UI, and profile fields (`sat_target_score`, `exam_date`, first/last name) had no endpoint or editor. Fix: `PATCH /auth/me/` (profile fields only — email/role immutable) + `(student)/settings` with Profile and Change-password forms; sidebar/mobile-nav entry.
+4. **Dashboard exam-type filter** — `AvailableTests` listed every template type as "Practice tests". Fix: filter `type=practice` (backend already supports `?type=`).
+
 ### Conventions
 As Phase 1 (see §2, §6, §8). Role-scoped routing via route groups + `RequireRole`. All new text through `useT` (en + uz). Server state via TanStack Query; **Zustand only** for the test engine. Lists cursor-paginated. Teacher endpoints are already own-class-scoped server-side.
 
