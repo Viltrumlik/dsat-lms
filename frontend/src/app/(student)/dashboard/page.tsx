@@ -12,6 +12,7 @@ import { useT } from '@/lib/i18n/I18nProvider'
 import { parseApiError } from '@/lib/api/errors'
 import { Button } from '@/components/ui/button'
 import { SummaryCards } from '@/components/dashboard/SummaryCards'
+import { GoalCard } from '@/components/dashboard/GoalCard'
 import { AvailableTests } from '@/components/dashboard/AvailableTests'
 import { RecentSessions } from '@/components/dashboard/RecentSessions'
 
@@ -68,6 +69,7 @@ export default function DashboardPage() {
 
       {user && !user.isEmailVerified && <VerifyBanner />}
 
+      <GoalCard />
       <SummaryCards />
       <AvailableTests />
       <RecentSessions />

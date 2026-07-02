@@ -7,11 +7,17 @@ Permissions: academy-only (has_full_access). Create/submissions = teacher/admin;
              submit = student. Everything is scoped (others 404 / 403).
 """
 
+import logging
+
+from django.db.models import Prefetch
 from django.utils import timezone
 from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.views import APIView
 
 from apps.academy.models import ClassEnrollment
+from apps.assessments.models import ExamSession
+from apps.assessments.serializers import SessionDetailSerializer
+from common.exceptions import ValidationError
 from common.responses import created_response, success_response
 
 from .models import Homework, HomeworkSubmission
@@ -20,6 +26,8 @@ from .serializers import (
     HomeworkSerializer,
     HomeworkSubmissionSerializer,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _require_academy(user):
@@ -33,11 +41,21 @@ def _visible_homeworks(user):
         return queryset
     if user.is_teacher:
         return queryset.filter(assigned_class__teacher=user)
-    return queryset.filter(
-        assigned_class__enrollments__student=user,
-        assigned_class__enrollments__status=ClassEnrollment.Status.ACTIVE,
-        is_published=True,
-    ).distinct()
+    return (
+        queryset.filter(
+            assigned_class__enrollments__student=user,
+            assigned_class__enrollments__status=ClassEnrollment.Status.ACTIVE,
+            is_published=True,
+        )
+        .distinct()
+        .prefetch_related(
+            Prefetch(
+                "submissions",
+                queryset=HomeworkSubmission.objects.filter(student=user),
+                to_attr="my_submissions",
+            )
+        )
+    )
 
 
 def _accessible_homework(user, pk):
@@ -62,6 +80,32 @@ class HomeworkListCreateView(APIView):
         if not request.user.is_admin and klass.teacher_id != request.user.id:
             raise PermissionDenied("You can only assign homework to your own classes.")
         homework = serializer.save(assigned_by=request.user)
+
+        # Best-effort in-app notification to every actively enrolled student.
+        # Lazy import keeps the domain dependency one-way. English title/body are
+        # fallbacks; clients render localized templates from the structured data.
+        try:
+            from apps.notifications.services import notify
+
+            enrollments = klass.enrollments.filter(
+                status=ClassEnrollment.Status.ACTIVE
+            ).select_related("student")
+            for enrollment in enrollments:
+                notify(
+                    enrollment.student,
+                    "homework_assigned",
+                    f"New homework: {homework.title}",
+                    body=f"{klass.name} — due {homework.due_at:%b %d, %Y}",
+                    data={
+                        "homework_id": str(homework.id),
+                        "homework_title": homework.title,
+                        "class_name": klass.name,
+                        "due_at": homework.due_at.isoformat(),
+                    },
+                )
+        except Exception:  # noqa: BLE001
+            logger.exception("Failed to create homework-assigned notifications for %s", homework.id)
+
         return created_response(HomeworkSerializer(homework).data)
 
 
@@ -70,6 +114,33 @@ class HomeworkDetailView(APIView):
         _require_academy(request.user)
         homework = _accessible_homework(request.user, pk)
         return success_response(HomeworkSerializer(homework).data)
+
+
+class HomeworkStartView(APIView):
+    def post(self, request, pk):
+        """Start the linked exam AND bind the session to the student's submission,
+        so submitting the test turns the homework in automatically."""
+        if not request.user.is_academy_student:
+            raise PermissionDenied("Only students can start homework.")
+        homework = _accessible_homework(request.user, pk)
+        if homework.exam_id is None:
+            return ValidationError("This homework has no linked test.", field="exam").to_response()
+
+        # Visibility already implies active enrollment (academy access), so the
+        # exam's access level needs no separate check here.
+        exam = homework.exam
+        session = ExamSession.objects.create(
+            user=request.user,
+            exam=exam,
+            status=ExamSession.Status.IN_PROGRESS,
+            time_remaining=exam.time_limit * 60 if exam.time_limit else None,
+        )
+        HomeworkSubmission.objects.update_or_create(
+            homework=homework,
+            student=request.user,
+            defaults={"session": session},
+        )
+        return created_response(SessionDetailSerializer(session).data)
 
 
 class HomeworkSubmitView(APIView):

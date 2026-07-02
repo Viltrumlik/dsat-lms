@@ -15,6 +15,7 @@ class Notification(BaseModel):
     class Type(models.TextChoices):
         EXAM_GRADED = "exam_graded", "Exam Graded"
         EXAM_SCHEDULED = "exam_scheduled", "Exam Scheduled"
+        HOMEWORK_ASSIGNED = "homework_assigned", "Homework Assigned"
         HOMEWORK_DUE = "homework_due", "Homework Due"
         ANNOUNCEMENT = "announcement", "Announcement"
         SYSTEM = "system", "System"

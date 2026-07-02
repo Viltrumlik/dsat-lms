@@ -7,7 +7,7 @@
 //   POSTs them to the matching /confirm/ endpoint.
 // ═══════════════════════════════════════
 
-import { post, get, refreshAccessToken } from './client'
+import { post, get, patch, refreshAccessToken } from './client'
 import type { AuthSession, User } from '@/types'
 
 export interface RegisterPayload {
@@ -35,6 +35,15 @@ export const authAPI = {
   }),
 
   me: () => get<{ user: User }>('/auth/me/'),
+
+  /** Self-service profile update (name, target score, exam date, timezone). */
+  updateMe: (payload: {
+    firstName?: string
+    lastName?: string
+    satTargetScore?: number | null
+    examDate?: string | null
+    timezone?: string
+  }) => patch<{ user: User }>('/auth/me/', payload),
 
   /** Resend verification to the logged-in user (authenticated, no body). */
   resendVerification: () => post<{ detail: string }>('/auth/verify-email/resend/'),

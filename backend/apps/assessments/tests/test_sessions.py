@@ -315,9 +315,10 @@ class TestScaledScoring:
         # qm2 unanswered
 
         d = auth_client.post(f"{SESSIONS}{sid}/submit/", {}, format="json").data["data"]
-        assert d["math_score"] == 500  # 1/2 → 200 + 0.5*600
-        assert d["rw_score"] == 800  # 2/2 → 800
-        assert d["total_score"] == 1300
+        # Scaled via the representative curve in scoring.py (CURVE anchors).
+        assert d["math_score"] == 480  # 1/2 → ratio 0.5 anchor
+        assert d["rw_score"] == 800  # 2/2 → ratio 1.0 ceiling
+        assert d["total_score"] == 1280
 
 
 class TestPerSectionTimer:

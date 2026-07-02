@@ -83,6 +83,33 @@ class TestMe:
         assert me.status_code == 200
         assert me.data["data"]["user"]["email"] == "me@dsat.local"
 
+    def test_patch_updates_profile_fields(self, api_client):
+        r = _register(api_client, email="patchme@dsat.local")
+        api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {r.data['data']['access_token']}")
+        me = api_client.patch(
+            ME,
+            {"first_name": "Nodira", "sat_target_score": 1450, "exam_date": "2026-10-03"},
+            format="json",
+        )
+        assert me.status_code == 200
+        user = me.data["data"]["user"]
+        assert user["first_name"] == "Nodira"
+        assert user["sat_target_score"] == 1450
+        assert user["exam_date"] == "2026-10-03"
+
+    def test_patch_cannot_change_email_or_role(self, api_client):
+        r = _register(api_client, email="immutable@dsat.local")
+        api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {r.data['data']['access_token']}")
+        me = api_client.patch(ME, {"email": "evil@dsat.local", "role": "admin"}, format="json")
+        assert me.status_code == 200
+        assert me.data["data"]["user"]["email"] == "immutable@dsat.local"
+        assert me.data["data"]["user"]["role"] == "public"
+
+    def test_patch_rejects_out_of_range_target_score(self, api_client):
+        r = _register(api_client, email="range@dsat.local")
+        api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {r.data['data']['access_token']}")
+        assert api_client.patch(ME, {"sat_target_score": 200}, format="json").status_code == 400
+
 
 class TestRefresh:
     def test_rotates_and_blacklists_old_token(self, api_client):
@@ -182,3 +209,32 @@ class TestPasswordChange:
         assert ok.status_code == 200
         user.refresh_from_db()
         assert user.check_password("FinalPass000!")
+
+
+class TestAuthThrottle:
+    """Throttling is nulled suite-wide (conftest._disable_throttling); this sets a
+    tiny rate on the auth_login scope to prove the throttle actually engages.
+    ScopedRateThrottle stays wired via DEFAULT_THROTTLE_CLASSES (base settings)."""
+
+    def test_login_is_throttled(self, api_client, monkeypatch):
+        from django.core.cache import cache
+        from rest_framework.throttling import SimpleRateThrottle
+
+        cache.clear()
+        # DRF binds THROTTLE_RATES at import, so set it on the class, not via
+        # settings. Keep other scopes disabled (None).
+        monkeypatch.setattr(
+            SimpleRateThrottle,
+            "THROTTLE_RATES",
+            {**SimpleRateThrottle.THROTTLE_RATES, "auth_login": "3/min"},
+        )
+        # Throttling counts every request (even failed logins), so bad creds are
+        # enough: the 4th request in the window is rejected before the view runs.
+        codes = [
+            api_client.post(
+                LOGIN, {"email": "nobody@dsat.local", "password": "x"}, format="json"
+            ).status_code
+            for _ in range(5)
+        ]
+        assert codes.count(429) >= 1
+        assert codes[-1] == 429

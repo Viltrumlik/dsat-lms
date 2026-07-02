@@ -231,6 +231,15 @@ class SessionSubmitView(APIView):
         except Exception:  # noqa: BLE001
             logger.exception("Failed to enqueue post-submit analytics for result %s", result.id)
 
+        # If this session was started from an exam-backed homework, turn the
+        # homework in automatically. Lazy import keeps the dependency one-way.
+        try:
+            from apps.homework.services import complete_submissions_for_session
+
+            complete_submissions_for_session(session)
+        except Exception:  # noqa: BLE001
+            logger.exception("Failed to complete homework submissions for session %s", session.id)
+
         try:
             from apps.notifications.services import notify
 
@@ -238,7 +247,7 @@ class SessionSubmitView(APIView):
                 session.user,
                 "exam_graded",
                 f"Your results for {session.exam.title} are ready.",
-                data={"session_id": str(session.id)},
+                data={"session_id": str(session.id), "exam_title": session.exam.title},
             )
         except Exception:  # noqa: BLE001
             logger.exception("Failed to create exam-graded notification for %s", session.user_id)

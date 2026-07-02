@@ -210,3 +210,13 @@ export async function getPaginated<T>(
   const response = await apiClient.get<APISuccess<T[]>>(url, { params })
   return { data: response.data.data, pagination: response.data.meta?.pagination }
 }
+
+/** Pull the opaque `cursor` value out of a DRF "next"/"previous" page URL. */
+export function cursorFromUrl(url: string | null): string | null {
+  if (!url) return null
+  try {
+    return new URL(url).searchParams.get('cursor')
+  } catch {
+    return null
+  }
+}

@@ -149,10 +149,15 @@ const config: Config = {
           from: { transform: 'translateY(8px)', opacity: '0' },
           to: { transform: 'translateY(0)', opacity: '1' },
         },
+        'slide-in-left': {
+          from: { transform: 'translateX(-100%)' },
+          to: { transform: 'translateX(0)' },
+        },
       },
       animation: {
         'fade-in': 'fade-in 150ms ease-out',
         'slide-in': 'slide-in 200ms ease-out',
+        'slide-in-left': 'slide-in-left 200ms ease-out',
       },
 
       // Test engine fullscreen

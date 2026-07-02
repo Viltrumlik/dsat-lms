@@ -407,6 +407,13 @@ REDIS_URL=redis://localhost:6379/0
 JWT_ACCESS_TOKEN_LIFETIME_MINUTES=15
 JWT_REFRESH_TOKEN_LIFETIME_DAYS=30
 
+# Auth throttling (DRF ScopedRateThrottle; per-IP, format "<count>/<s|min|hour|day>")
+THROTTLE_AUTH_LOGIN=30/min
+THROTTLE_AUTH_REGISTER=30/min
+THROTTLE_AUTH_PASSWORD_RESET=10/min
+THROTTLE_AUTH_VERIFY_EMAIL=10/min
+NUM_PROXIES=0   # 0 = no proxy (dev); behind Nginx set to the trusted hop count (1)
+
 # Storage (dev: local, prod: R2)
 STORAGE_BACKEND=local   # or r2
 R2_ACCOUNT_ID=
@@ -474,7 +481,7 @@ Bularni hech qachon buzmang:
 
 ---
 
-## PHASE 1 — FRONTEND CORE SLICE (CURRENT)
+## PHASE 1 — FRONTEND CORE SLICE (✅ COMPLETE)
 
 > **Goal:** ship a usable student flow end-to-end against the live backend —
 > **auth → student dashboard → take a practice test (test engine) → see results.**
@@ -525,4 +532,79 @@ Teacher & admin surfaces, analytics charts, public/marketing pages, question-ban
 
 ---
 
-*Oxirgi yangilangan: Phase 0 done (backend complete, CI green) — Phase 1 (frontend core slice) ready to start.*
+## PHASE 2 — ACADEMY & CONTENT SURFACES
+
+> **Goal:** grow past the public student core into the academy + content surfaces —
+> homework, notifications, and teacher class management — layering role-based routing
+> on top of the working Phase 1 shell. Admin authoring (content studio / exam builder /
+> user management) is **Phase 3** — it needs new backend REST endpoints first.
+
+### Already shipped (Phase 2, branch `feat/phase2-question-bank`)
+- ✅ **Question Bank** — `(student)/questions` + `/questions/[id]` (filters + infinite scroll; study view: MCQ reveal + grid-in). `lib/api/questions.ts`.
+- ✅ **Analytics** — `(student)/analytics` (summary, lazy Recharts accuracy chart, category mastery, academy leaderboard). `components/analytics/*`.
+- ✅ **i18n** — EN/UZ in-app toggle (cookie-persisted, flash-free SSR). `lib/i18n/*` (`useT`, `en.ts`/`uz.ts`). Whole app localized.
+- ✅ **2D Homework (student)** — `(student)/homework` + `[id]`; status badges incl. overdue; exam-backed Start → test engine; submit w/ confirm dialog. Backend adds `my_submission` to homework payloads + `seed_demo_academy` command. `lib/api/homework.ts`, `components/homework/*`.
+- ✅ **2E Notifications** — navbar bell (30s-polled unread badge, recent dropdown) + `(student)/notifications` (cursor list, mark-read/all). Deep links via `notification.data` (`components/notifications/link.ts`). Backend notifies enrolled students on homework create (`homework_assigned`). `ui/dropdown-menu.tsx`.
+- ✅ **2F Teacher surface** — `(teacher)` group under `/teacher`: classes (list/create), roster + enroll-by-email, homework assign dialog (class/exam selects) + per-student submissions. `RequireRole`, `TeacherSidebar`, role-gated "Teacher panel" entry in the student sidebar. `lib/api/teacher.ts`; `ui/{select,textarea,table}.tsx`.
+
+### Reuse — do NOT rebuild
+API client (`lib/api/client.ts`: `get/post/patch/del/getPaginated` + snake↔camel transform, `cursorFromUrl`); TanStack Query (`useQuery`/`useInfiniteQuery`/`useMutation`); `parseApiError` + toasts; i18n (`useT`; **add every new key to BOTH `en.ts` and `uz.ts`** — `uz` is typed `as Dictionary`, so a missing key fails the build); shadcn/ui primitives; `RequireAuth`.
+
+### Backend readiness (verified against the live API)
+**READY — build now (REST endpoints exist):**
+- **Homework** — `GET/POST /homework/`, `GET /homework/{id}/`, `POST /homework/{id}/submit/` (student), `GET /homework/{id}/submissions/` (teacher). Class-scoped visibility.
+- **Notifications** — `GET /notifications/` (`?unread=1`), `GET /notifications/unread-count/`, `POST /notifications/read-all/`, `POST /notifications/{id}/read/` (IsAuthenticated, owner-scoped, cursor-paginated).
+- **Teacher classes** — `GET/POST /teacher/classes/`, `GET /teacher/classes/{id}/roster/`, `POST /teacher/classes/{id}/enroll/` (IsAdminOrTeacher; teacher sees only own classes).
+
+**NOT READY → Phase 3** (models + lifecycle methods + Django admin exist, but no REST endpoints):
+- Admin **content studio** — question authoring/review; `submit_for_review`/`approve`/`reject` live on `apps/question_bank/models.py` but are unexposed.
+- Admin **exam authoring + assignments** — `ExamTemplate`/`ExamSection`/`ExamQuestion`/`ExamAssignment` in `apps/assessments`.
+- Admin **user management** — `apps/identity/urls_admin.py` is an empty stub.
+- **Teacher per-student analytics** — `CanViewStudentData` exists (`common/permissions.py`); no endpoint yet.
+
+### Shared prerequisites (build as needed; mostly before the Teacher slice)
+1. **UI primitives** — add to `components/ui/`: `select.tsx`, `textarea.tsx`, `table.tsx` (Radix + CVA, match existing style). Needed by homework/teacher forms + tables.
+2. **Role-gating** — add `RequireRole` (or extend `components/common/RequireAuth.tsx`) to gate by `user.role`; add a `(teacher)` route group + layout (own Navbar/Sidebar). `(admin)` waits for Phase 3.
+3. **Types** (`types/index.ts`) — add `Homework`, `HomeworkSubmission`, `HomeworkStatus`, `TeacherClass`, `RosterEntry`, `ClassEnrollment`. (`Notification`/`NotificationType` already exist.)
+
+### Slices — recommended order (ALL SHIPPED ✅ — kept for reference)
+
+**2D — Homework (student side) — FIRST.** Backend READY. Completes the student loop.
+- `lib/api/homework.ts`: `list()`, `get(id)`, `submit(id)`.
+- `(student)/homework` list + `(student)/homework/[id]` detail; status badges (assigned/submitted/graded). If exam-backed (`homework.exam`), "Start" launches a session via `sessionAPI.start` → the Phase 1 test engine; otherwise a simple submit. Add a Sidebar nav entry.
+
+**2E — Notifications UI.** Backend READY; `Notification` type already exists. Small, high-visibility.
+- `lib/api/notifications.ts`: `list({unread?})`, `unreadCount()`, `markRead(id)`, `markAllRead()`.
+- Navbar bell + unread badge (TanStack Query `refetchInterval` on `unread-count`); dropdown of recent; `(student)/notifications` page (cursor list, mark-read, mark-all). Deep-link via `notification.data` action URL.
+
+**2F — Teacher surface.** Backend READY for classes/roster/enroll/homework.
+- New `(teacher)` route group + role-guarded layout.
+- `lib/api/teacher.ts`: classes list/create, roster, enroll; homework create + submissions.
+- Pages: classes list + create dialog; class detail (roster `table` + enroll-by-email form); homework assign (form: class `select`, exam `select`, due date, `textarea`) + submissions view (`table`, status per student).
+- ⚠️ **Deferred to Phase 3:** per-student analytics drilldown (needs `GET /teacher/students/{id}/analytics/`).
+
+### 2G — Gap-closing (found in post-2F review) — SHIPPED ✅
+1. ✅ **Exam-backed homework auto-submit** — `POST /homework/{id}/start/` starts the linked exam AND binds the session to the student's submission (`HomeworkSubmission.session`); the assessments submit view flips linked submissions to `submitted` (lazy `apps/homework/services.py` call). Manual submit stays for plain homework / as fallback. Frontend Start button uses `homeworkAPI.start`.
+2. ✅ **Mobile navigation** — Navbar hamburger (`md:hidden`) → left drawer (`components/common/MobileNav.tsx`) with the role-aware items (teacher items inside `/teacher/*`); nav arrays + role filter exported from the sidebars.
+3. ✅ **Localized notification content** — `notify()` payloads carry structured data (`homework_title`, `class_name`, `due_at`, `exam_title`); client renders per-type EN/UZ templates (`components/notifications/render.ts`), falling back to server title/body for unknown types/old rows.
+4. ✅ **`send_homework_due_reminders()`** — `apps/notifications/tasks.py`: daily beat task (CELERY_BEAT_SCHEDULE, installed into the DB by django_celery_beat on beat startup) — `homework_due` to actively-enrolled, unsubmitted students for homework due within 24h, deduped per user+homework.
+5. ✅ **Notifications polish** — All/Unread filter on the notifications page + `e2e/notifications.spec.ts` (bell → localized template → deep link → linked-test auto-submit → mark-all-read).
+
+### Phase 1 retro-fixes (found in post-Phase-2 audit) — SHIPPED ✅
+1. ✅ **Grid-in equivalence grading** — grading is exact string match (`services.py` `strip().lower()` equality; same naive compare in `QuestionStudy`), so `3.5` vs `7/2`, `.5` vs `0.5`, `36.0` vs `36` are mismarked while the UI promises "Fractions (7/2) and decimals (3.5) are allowed". Fix: exact rational comparison (backend `answers_match()` via `Fraction`; frontend `lib/utils/answers.ts` via BigInt cross-multiplication), string fallback for non-numeric answers (MCQ letters unaffected).
+2. ✅ **Abandoned-session sweep** — `ExamSession.Status.ABANDONED` is defined and rendered but nothing ever sets it; expired sessions sit on the dashboard as "Resume" forever. Fix: daily beat task `abandon_stale_sessions` (timed sessions expired >24h ago; untimed ones untouched >7 days); abandoned rows on the dashboard become non-clickable.
+3. ✅ **Settings page** — `POST /auth/password/change/` had no UI, and profile fields (`sat_target_score`, `exam_date`, first/last name) had no endpoint or editor. Fix: `PATCH /auth/me/` (profile fields only — email/role immutable) + `(student)/settings` with Profile and Change-password forms; sidebar/mobile-nav entry.
+4. ✅ **Dashboard exam-type filter** — `AvailableTests` listed every template type as "Practice tests". Fix: filter `type=practice` (backend already supports `?type=`).
+
+### Conventions
+As Phase 1 (see §2, §6, §8). Role-scoped routing via route groups + `RequireRole`. All new text through `useT` (en + uz). Server state via TanStack Query; **Zustand only** for the test engine. Lists cursor-paginated. Teacher endpoints are already own-class-scoped server-side.
+
+### Verification (per slice)
+`npm run type-check` + `lint` + `vitest` clean; `next build` (⚠️ stop the dev server first — dev and build share `.next/` and corrupt each other); browser-verify against the live backend in **both en + uz** (seed: `seed_demo_exam` then `seed_demo_academy` — idempotent teacher/student creds + class + homework); extend the Playwright e2e for the new happy path (e2e runs `workers=1` — parallel auth writes lock the SQLite dev DB); keep both CI jobs green.
+
+### Out of scope (Phase 3+)
+Admin content studio / exam builder / user management (+ their REST endpoints); teacher per-student analytics; realtime (websocket) notifications; attendance; bulk CSV import UI; official SAT scaling refinements; deployment/infra.
+
+---
+
+*Oxirgi yangilangan: Phase 2 COMPLETE (2D–2G) + Phase 1 retro-fixes (grid-in equivalence, abandoned-session sweep, settings page, exam filter) shipped — branch feat/phase2-question-bank. Keyingisi: Phase 3 — admin content studio / exam builder / user management (+ REST endpoints), teacher per-student analytics.*

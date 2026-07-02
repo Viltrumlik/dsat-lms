@@ -27,6 +27,7 @@ from .serializers import (
     PasswordChangeSerializer,
     PasswordResetConfirmSerializer,
     PasswordResetRequestSerializer,
+    ProfileUpdateSerializer,
     RegisterSerializer,
     UserSerializer,
 )
@@ -50,6 +51,7 @@ def _blacklist_user_tokens(user):
 class RegisterView(APIView):
     permission_classes = [AllowAny]
     serializer_class = RegisterSerializer
+    throttle_scope = "auth_register"
 
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
@@ -70,6 +72,7 @@ class RegisterView(APIView):
 class LoginView(APIView):
     permission_classes = [AllowAny]
     serializer_class = LoginSerializer
+    throttle_scope = "auth_login"
 
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
@@ -131,11 +134,19 @@ class MeView(APIView):
     def get(self, request):
         return success_response({"user": UserSerializer(request.user).data})
 
+    def patch(self, request):
+        """Self-service profile update (name, target score, exam date, timezone)."""
+        serializer = ProfileUpdateSerializer(request.user, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return success_response({"user": UserSerializer(request.user).data})
+
 
 class VerifyEmailResendView(APIView):
     """Resend the verification email to the logged-in user."""
 
     permission_classes = [IsAuthenticated]
+    throttle_scope = "auth_verify_email"  # each POST triggers an email send
 
     def post(self, request):
         user = request.user
@@ -152,6 +163,7 @@ class VerifyEmailConfirmView(APIView):
     """Confirm an email from the uid + token in the verification link."""
 
     permission_classes = [AllowAny]
+    throttle_scope = "auth_verify_email"
     serializer_class = EmailVerifyConfirmSerializer
 
     def post(self, request):
@@ -169,6 +181,7 @@ class PasswordResetRequestView(APIView):
 
     permission_classes = [AllowAny]
     serializer_class = PasswordResetRequestSerializer
+    throttle_scope = "auth_password_reset"
 
     def post(self, request):
         serializer = PasswordResetRequestSerializer(data=request.data)
@@ -190,6 +203,7 @@ class PasswordResetConfirmView(APIView):
 
     permission_classes = [AllowAny]
     serializer_class = PasswordResetConfirmSerializer
+    throttle_scope = "auth_password_reset"
 
     def post(self, request):
         serializer = PasswordResetConfirmSerializer(data=request.data)

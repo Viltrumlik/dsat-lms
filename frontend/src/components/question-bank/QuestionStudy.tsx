@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input'
 import { FullPageSpinner } from '@/components/ui/spinner'
 import { MarkdownMath } from '@/components/test-engine/MarkdownMath'
 import { cn } from '@/lib/utils/cn'
+import { answersMatch } from '@/lib/utils/answers'
 import { useT } from '@/lib/i18n/I18nProvider'
 import { DifficultyDots } from './DifficultyDots'
 import { MODULE_LABEL_KEY, ANSWER_TYPE_LABEL_KEY, DIFFICULTY_LABEL_KEY, moduleBadgeVariant } from './labels'
@@ -122,7 +123,7 @@ export function QuestionStudy({ id }: { id: string }) {
   const choices = q.choices.slice().sort((a, b) => a.sortOrder - b.sortOrder)
   const canReveal = isMcq ? selected !== null : gridAnswer.trim() !== ''
   const gridCorrect =
-    revealed && gridAnswer.trim() !== '' && gridAnswer.trim() === q.correctAnswer.trim()
+    revealed && gridAnswer.trim() !== '' && answersMatch(gridAnswer, q.correctAnswer)
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">

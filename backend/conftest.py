@@ -23,6 +23,22 @@ def _celery_eager():
     app.conf.task_eager_propagates = True
 
 
+@pytest.fixture(autouse=True)
+def _disable_throttling(monkeypatch):
+    """Disable DRF throttling in tests. The suite hammers login/register from one
+    IP and would trip the real rates. DRF binds throttle classes + rates at import
+    (a `settings` override can't reach them), so null the shared rate map instead —
+    a None rate disables that scope. Tests that assert throttling set their own
+    rate (see TestAuthThrottle)."""
+    from rest_framework.throttling import SimpleRateThrottle
+
+    monkeypatch.setattr(
+        SimpleRateThrottle,
+        "THROTTLE_RATES",
+        {scope: None for scope in SimpleRateThrottle.THROTTLE_RATES},
+    )
+
+
 @pytest.fixture
 def api_client():
     """Unauthenticated DRF API client (tracks cookies across requests)."""

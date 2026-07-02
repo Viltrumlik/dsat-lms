@@ -67,6 +67,15 @@ export interface AuthSession {
   accessToken: string
 }
 
+/** Compact user as nested in rosters and homework submissions. */
+export interface StudentMini {
+  id: string
+  email: string
+  firstName: string
+  lastName: string
+  fullName: string
+}
+
 // ─────────────────────────────────────
 // Question Bank
 // ─────────────────────────────────────
@@ -325,15 +334,74 @@ export interface RankingEntry {
 }
 
 // ─────────────────────────────────────
-// Notifications (Phase 2 — kept for reference)
+// Academy (teacher surface)
+// ─────────────────────────────────────
+
+export type EnrollmentStatus = 'active' | 'inactive' | 'removed'
+
+/** GET /teacher/classes/ — a class owned by the requesting teacher. */
+export interface TeacherClass {
+  id: string
+  name: string
+  isActive: boolean
+  studentCount: number
+  createdAt: string
+}
+
+/** Roster row (also returned by enroll). createdAt = enrolled-at. */
+export interface RosterEntry {
+  id: string
+  student: StudentMini
+  status: EnrollmentStatus
+  createdAt: string
+}
+
+// ─────────────────────────────────────
+// Homework
+// ─────────────────────────────────────
+
+export type HomeworkStatus = 'assigned' | 'submitted' | 'graded'
+
+/** The requesting student's own submission, embedded in homework payloads. */
+export interface HomeworkMySubmission {
+  status: HomeworkStatus
+  submittedAt: string | null
+}
+
+export interface Homework {
+  id: string
+  title: string
+  description: string
+  assignedClass: string // Class id
+  className: string
+  exam: string | null // ExamTemplate id — when set, the homework is exam-backed
+  examTitle: string | null
+  dueAt: string
+  isPublished: boolean
+  mySubmission: HomeworkMySubmission | null // null for teachers and for students with no submission yet
+  createdAt: string
+}
+
+/** Submission row (teacher submissions view; also returned by submit). */
+export interface HomeworkSubmission {
+  id: string
+  student: StudentMini
+  status: HomeworkStatus
+  submittedAt: string | null
+  createdAt: string
+}
+
+// ─────────────────────────────────────
+// Notifications
 // ─────────────────────────────────────
 
 export type NotificationType =
-  | 'homework_assigned'
-  | 'homework_due_soon'
-  | 'exam_scheduled'
   | 'exam_graded'
-  | 'teacher_comment'
+  | 'exam_scheduled'
+  | 'homework_assigned'
+  | 'homework_due'
+  | 'announcement'
+  | 'system'
 
 export interface Notification {
   id: string

@@ -8,6 +8,7 @@ only accepted if it does not exceed what the server computes (cheat detection).
 """
 
 from decimal import Decimal
+from fractions import Fraction
 
 from django.utils import timezone
 
@@ -16,6 +17,21 @@ from .scoring import scaled_section_score
 
 # Allowance for network/render latency when validating client-reported time.
 TIME_GRACE_SECONDS = 5
+
+
+def answers_match(chosen, correct) -> bool:
+    """Whether a response matches the correct answer.
+
+    Numeric answers (grid-ins) compare as exact rationals so equivalent forms all
+    count: 7/2 == 3.5, .5 == 0.5, 36.0 == 36. Anything non-numeric (MCQ letters,
+    text) falls back to case-insensitive string equality.
+    """
+    chosen = (chosen or "").strip()
+    correct = (correct or "").strip()
+    try:
+        return Fraction(chosen) == Fraction(correct)
+    except (ValueError, ZeroDivisionError):
+        return chosen.lower() == correct.lower()
 
 
 def current_section(session):
@@ -88,10 +104,7 @@ def grade_session(session):
                 response.save(update_fields=["is_correct"])
             continue
 
-        is_correct = (
-            response.chosen_answer.strip().lower()
-            == (question.correct_answer or "").strip().lower()
-        )
+        is_correct = answers_match(response.chosen_answer, question.correct_answer)
         response.is_correct = is_correct
         response.save(update_fields=["is_correct"])
         if is_correct:
