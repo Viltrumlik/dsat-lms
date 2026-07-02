@@ -23,6 +23,8 @@ export const en = {
     analytics: 'Analytics',
     teacherPanel: 'Teacher panel',
     soon: 'Soon',
+    openMenu: 'Open menu',
+    closeMenu: 'Close menu',
   },
   modules: {
     math: 'Math',
@@ -303,10 +305,18 @@ export const en = {
     unreadBadgeAria: 'Notifications — {count} unread',
     markAllRead: 'Mark all read',
     viewAll: 'View all',
+    filterAll: 'All',
+    filterUnread: 'Unread',
     empty: 'Nothing here yet — you’re all caught up.',
     loadFailed: "Couldn't load notifications. Please try again.",
     loadMore: 'Load more',
     allCaughtUp: 'That’s everything.',
+    templates: {
+      examGraded: 'Your results for {exam} are ready.',
+      homeworkAssigned: 'New homework: {title}',
+      homeworkDue: 'Due soon: {title}',
+      homeworkBody: '{class} — due {date}',
+    },
   },
   homework: {
     title: 'Homework',
@@ -324,7 +334,8 @@ export const en = {
     linkedTest: 'Linked test',
     startTest: 'Start test',
     startFailed: 'Could not start test',
-    testHint: 'Take the linked test, then submit your homework here when you finish.',
+    testHint:
+      'Take the linked test — submitting it turns this homework in automatically. You can also submit without it.',
     submit: 'Submit homework',
     submittedAt: 'Submitted {time}.',
     gradedNote: 'This homework has been graded.',

@@ -8,14 +8,9 @@ import { usePathname } from 'next/navigation'
 import { ClipboardList, LayoutDashboard, Users } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
 import { useT } from '@/lib/i18n/I18nProvider'
+import type { NavItem } from './Sidebar'
 
-interface NavItem {
-  labelKey: string
-  href: string
-  icon: React.ComponentType<{ className?: string }>
-}
-
-const NAV: NavItem[] = [
+export const TEACHER_NAV: NavItem[] = [
   { labelKey: 'teacher.nav.classes', href: '/teacher/classes', icon: Users },
   { labelKey: 'teacher.nav.homework', href: '/teacher/homework', icon: ClipboardList },
 ]
@@ -35,7 +30,7 @@ export function TeacherSidebar() {
   return (
     <aside className="hidden w-sidebar shrink-0 border-r border-border bg-card md:block">
       <nav className="sticky top-16 flex flex-col gap-1 p-3">
-        {NAV.map((item) => {
+        {TEACHER_NAV.map((item) => {
           const Icon = item.icon
           const active = pathname === item.href || pathname.startsWith(item.href + '/')
           return (

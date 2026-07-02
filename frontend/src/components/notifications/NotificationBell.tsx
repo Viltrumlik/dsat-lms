@@ -24,6 +24,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { notificationHref } from './link'
+import { notificationText } from './render'
 import type { Notification } from '@/types'
 
 const RECENT_LIMIT = 6
@@ -139,7 +140,7 @@ export function NotificationBell() {
                   !notification.isRead && 'font-medium'
                 )}
               >
-                {notification.title}
+                {notificationText(notification, t, locale).title}
               </span>
               <span className="block text-xs text-muted-foreground">
                 {formatDistanceToNow(new Date(notification.createdAt), {

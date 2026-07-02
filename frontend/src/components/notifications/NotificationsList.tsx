@@ -3,6 +3,7 @@
 //   highlighting, mark-one-read on open (with deep link), mark-all-read.
 'use client'
 
+import * as React from 'react'
 import Link from 'next/link'
 import {
   useInfiniteQuery,
@@ -20,6 +21,7 @@ import { cn } from '@/lib/utils/cn'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { notificationHref } from './link'
+import { notificationText } from './render'
 import type { Locale } from '@/lib/i18n/config'
 import type { Notification, NotificationType } from '@/types'
 
@@ -50,9 +52,10 @@ function NotificationRow({
   notification: Notification
   onOpen: (n: Notification) => void
 }) {
-  const { locale } = useI18n()
+  const { t, locale } = useI18n()
   const Icon = TYPE_ICON[notification.type] ?? Info
   const href = notificationHref(notification)
+  const { title, body } = notificationText(notification, t, locale)
 
   const inner = (
     <>
@@ -68,10 +71,10 @@ function NotificationRow({
       </span>
       <span className="min-w-0 flex-1">
         <span className={cn('block text-sm', !notification.isRead && 'font-semibold')}>
-          {notification.title}
+          {title}
         </span>
-        {notification.body && (
-          <span className="block truncate text-sm text-muted-foreground">{notification.body}</span>
+        {body && (
+          <span className="block truncate text-sm text-muted-foreground">{body}</span>
         )}
         <span className="block text-xs text-muted-foreground">
           {relativeTime(notification.createdAt, locale)}
@@ -103,10 +106,12 @@ function NotificationRow({
 export function NotificationsList() {
   const { t } = useI18n()
   const queryClient = useQueryClient()
+  const [unreadOnly, setUnreadOnly] = React.useState(false)
 
   const query = useInfiniteQuery({
-    queryKey: ['notifications', 'list'],
-    queryFn: ({ pageParam }) => notificationAPI.list({ cursor: pageParam }),
+    queryKey: ['notifications', 'list', { unreadOnly }],
+    queryFn: ({ pageParam }) =>
+      notificationAPI.list({ unread: unreadOnly || undefined, cursor: pageParam }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => cursorFromUrl(lastPage.pagination?.next ?? null) ?? undefined,
   })
@@ -138,7 +143,25 @@ export function NotificationsList() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-end">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex gap-1 rounded-lg bg-muted p-1" role="group">
+          <Button
+            size="sm"
+            variant={unreadOnly ? 'ghost' : 'default'}
+            aria-pressed={!unreadOnly}
+            onClick={() => setUnreadOnly(false)}
+          >
+            {t('notifications.filterAll')}
+          </Button>
+          <Button
+            size="sm"
+            variant={unreadOnly ? 'default' : 'ghost'}
+            aria-pressed={unreadOnly}
+            onClick={() => setUnreadOnly(true)}
+          >
+            {t('notifications.filterUnread')}
+          </Button>
+        </div>
         <Button
           variant="outline"
           size="sm"

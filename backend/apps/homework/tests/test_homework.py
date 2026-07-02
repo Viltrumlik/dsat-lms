@@ -104,6 +104,61 @@ class TestCreate:
         assert r.status_code == 403
 
 
+class TestStartAndAutoSubmit:
+    def _setup(self):
+        from apps.assessments.tests.factories import (
+            ExamQuestionFactory,
+            ExamSectionFactory,
+            ExamTemplateFactory,
+        )
+
+        teacher = UserFactory(role="teacher")
+        klass = ClassFactory(teacher=teacher)
+        exam = ExamTemplateFactory()
+        ExamQuestionFactory(section=ExamSectionFactory(exam=exam))
+        homework = HomeworkFactory(assigned_class=klass, exam=exam)
+        student = UserFactory(role="student")
+        enroll(klass, student)
+        return homework, student
+
+    def test_start_links_session_to_submission(self):
+        homework, student = self._setup()
+        r = client_for(student).post(f"{BASE}{homework.id}/start/", {}, format="json")
+        assert r.status_code == 201
+        submission = HomeworkSubmission.objects.get(homework=homework, student=student)
+        assert str(submission.session_id) == r.data["data"]["id"]
+        assert submission.status == "assigned"  # not submitted until the test is
+
+    def test_submitting_linked_session_completes_homework(self):
+        homework, student = self._setup()
+        client = client_for(student)
+        session_id = client.post(f"{BASE}{homework.id}/start/", {}, format="json").data["data"][
+            "id"
+        ]
+        r = client.post(f"/api/v1/sessions/{session_id}/submit/", {}, format="json")
+        assert r.status_code == 200
+        submission = HomeworkSubmission.objects.get(homework=homework, student=student)
+        assert submission.status == "submitted"
+        assert submission.submitted_at is not None
+
+    def test_start_plain_homework_400(self):
+        teacher = UserFactory(role="teacher")
+        klass = ClassFactory(teacher=teacher)
+        homework = HomeworkFactory(assigned_class=klass)  # no exam
+        student = UserFactory(role="student")
+        enroll(klass, student)
+        r = client_for(student).post(f"{BASE}{homework.id}/start/", {}, format="json")
+        assert r.status_code == 400
+
+    def test_manual_submit_still_works_after_start(self):
+        homework, student = self._setup()
+        client = client_for(student)
+        client.post(f"{BASE}{homework.id}/start/", {}, format="json")
+        r = client.post(f"{BASE}{homework.id}/submit/", {}, format="json")
+        assert r.status_code == 200
+        assert r.data["data"]["status"] == "submitted"
+
+
 class TestMySubmission:
     def test_student_sees_own_submission_status(self):
         teacher = UserFactory(role="teacher")

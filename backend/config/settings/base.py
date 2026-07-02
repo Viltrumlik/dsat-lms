@@ -6,6 +6,7 @@ Domain: Config
 from pathlib import Path
 
 import environ
+from celery.schedules import crontab
 
 # ─────────────────────────────────────
 # Paths
@@ -129,6 +130,15 @@ CELERY_TASK_ROUTES = {
     "apps.analytics.tasks.*": {"queue": "analytics"},
     "apps.notifications.tasks.*": {"queue": "notifications"},
     "apps.identity.tasks.*": {"queue": "email"},
+}
+
+# django_celery_beat's DatabaseScheduler installs these entries into the DB on
+# beat startup, so the schedule ships with the code (still editable in admin).
+CELERY_BEAT_SCHEDULE = {
+    "send-homework-due-reminders": {
+        "task": "apps.notifications.tasks.send_homework_due_reminders",
+        "schedule": crontab(hour=8, minute=0),  # daily, CELERY_TIMEZONE
+    },
 }
 
 # ─────────────────────────────────────

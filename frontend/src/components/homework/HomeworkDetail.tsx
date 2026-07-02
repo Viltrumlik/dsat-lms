@@ -13,7 +13,6 @@ import { format, formatDistanceToNow } from 'date-fns'
 import { uz as uzDate } from 'date-fns/locale'
 import { ArrowLeft, CalendarClock, CheckCircle2, GraduationCap, Play, Users } from 'lucide-react'
 import { homeworkAPI } from '@/lib/api/homework'
-import { sessionAPI } from '@/lib/api/sessions'
 import { useSessionStore } from '@/lib/stores/sessionStore'
 import { useI18n } from '@/lib/i18n/I18nProvider'
 import { parseApiError } from '@/lib/api/errors'
@@ -51,7 +50,9 @@ function Actions({ homework }: { homework: Homework }) {
   const status = homeworkStatusOf(homework)
 
   const startTest = useMutation({
-    mutationFn: () => sessionAPI.start(homework.exam as string),
+    // Homework-aware start: binds the session to the submission so submitting
+    // the test turns the homework in automatically.
+    mutationFn: () => homeworkAPI.start(homework.id),
     onSuccess: (session) => {
       resetSession()
       router.push(`/session/${session.id}`)

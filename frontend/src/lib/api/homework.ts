@@ -7,7 +7,7 @@
 // ═══════════════════════════════════════
 
 import { get, post } from './client'
-import type { Homework, HomeworkSubmission } from '@/types'
+import type { Homework, HomeworkSubmission, SessionDetail } from '@/types'
 
 export const homeworkAPI = {
   /** All homework visible to the current user (newest first, unpaginated). */
@@ -15,6 +15,12 @@ export const homeworkAPI = {
 
   get: (id: string) => get<Homework>(`/homework/${id}/`),
 
-  /** Mark the homework submitted (idempotent — resubmit refreshes submitted_at). */
+  /**
+   * Start the linked exam. The session is bound to the student's submission, so
+   * submitting the test turns the homework in automatically.
+   */
+  start: (id: string) => post<SessionDetail>(`/homework/${id}/start/`),
+
+  /** Mark the homework submitted manually (plain homework / fallback). */
   submit: (id: string) => post<HomeworkSubmission>(`/homework/${id}/submit/`),
 }

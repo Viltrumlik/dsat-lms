@@ -24,6 +24,8 @@ export const uz: Dictionary = {
     analytics: 'Tahlil',
     teacherPanel: 'Oʻqituvchi paneli',
     soon: 'Tez orada',
+    openMenu: 'Menyuni ochish',
+    closeMenu: 'Menyuni yopish',
   },
   modules: {
     math: 'Matematika',
@@ -306,10 +308,18 @@ export const uz: Dictionary = {
     unreadBadgeAria: 'Bildirishnomalar — {count} ta oʻqilmagan',
     markAllRead: 'Hammasini oʻqilgan deb belgilash',
     viewAll: 'Hammasini koʻrish',
+    filterAll: 'Hammasi',
+    filterUnread: 'Oʻqilmagan',
     empty: 'Hozircha hech narsa yoʻq — hammasi oʻqilgan.',
     loadFailed: 'Bildirishnomalarni yuklab boʻlmadi. Qayta urinib koʻring.',
     loadMore: 'Yana yuklash',
     allCaughtUp: 'Hammasi shu.',
+    templates: {
+      examGraded: '{exam} natijalaringiz tayyor.',
+      homeworkAssigned: 'Yangi uy vazifasi: {title}',
+      homeworkDue: 'Muddati yaqin: {title}',
+      homeworkBody: '{class} — muddat: {date}',
+    },
   },
   homework: {
     title: 'Uy vazifalari',
@@ -327,7 +337,8 @@ export const uz: Dictionary = {
     linkedTest: 'Bogʻlangan test',
     startTest: 'Testni boshlash',
     startFailed: 'Testni boshlab boʻlmadi',
-    testHint: 'Avval bogʻlangan testni yeching, soʻng vazifani shu yerda topshiring.',
+    testHint:
+      'Bogʻlangan testni yeching — u topshirilganda vazifa avtomatik topshiriladi. Testsiz ham topshirishingiz mumkin.',
     submit: 'Vazifani topshirish',
     submittedAt: 'Topshirilgan: {time}.',
     gradedNote: 'Bu vazifa baholangan.',

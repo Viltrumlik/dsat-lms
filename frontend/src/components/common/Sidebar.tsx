@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils/cn'
 import { useT } from '@/lib/i18n/I18nProvider'
 import { useAuth } from '@/lib/auth/AuthProvider'
 
-interface NavItem {
+export interface NavItem {
   labelKey: string
   href: string
   icon: React.ComponentType<{ className?: string }>
@@ -19,7 +19,7 @@ interface NavItem {
   academyOnly?: boolean
 }
 
-const NAV: NavItem[] = [
+export const STUDENT_NAV: NavItem[] = [
   { labelKey: 'nav.dashboard', href: '/dashboard', icon: LayoutDashboard },
   { labelKey: 'nav.practiceTests', href: '/dashboard#tests', icon: ListChecks },
   { labelKey: 'nav.questionBank', href: '/questions', icon: BookOpen },
@@ -27,12 +27,17 @@ const NAV: NavItem[] = [
   { labelKey: 'nav.analytics', href: '/analytics', icon: BarChart3 },
 ]
 
+/** Role-aware filter shared by the sidebar and the mobile drawer. */
+export function visibleStudentNav(role: string | undefined): NavItem[] {
+  return STUDENT_NAV.filter((item) => !item.academyOnly || (role && role !== 'public'))
+}
+
 export function Sidebar() {
   const pathname = usePathname()
   const t = useT()
   const { user } = useAuth()
 
-  const items = NAV.filter((item) => !item.academyOnly || (user && user.role !== 'public'))
+  const items = visibleStudentNav(user?.role)
   const isTeacher = user?.role === 'teacher' || user?.role === 'admin'
 
   return (
