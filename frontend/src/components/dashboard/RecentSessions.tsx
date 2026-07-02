@@ -47,13 +47,10 @@ function SessionRow({ session }: { session: SessionListItem }) {
     ? t('dashboard.recent.resume')
     : session.status === 'completed'
       ? t('dashboard.recent.viewResults')
-      : t('dashboard.recent.view')
+      : null // abandoned — nothing to open
 
-  return (
-    <Link
-      href={href}
-      className="flex items-center justify-between gap-4 px-5 py-4 transition-colors hover:bg-muted/60"
-    >
+  const inner = (
+    <>
       <div className="min-w-0">
         <p className="truncate font-medium">{session.exam.title}</p>
         <p className="text-xs text-muted-foreground">
@@ -62,10 +59,24 @@ function SessionRow({ session }: { session: SessionListItem }) {
       </div>
       <div className="flex shrink-0 items-center gap-3">
         <Badge variant={STATUS_VARIANT[session.status]}>{t(STATUS_KEY[session.status])}</Badge>
-        <span className="hidden items-center gap-0.5 text-sm font-medium text-primary sm:flex">
-          {cta} <ChevronRight className="h-4 w-4" />
-        </span>
+        {cta && (
+          <span className="hidden items-center gap-0.5 text-sm font-medium text-primary sm:flex">
+            {cta} <ChevronRight className="h-4 w-4" />
+          </span>
+        )}
       </div>
+    </>
+  )
+
+  if (session.status === 'abandoned') {
+    return <div className="flex items-center justify-between gap-4 px-5 py-4 opacity-70">{inner}</div>
+  }
+  return (
+    <Link
+      href={href}
+      className="flex items-center justify-between gap-4 px-5 py-4 transition-colors hover:bg-muted/60"
+    >
+      {inner}
     </Link>
   )
 }

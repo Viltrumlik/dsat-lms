@@ -27,6 +27,7 @@ from .serializers import (
     PasswordChangeSerializer,
     PasswordResetConfirmSerializer,
     PasswordResetRequestSerializer,
+    ProfileUpdateSerializer,
     RegisterSerializer,
     UserSerializer,
 )
@@ -129,6 +130,13 @@ class MeView(APIView):
     serializer_class = UserSerializer
 
     def get(self, request):
+        return success_response({"user": UserSerializer(request.user).data})
+
+    def patch(self, request):
+        """Self-service profile update (name, target score, exam date, timezone)."""
+        serializer = ProfileUpdateSerializer(request.user, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
         return success_response({"user": UserSerializer(request.user).data})
 
 

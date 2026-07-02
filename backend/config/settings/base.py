@@ -139,6 +139,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.notifications.tasks.send_homework_due_reminders",
         "schedule": crontab(hour=8, minute=0),  # daily, CELERY_TIMEZONE
     },
+    "abandon-stale-sessions": {
+        "task": "apps.assessments.tasks.abandon_stale_sessions",
+        "schedule": crontab(hour=3, minute=30),  # daily, CELERY_TIMEZONE
+    },
 }
 
 # ─────────────────────────────────────

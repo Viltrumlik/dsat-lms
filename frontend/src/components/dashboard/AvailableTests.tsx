@@ -93,9 +93,11 @@ function ExamCard({ exam }: { exam: ExamListItem }) {
 
 export function AvailableTests() {
   const t = useI18n().t
+  // Only practice templates belong under "Practice tests" — mocks/midterms etc.
+  // (Phase 3 authoring) get their own surfaces.
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['exams'],
-    queryFn: () => examAPI.list(),
+    queryKey: ['exams', 'practice'],
+    queryFn: () => examAPI.list('practice'),
   })
 
   return (

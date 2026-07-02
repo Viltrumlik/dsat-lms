@@ -39,6 +39,18 @@ class UserSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class ProfileUpdateSerializer(serializers.ModelSerializer):
+    """Self-service profile fields (PATCH /auth/me/). Email/role are immutable."""
+
+    sat_target_score = serializers.IntegerField(
+        required=False, allow_null=True, min_value=400, max_value=1600
+    )
+
+    class Meta:
+        model = User
+        fields = ["first_name", "last_name", "sat_target_score", "exam_date", "timezone"]
+
+
 class RegisterSerializer(serializers.ModelSerializer):
     """Public self-registration → always creates a role='public' user."""
 

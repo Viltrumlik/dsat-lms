@@ -6,7 +6,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { BarChart3, BookOpen, ClipboardList, LayoutDashboard, ListChecks, Presentation } from 'lucide-react'
+import { BarChart3, BookOpen, ClipboardList, LayoutDashboard, ListChecks, Presentation, Settings } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
 import { useT } from '@/lib/i18n/I18nProvider'
 import { useAuth } from '@/lib/auth/AuthProvider'
@@ -25,6 +25,7 @@ export const STUDENT_NAV: NavItem[] = [
   { labelKey: 'nav.questionBank', href: '/questions', icon: BookOpen },
   { labelKey: 'nav.homework', href: '/homework', icon: ClipboardList, academyOnly: true },
   { labelKey: 'nav.analytics', href: '/analytics', icon: BarChart3 },
+  { labelKey: 'nav.settings', href: '/settings', icon: Settings },
 ]
 
 /** Role-aware filter shared by the sidebar and the mobile drawer. */

@@ -83,6 +83,33 @@ class TestMe:
         assert me.status_code == 200
         assert me.data["data"]["user"]["email"] == "me@dsat.local"
 
+    def test_patch_updates_profile_fields(self, api_client):
+        r = _register(api_client, email="patchme@dsat.local")
+        api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {r.data['data']['access_token']}")
+        me = api_client.patch(
+            ME,
+            {"first_name": "Nodira", "sat_target_score": 1450, "exam_date": "2026-10-03"},
+            format="json",
+        )
+        assert me.status_code == 200
+        user = me.data["data"]["user"]
+        assert user["first_name"] == "Nodira"
+        assert user["sat_target_score"] == 1450
+        assert user["exam_date"] == "2026-10-03"
+
+    def test_patch_cannot_change_email_or_role(self, api_client):
+        r = _register(api_client, email="immutable@dsat.local")
+        api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {r.data['data']['access_token']}")
+        me = api_client.patch(ME, {"email": "evil@dsat.local", "role": "admin"}, format="json")
+        assert me.status_code == 200
+        assert me.data["data"]["user"]["email"] == "immutable@dsat.local"
+        assert me.data["data"]["user"]["role"] == "public"
+
+    def test_patch_rejects_out_of_range_target_score(self, api_client):
+        r = _register(api_client, email="range@dsat.local")
+        api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {r.data['data']['access_token']}")
+        assert api_client.patch(ME, {"sat_target_score": 200}, format="json").status_code == 400
+
 
 class TestRefresh:
     def test_rotates_and_blacklists_old_token(self, api_client):
