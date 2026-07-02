@@ -13,7 +13,9 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  // Serial everywhere: the dev backend runs on SQLite, and parallel workers'
+  // auth/submit writes collide ("database is locked" 500s). Revisit on Postgres.
+  workers: 1,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
   // The dev server compiles routes on first hit, so the first navigation into a
   // heavy route (e.g. the test engine, /session/[id]) can take well over the 5s

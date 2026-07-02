@@ -334,6 +334,29 @@ export interface RankingEntry {
 }
 
 // ─────────────────────────────────────
+// Academy (teacher surface)
+// ─────────────────────────────────────
+
+export type EnrollmentStatus = 'active' | 'inactive' | 'removed'
+
+/** GET /teacher/classes/ — a class owned by the requesting teacher. */
+export interface TeacherClass {
+  id: string
+  name: string
+  isActive: boolean
+  studentCount: number
+  createdAt: string
+}
+
+/** Roster row (also returned by enroll). createdAt = enrolled-at. */
+export interface RosterEntry {
+  id: string
+  student: StudentMini
+  status: EnrollmentStatus
+  createdAt: string
+}
+
+// ─────────────────────────────────────
 // Homework
 // ─────────────────────────────────────
 
