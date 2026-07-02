@@ -576,12 +576,12 @@ API client (`lib/api/client.ts`: `get/post/patch/del/getPaginated` + snake↔cam
 - Pages: classes list + create dialog; class detail (roster `table` + enroll-by-email form); homework assign (form: class `select`, exam `select`, due date, `textarea`) + submissions view (`table`, status per student).
 - ⚠️ **Deferred to Phase 3:** per-student analytics drilldown (needs `GET /teacher/students/{id}/analytics/`).
 
-### 2G — Gap-closing (found in post-2F review)
-1. **Exam-backed homework auto-submit** — `HomeworkSubmission.session` FK is unwired; students must manually submit after finishing the linked test. Fix: `POST /homework/{id}/start/` starts the session AND links it to the student's submission; when that session is submitted, the linked homework submission flips to `submitted` automatically (manual submit stays for plain homework / as fallback).
-2. **Mobile navigation** — both sidebars are `hidden md:block` with no fallback; on phones nothing is reachable. Fix: Navbar hamburger (`md:hidden`) opening a drawer with the role-aware nav items (student / teacher).
-3. **Localized notification content** — titles/bodies are backend English; UZ users see mixed-language notifications. Fix: backend adds structured fields to `notification.data` (`homework_title`, `class_name`, `exam_title`, `due_at`); client renders per-type EN/UZ templates and falls back to the server title/body for unknown types/old rows.
-4. **`send_homework_due_reminders()`** — listed in §10 but never built (`apps/notifications` has no `tasks.py`); the `homework_due` type is defined but nothing creates it. Fix: daily Celery beat task — `homework_due` notification to actively-enrolled students still `assigned` on homework due within the next 24h (deduped per user+homework).
-5. **Notifications polish** — unread-only filter on the notifications page (backend `?unread=1` already exists) + a Playwright e2e for the notifications flow (2E was verified manually only).
+### 2G — Gap-closing (found in post-2F review) — SHIPPED ✅
+1. ✅ **Exam-backed homework auto-submit** — `POST /homework/{id}/start/` starts the linked exam AND binds the session to the student's submission (`HomeworkSubmission.session`); the assessments submit view flips linked submissions to `submitted` (lazy `apps/homework/services.py` call). Manual submit stays for plain homework / as fallback. Frontend Start button uses `homeworkAPI.start`.
+2. ✅ **Mobile navigation** — Navbar hamburger (`md:hidden`) → left drawer (`components/common/MobileNav.tsx`) with the role-aware items (teacher items inside `/teacher/*`); nav arrays + role filter exported from the sidebars.
+3. ✅ **Localized notification content** — `notify()` payloads carry structured data (`homework_title`, `class_name`, `due_at`, `exam_title`); client renders per-type EN/UZ templates (`components/notifications/render.ts`), falling back to server title/body for unknown types/old rows.
+4. ✅ **`send_homework_due_reminders()`** — `apps/notifications/tasks.py`: daily beat task (CELERY_BEAT_SCHEDULE, installed into the DB by django_celery_beat on beat startup) — `homework_due` to actively-enrolled, unsubmitted students for homework due within 24h, deduped per user+homework.
+5. ✅ **Notifications polish** — All/Unread filter on the notifications page + `e2e/notifications.spec.ts` (bell → localized template → deep link → linked-test auto-submit → mark-all-read).
 
 ### Conventions
 As Phase 1 (see §2, §6, §8). Role-scoped routing via route groups + `RequireRole`. All new text through `useT` (en + uz). Server state via TanStack Query; **Zustand only** for the test engine. Lists cursor-paginated. Teacher endpoints are already own-class-scoped server-side.
@@ -594,4 +594,4 @@ Admin content studio / exam builder / user management (+ their REST endpoints); 
 
 ---
 
-*Oxirgi yangilangan: Phase 2 COMPLETE — Question Bank, Analytics, i18n, Homework (2D), Notifications (2E), Teacher surface (2F) shipped (branch feat/phase2-question-bank). Keyingisi: Phase 3 — admin content studio / exam builder / user management (+ REST endpoints), teacher per-student analytics.*
+*Oxirgi yangilangan: Phase 2 COMPLETE — Question Bank, Analytics, i18n, Homework (2D), Notifications (2E), Teacher surface (2F), gap-closing (2G: auto-submit, mobile nav, notification i18n, due reminders, unread filter) shipped (branch feat/phase2-question-bank). Keyingisi: Phase 3 — admin content studio / exam builder / user management (+ REST endpoints), teacher per-student analytics.*
