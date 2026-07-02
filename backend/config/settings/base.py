@@ -164,7 +164,55 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": 20,
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "EXCEPTION_HANDLER": "common.exceptions.custom_exception_handler",
+    # ScopedRateThrottle is a no-op for views without a `throttle_scope`, so this
+    # is safe globally — only the auth views opt in. Rates are env-overridable so
+    # production can tighten them; defaults are a brute-force speed bump (not a
+    # wall) that sit well above what the e2e suite exercises. Tests disable
+    # throttling (see conftest._disable_throttling).
+    #
+    # NUM_PROXIES controls the throttle identity. With 0 (dev default) DRF keys on
+    # REMOTE_ADDR and IGNORES the client-supplied X-Forwarded-For — so the header
+    # can't be spoofed to dodge the limit. BEHIND A REVERSE PROXY (prod = Nginx)
+    # set NUM_PROXIES to the trusted hop count (1 for a single Nginx that appends
+    # the real peer to XFF); leaving it unset would make DRF trust the raw XFF.
+    "DEFAULT_THROTTLE_CLASSES": ["rest_framework.throttling.ScopedRateThrottle"],
+    "NUM_PROXIES": env.int("NUM_PROXIES", default=0),
+    "DEFAULT_THROTTLE_RATES": {
+        "auth_login": env("THROTTLE_AUTH_LOGIN", default="30/min"),
+        "auth_register": env("THROTTLE_AUTH_REGISTER", default="30/min"),
+        "auth_password_reset": env("THROTTLE_AUTH_PASSWORD_RESET", default="10/min"),
+        "auth_verify_email": env("THROTTLE_AUTH_VERIFY_EMAIL", default="10/min"),
+    },
 }
+
+
+def _validate_throttle_rates(rates):
+    """Fail fast on a malformed rate — DRF only parses rates lazily, so an invalid
+    env value would otherwise surface as a 500 on the first request to that
+    endpoint. A count of 0 is rejected too (it locks the endpoint for everyone;
+    to disable a scope, drop its throttle_scope, don't set 0)."""
+    from django.core.exceptions import ImproperlyConfigured
+
+    for scope, rate in rates.items():
+        if rate is None:
+            continue
+        try:
+            count, period = rate.split("/")
+            count = int(count)
+            unit = period[0]
+        except (ValueError, IndexError):
+            raise ImproperlyConfigured(
+                f"Malformed throttle rate for {scope!r}: {rate!r} "
+                "(expected '<count>/<s|min|hour|day>')."
+            ) from None
+        if unit not in "smhd" or count <= 0:
+            raise ImproperlyConfigured(
+                f"Invalid throttle rate for {scope!r}: {rate!r} "
+                "(count must be > 0 and the period must start with s/m/h/d)."
+            )
+
+
+_validate_throttle_rates(REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"])
 
 # ─────────────────────────────────────
 # JWT

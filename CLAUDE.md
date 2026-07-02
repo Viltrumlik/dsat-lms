@@ -407,6 +407,13 @@ REDIS_URL=redis://localhost:6379/0
 JWT_ACCESS_TOKEN_LIFETIME_MINUTES=15
 JWT_REFRESH_TOKEN_LIFETIME_DAYS=30
 
+# Auth throttling (DRF ScopedRateThrottle; per-IP, format "<count>/<s|min|hour|day>")
+THROTTLE_AUTH_LOGIN=30/min
+THROTTLE_AUTH_REGISTER=30/min
+THROTTLE_AUTH_PASSWORD_RESET=10/min
+THROTTLE_AUTH_VERIFY_EMAIL=10/min
+NUM_PROXIES=0   # 0 = no proxy (dev); behind Nginx set to the trusted hop count (1)
+
 # Storage (dev: local, prod: R2)
 STORAGE_BACKEND=local   # or r2
 R2_ACCOUNT_ID=

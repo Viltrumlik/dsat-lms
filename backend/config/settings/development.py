@@ -24,6 +24,16 @@ def _tune_sqlite(sender, connection, **kwargs):  # noqa: ANN001, ARG001
         cursor.execute("PRAGMA busy_timeout=20000;")
 
 
+# Dev/CI/tests run without Redis (Celery is eager), so the default Redis cache
+# from base would refuse-connect on any cache op — including DRF throttling, which
+# would then 500 every login. Use an in-process cache instead. Prod keeps Redis.
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "dsat-dev",
+    },
+}
+
 # Dev'da email console'ga chiqadi
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 

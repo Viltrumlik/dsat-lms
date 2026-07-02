@@ -209,3 +209,32 @@ class TestPasswordChange:
         assert ok.status_code == 200
         user.refresh_from_db()
         assert user.check_password("FinalPass000!")
+
+
+class TestAuthThrottle:
+    """Throttling is nulled suite-wide (conftest._disable_throttling); this sets a
+    tiny rate on the auth_login scope to prove the throttle actually engages.
+    ScopedRateThrottle stays wired via DEFAULT_THROTTLE_CLASSES (base settings)."""
+
+    def test_login_is_throttled(self, api_client, monkeypatch):
+        from django.core.cache import cache
+        from rest_framework.throttling import SimpleRateThrottle
+
+        cache.clear()
+        # DRF binds THROTTLE_RATES at import, so set it on the class, not via
+        # settings. Keep other scopes disabled (None).
+        monkeypatch.setattr(
+            SimpleRateThrottle,
+            "THROTTLE_RATES",
+            {**SimpleRateThrottle.THROTTLE_RATES, "auth_login": "3/min"},
+        )
+        # Throttling counts every request (even failed logins), so bad creds are
+        # enough: the 4th request in the window is rejected before the view runs.
+        codes = [
+            api_client.post(
+                LOGIN, {"email": "nobody@dsat.local", "password": "x"}, format="json"
+            ).status_code
+            for _ in range(5)
+        ]
+        assert codes.count(429) >= 1
+        assert codes[-1] == 429
