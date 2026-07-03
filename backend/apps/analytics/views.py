@@ -6,14 +6,14 @@ Description: Per-user progress + overall summary (any authenticated user), and a
 Permissions: IsAuthenticated (global). Rankings additionally require has_full_access.
 """
 
-from django.db.models import Max, Sum
+from django.db.models import Sum
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.views import APIView
 
 from common.responses import success_response
 
 from .models import UserCategoryStat
-from .serializers import CategoryStatSerializer
+from .services import category_progress, overall_summary
 
 RANKINGS_LIMIT = 50
 
@@ -22,38 +22,14 @@ class ProgressView(APIView):
     """The current user's per-category stats."""
 
     def get(self, request):
-        stats = (
-            UserCategoryStat.objects.filter(user=request.user)
-            .select_related("category")
-            .order_by("category__module", "category__name")
-        )
-        return success_response(CategoryStatSerializer(stats, many=True).data)
+        return success_response(category_progress(request.user))
 
 
 class SummaryView(APIView):
     """The current user's overall rollup."""
 
     def get(self, request):
-        agg = UserCategoryStat.objects.filter(user=request.user).aggregate(
-            answered=Sum("total_answered"), correct=Sum("total_correct")
-        )
-        answered = agg["answered"] or 0
-        correct = agg["correct"] or 0
-
-        from apps.assessments.models import ExamResult
-
-        results = ExamResult.objects.filter(user=request.user)
-        best = results.aggregate(m=Max("accuracy_pct"))["m"]
-
-        return success_response(
-            {
-                "total_answered": answered,
-                "total_correct": correct,
-                "overall_accuracy": round(correct / answered * 100, 2) if answered else 0.0,
-                "exams_completed": results.count(),
-                "best_exam_accuracy": float(best) if best is not None else None,
-            }
-        )
+        return success_response(overall_summary(request.user))
 
 
 class RankingsView(APIView):

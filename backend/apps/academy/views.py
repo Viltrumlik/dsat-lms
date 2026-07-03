@@ -22,6 +22,7 @@ from .serializers import (
     ClassSerializer,
     EnrollSerializer,
     RosterEntrySerializer,
+    StudentMiniSerializer,
 )
 
 
@@ -36,6 +37,21 @@ def _owned_class(request, pk):
         return _scoped_classes(request).get(pk=pk)
     except Class.DoesNotExist:
         raise NotFound("Class not found.") from None
+
+
+def _scoped_student(request, pk):
+    """The user `pk`, but only if the requester may see them: admins see anyone;
+    a teacher sees only students actively enrolled in one of their own classes."""
+    qs = User.objects.filter(pk=pk)
+    if not request.user.is_admin:
+        qs = qs.filter(
+            enrollments__klass__teacher=request.user,
+            enrollments__status=ClassEnrollment.Status.ACTIVE,
+        )
+    student = qs.distinct().first()
+    if student is None:
+        raise NotFound("Student not found.")
+    return student
 
 
 class TeacherClassListCreateView(APIView):
@@ -91,3 +107,22 @@ class TeacherClassEnrollView(APIView):
             defaults={"status": ClassEnrollment.Status.ACTIVE},
         )
         return success_response(RosterEntrySerializer(enrollment).data)
+
+
+class TeacherStudentAnalyticsView(APIView):
+    """A teacher's read-only analytics drilldown for one of their own students."""
+
+    permission_classes = [IsAdminOrTeacher]
+
+    def get(self, request, pk):
+        student = _scoped_student(request, pk)
+        # Local import avoids an academy→analytics import at module load.
+        from apps.analytics.services import category_progress, overall_summary
+
+        return success_response(
+            {
+                "student": StudentMiniSerializer(student).data,
+                "summary": overall_summary(student),
+                "progress": category_progress(student),
+            }
+        )

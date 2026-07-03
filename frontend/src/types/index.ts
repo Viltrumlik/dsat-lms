@@ -356,6 +356,13 @@ export interface RosterEntry {
   createdAt: string
 }
 
+/** GET /teacher/students/{id}/analytics/ — a teacher's drilldown for one student. */
+export interface StudentAnalytics {
+  student: StudentMini
+  summary: AnalyticsSummary
+  progress: CategoryProgress[]
+}
+
 // ─────────────────────────────────────
 // Homework
 // ─────────────────────────────────────

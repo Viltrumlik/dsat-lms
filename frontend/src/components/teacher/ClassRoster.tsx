@@ -159,7 +159,12 @@ export function ClassRoster({ classId }: { classId: string }) {
               {rosterQuery.data.map((entry) => (
                 <TableRow key={entry.id}>
                   <TableCell className="font-medium">
-                    {entry.student.fullName || entry.student.email}
+                    <Link
+                      href={`/teacher/students/${entry.student.id}?class=${classId}`}
+                      className="text-primary hover:underline"
+                    >
+                      {entry.student.fullName || entry.student.email}
+                    </Link>
                   </TableCell>
                   <TableCell className="text-muted-foreground">{entry.student.email}</TableCell>
                   <TableCell className="text-muted-foreground">

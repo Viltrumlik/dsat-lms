@@ -581,7 +581,7 @@ API client (`lib/api/client.ts`: `get/post/patch/del/getPaginated` + snake↔cam
 - New `(teacher)` route group + role-guarded layout.
 - `lib/api/teacher.ts`: classes list/create, roster, enroll; homework create + submissions.
 - Pages: classes list + create dialog; class detail (roster `table` + enroll-by-email form); homework assign (form: class `select`, exam `select`, due date, `textarea`) + submissions view (`table`, status per student).
-- ⚠️ **Deferred to Phase 3:** per-student analytics drilldown (needs `GET /teacher/students/{id}/analytics/`).
+- ✅ **Teacher per-student analytics** — `GET /teacher/students/{id}/analytics/` (own-class-scoped via `CanViewStudentData`; admin any) returns `{student, summary, progress}`; roster names link to `(teacher)/teacher/students/[id]` → drilldown (`components/teacher/StudentAnalytics.tsx`, reuses the analytics chart). Shipped.
 
 ### 2G — Gap-closing (found in post-2F review) — SHIPPED ✅
 1. ✅ **Exam-backed homework auto-submit** — `POST /homework/{id}/start/` starts the linked exam AND binds the session to the student's submission (`HomeworkSubmission.session`); the assessments submit view flips linked submissions to `submitted` (lazy `apps/homework/services.py` call). Manual submit stays for plain homework / as fallback. Frontend Start button uses `homeworkAPI.start`.
@@ -603,8 +603,54 @@ As Phase 1 (see §2, §6, §8). Role-scoped routing via route groups + `RequireR
 `npm run type-check` + `lint` + `vitest` clean; `next build` (⚠️ stop the dev server first — dev and build share `.next/` and corrupt each other); browser-verify against the live backend in **both en + uz** (seed: `seed_demo_exam` then `seed_demo_academy` — idempotent teacher/student creds + class + homework); extend the Playwright e2e for the new happy path (e2e runs `workers=1` — parallel auth writes lock the SQLite dev DB); keep both CI jobs green.
 
 ### Out of scope (Phase 3+)
-Admin content studio / exam builder / user management (+ their REST endpoints); teacher per-student analytics; realtime (websocket) notifications; attendance; bulk CSV import UI; official SAT scaling refinements; deployment/infra.
+Admin content studio / exam builder / user management (+ their REST endpoints); realtime (websocket) notifications; attendance; bulk CSV import UI; official SAT scaling refinements; deployment/infra.
 
 ---
 
-*Oxirgi yangilangan: Phase 2 COMPLETE (2D–2G) + Phase 1 retro-fixes (grid-in equivalence, abandoned-session sweep, settings page, exam filter) shipped — branch feat/phase2-question-bank. Keyingisi: Phase 3 — admin content studio / exam builder / user management (+ REST endpoints), teacher per-student analytics.*
+## PHASE 3 — ADMIN AUTHORING & PLATFORM MANAGEMENT
+
+> **Goal:** expose the admin surfaces — user management, content studio (question
+> authoring/review), and exam builder + assignments. Unlike Phases 1–2 (frontend
+> against a ready backend), **every Phase 3 slice is backend-first**: the models,
+> lifecycle methods, and Django admin already exist, but there are **no REST
+> endpoints** — each slice adds the `/api/v1/admin/…` endpoints, then the
+> role-gated `(admin)` UI.
+
+### Backend readiness (verified) — the gap Phase 3 fills
+- `/api/v1/admin/` is already mounted (`config/urls.py` → `apps/identity/urls_admin.py`, currently an empty stub). Mount admin endpoints here: fill `identity/urls_admin.py`, add `question_bank/urls_admin.py` + `assessments/urls_admin.py`.
+- **Reuse — do NOT duplicate:** `IsAdmin` (`common/permissions.py`); `success_response`/`created_response`/`no_content_response` (`common/responses.py`); `BaseModel.soft_delete`; existing read serializers (extend for writes); the Django admin registrations prove the data model is sound.
+- Models already exist (Phase 3 only exposes them over REST):
+  - **Content** (`apps/question_bank/models.py`): `Question` — status `draft/review/published/archived`; methods `submit_for_review()`, `approve(reviewer)`, `reject(reviewer, note)`; versioning via `version` + `parent`. Plus `QuestionReview` (audit), `QuestionChoice`, `QuestionCategory` (tree), `QuestionTag`.
+  - **Exams** (`apps/assessments/models.py`): `ExamTemplate` / `ExamSection` / `ExamQuestion` / `ExamAssignment`.
+  - **Users** (`apps/identity/models.py`): `User` — role `public/student/teacher/admin`, soft-delete.
+
+### Frontend readiness (reuse — do NOT rebuild)
+- Role-gating: `components/common/RequireRole.tsx`. Add an `(admin)` route group + layout mirroring `(teacher)`: `<RequireRole roles={['admin']}>` + an admin Navbar/Sidebar.
+- All UI primitives present (`ui/{table,select,textarea,dropdown-menu,dialog,…}`). API client (`get/post/patch/del/getPaginated`), TanStack Query (`useMutation` for writes), i18n (`useT`; **add every key to BOTH `en.ts` + `uz.ts`**), `parseApiError` + toasts.
+
+### Slices — recommended order (dependency-aware; all three in scope)
+
+**3A — User management.** FIRST — simplest CRUD, unblocks onboarding, independent of the others.
+- Backend (`apps/identity/urls_admin.py` + `views_admin.py` + an admin user serializer): `GET /admin/users/` (filter role/active/verified, search email/name, cursor-paginated), `POST /admin/users/`, `GET/PATCH /admin/users/{id}/`, `PATCH /admin/users/{id}/role/`, `POST /admin/users/{id}/deactivate/` + `/reactivate/`, `DELETE` (soft). All `IsAdmin`. (Stretch: bulk CSV import, force password-reset.)
+- Frontend: the `(admin)` group + layout; `lib/api/admin/users.ts`; `/admin/users` table (filters + search) + edit/role dialogs.
+
+**3B — Content studio (question authoring + review).** Backend-first; the core content pipeline.
+- Backend (`apps/question_bank/urls_admin.py` + admin views/serializers): question CRUD (`POST`/`GET`/`PATCH`/`DELETE /admin/questions/` — all statuses, choices inline), lifecycle actions `POST /admin/questions/{id}/submit-for-review|approve|reject/` (wrap the model methods), `GET /admin/questions/{id}/reviews/` + `/revisions/`, categories + tags CRUD. `IsAdmin`. Enforce **§9 content lifecycle**: edit only in DRAFT; a PUBLISHED edit creates a new version (`parent` chain) and archives the old.
+- Frontend: `/admin/questions` list (status filter) + authoring editor (stem/choices/explanation with **KaTeX preview** — reuse `components/test-engine/MarkdownMath.tsx`) + a review queue (approve / reject-with-note).
+
+**3C — Exam builder + assignments.** Depends on 3B (assembles existing questions).
+- Backend (`apps/assessments/urls_admin.py` + admin views/serializers): `ExamTemplate` CRUD; nested sections (`/admin/exams/{id}/sections/`) and section questions (`.../questions/` — add / reorder-by-position / remove); `ExamAssignment` CRUD (`/admin/assignments/` — assign to class or student, `opens_at`/`closes_at`, `max_attempts`) + `GET /admin/assignments/{id}/sessions/` (student progress). `IsAdmin`.
+- Frontend: `/admin/exams` list + builder (sections + a question picker from the bank, reorder) ; `/admin/assignments` (assign dialog + progress view).
+
+### Conventions
+As Phases 1–2 (see §2, §6, §8, §9, §11). Every admin endpoint is `IsAdmin`, under `/api/v1/admin/`, standard `{success,data,meta}` envelope, cursor pagination, soft-delete. **Never in-place edit a PUBLISHED question** — version it (§9). All admin text through `useT` (en + uz). Server state via TanStack Query; **Zustand only** for the test engine.
+
+### Verification (per slice)
+Backend: `pytest` (endpoint auth + validation + state transitions) + `ruff` + `black --check` + `makemigrations --check`. Frontend: `type-check` + `lint` + `vitest` + `next build`; browser-verify the `(admin)` surface as an `admin` user (seed via `/admin/` or a `seed_demo_admin` command) in **both en + uz**; extend the Playwright e2e; keep both CI jobs green.
+
+### Out of scope (Phase 4+)
+Realtime (websocket) notifications; attendance tracking; official SAT scaling refinements; analytics warehouse / OpenSearch; deployment / infra; public marketing site.
+
+---
+
+*Oxirgi yangilangan: Phases 1–2 COMPLETE (merged to main) + teacher per-student analytics shipped. Phase 3 roadmap added (admin: user management → content studio → exam builder) — backend-first, endpoints under /api/v1/admin/.*
