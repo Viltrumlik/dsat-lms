@@ -630,9 +630,9 @@ Admin content studio / exam builder / user management (+ their REST endpoints); 
 
 ### Slices — recommended order (dependency-aware; all three in scope)
 
-**3A — User management.** FIRST — simplest CRUD, unblocks onboarding, independent of the others.
-- Backend (`apps/identity/urls_admin.py` + `views_admin.py` + an admin user serializer): `GET /admin/users/` (filter role/active/verified, search email/name, cursor-paginated), `POST /admin/users/`, `GET/PATCH /admin/users/{id}/`, `PATCH /admin/users/{id}/role/`, `POST /admin/users/{id}/deactivate/` + `/reactivate/`, `DELETE` (soft). All `IsAdmin`. (Stretch: bulk CSV import, force password-reset.)
-- Frontend: the `(admin)` group + layout; `lib/api/admin/users.ts`; `/admin/users` table (filters + search) + edit/role dialogs.
+**3A — User management. — SHIPPED ✅** (branch `feat/phase3-admin`)
+- Backend (`apps/identity/views_admin.py` + `serializers_admin.py` + `urls_admin.py`): `GET /admin/users/` (filter role/active/verified + `include_deleted`, search email/name, cursor-paginated), `POST /admin/users/`, `GET/PATCH/DELETE /admin/users/{id}/` (DELETE = soft), `PATCH /admin/users/{id}/role/`, `POST /admin/users/{id}/deactivate|reactivate|set-password/`. All `IsAdmin`; self-action guards (can't deactivate/delete/demote self); reactivate also clears soft-delete. `seed_demo_admin` (admin@dsat.local / DevAdmin123!) + 29 endpoint tests. (Deferred stretch: bulk CSV import.)
+- Frontend: `(admin)` route group + `RequireRole roles={['admin']}` layout (Navbar + `AdminSidebar`); `lib/api/admin/users.ts` (+ vitest); `AdminUser` type; `/admin/users` = searchable/filterable/cursor-paginated table + create/edit dialog + row actions (role, set-password, deactivate/reactivate, soft-delete); admin-panel entry in student sidebar + mobile nav; full en/uz `admin.*`. Browser-verified (list/create/delete, EN+UZ).
 
 **3B — Content studio (question authoring + review).** Backend-first; the core content pipeline.
 - Backend (`apps/question_bank/urls_admin.py` + admin views/serializers): question CRUD (`POST`/`GET`/`PATCH`/`DELETE /admin/questions/` — all statuses, choices inline), lifecycle actions `POST /admin/questions/{id}/submit-for-review|approve|reject/` (wrap the model methods), `GET /admin/questions/{id}/reviews/` + `/revisions/`, categories + tags CRUD. `IsAdmin`. Enforce **§9 content lifecycle**: edit only in DRAFT; a PUBLISHED edit creates a new version (`parent` chain) and archives the old.
@@ -653,4 +653,4 @@ Realtime (websocket) notifications; attendance tracking; official SAT scaling re
 
 ---
 
-*Oxirgi yangilangan: Phases 1–2 COMPLETE (merged to main) + teacher per-student analytics shipped. Phase 3 roadmap added (admin: user management → content studio → exam builder) — backend-first, endpoints under /api/v1/admin/.*
+*Oxirgi yangilangan: Phases 1–2 COMPLETE (merged to main) + teacher per-student analytics shipped. Phase 3 started (branch `feat/phase3-admin`): **3A — admin user management SHIPPED** (backend endpoints + `(admin)` UI + tests). Next: 3B content studio, then 3C exam builder — backend-first, endpoints under /api/v1/admin/.*
