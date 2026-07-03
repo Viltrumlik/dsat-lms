@@ -306,3 +306,161 @@ class TestSetPassword:
         )
         assert r.status_code == 400
         assert "new_password" in r.data["error"]["fields"]
+
+    def test_cannot_set_own_password(self):
+        client = admin_client()
+        r = client.post(
+            f"{ADMIN}users/{client.user.id}/set-password/",
+            {"new_password": "BrandNewPass1!"},
+            format="json",
+        )
+        assert r.status_code == 400
+        client.user.refresh_from_db()
+        assert client.user.check_password("TestPass123!")  # unchanged (factory default)
+
+    def test_set_password_blacklists_existing_sessions(self):
+        from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken
+        from rest_framework_simplejwt.tokens import RefreshToken
+
+        client = admin_client()
+        u = UserFactory(role="public")
+        RefreshToken.for_user(u)  # records an OutstandingToken for u
+        r = client.post(
+            f"{ADMIN}users/{u.id}/set-password/",
+            {"new_password": "BrandNewPass1!"},
+            format="json",
+        )
+        assert r.status_code == 200
+        assert BlacklistedToken.objects.filter(token__user=u).exists()
+
+
+class TestLastAdminGuard:
+    """At least one active admin must always remain. In practice the acting admin is
+    always another active admin (self-actions are blocked and simplejwt rejects
+    inactive users at auth), so to exercise the invariant directly we force-auth an
+    admin who is themselves inactive."""
+
+    def _inactive_admin_client(self):
+        actor = AdminUserFactory(is_active=False)
+        client = APIClient()
+        client.force_authenticate(actor)
+        client.user = actor
+        return client
+
+    def test_can_delete_admin_when_another_remains(self):
+        client = admin_client()  # actor is an active admin
+        other = AdminUserFactory()
+        assert client.delete(f"{ADMIN}users/{other.id}/").status_code == 204
+
+    def test_cannot_delete_last_active_admin(self):
+        client = self._inactive_admin_client()
+        sole = AdminUserFactory()  # the only ACTIVE admin
+        r = client.delete(f"{ADMIN}users/{sole.id}/")
+        assert r.status_code == 400
+        sole.refresh_from_db()
+        assert sole.deleted_at is None
+
+    def test_cannot_deactivate_last_active_admin(self):
+        client = self._inactive_admin_client()
+        sole = AdminUserFactory()
+        r = client.post(f"{ADMIN}users/{sole.id}/deactivate/")
+        assert r.status_code == 400
+        sole.refresh_from_db()
+        assert sole.is_active is True
+
+    def test_cannot_demote_last_active_admin(self):
+        client = self._inactive_admin_client()
+        sole = AdminUserFactory()
+        r = client.patch(f"{ADMIN}users/{sole.id}/role/", {"role": "teacher"}, format="json")
+        assert r.status_code == 400
+        sole.refresh_from_db()
+        assert sole.role == "admin"
+
+    def test_can_demote_admin_when_another_remains(self):
+        client = admin_client()  # active admin actor remains
+        other = AdminUserFactory()
+        r = client.patch(f"{ADMIN}users/{other.id}/role/", {"role": "teacher"}, format="json")
+        assert r.status_code == 200
+        assert r.data["data"]["role"] == "teacher"
+
+
+class TestUpdateProfileFields:
+    def test_update_sat_target_score(self):
+        client = admin_client()
+        u = UserFactory(role="student")
+        r = client.patch(f"{ADMIN}users/{u.id}/", {"sat_target_score": 1500}, format="json")
+        assert r.status_code == 200
+        assert r.data["data"]["sat_target_score"] == 1500
+
+    def test_sat_target_score_out_of_bounds_400(self):
+        client = admin_client()
+        u = UserFactory(role="student")
+        assert (
+            client.patch(
+                f"{ADMIN}users/{u.id}/", {"sat_target_score": 300}, format="json"
+            ).status_code
+            == 400
+        )
+        assert (
+            client.patch(
+                f"{ADMIN}users/{u.id}/", {"sat_target_score": 2000}, format="json"
+            ).status_code
+            == 400
+        )
+
+    def test_update_timezone_and_exam_date(self):
+        client = admin_client()
+        u = UserFactory(role="student")
+        r = client.patch(
+            f"{ADMIN}users/{u.id}/",
+            {"timezone": "UTC", "exam_date": "2026-11-07"},
+            format="json",
+        )
+        assert r.status_code == 200
+        u.refresh_from_db()
+        assert u.timezone == "UTC"
+        assert str(u.exam_date) == "2026-11-07"
+
+    def test_email_normalized_and_case_insensitive_dup(self):
+        client = admin_client()
+        UserFactory(email="taken@dsat.local")
+        u = UserFactory(role="public")
+        r = client.patch(
+            f"{ADMIN}users/{u.id}/", {"email": "  MixedCase@DSAT.local "}, format="json"
+        )
+        assert r.status_code == 200
+        assert r.data["data"]["email"] == "mixedcase@dsat.local"
+        r2 = client.patch(f"{ADMIN}users/{u.id}/", {"email": "TAKEN@dsat.local"}, format="json")
+        assert r2.status_code == 400
+        assert "email" in r2.data["error"]["fields"]
+
+
+class TestListPaginationAndFilters:
+    def test_pagination_cursor_flow(self):
+        from urllib.parse import urlparse
+
+        client = admin_client()
+        for i in range(25):
+            UserFactory(role="public", email=f"pg{i:02d}@dsat.local")
+        r1 = client.get(ADMIN + "users/?page_size=10")
+        assert r1.status_code == 200
+        assert len(r1.data["data"]) == 10
+        next_url = r1.data["meta"]["pagination"]["next"]
+        assert next_url
+        parsed = urlparse(next_url)
+        r2 = client.get(f"{parsed.path}?{parsed.query}")
+        assert r2.status_code == 200
+        page1 = {u["id"] for u in r1.data["data"]}
+        page2 = {u["id"] for u in r2.data["data"]}
+        assert page1.isdisjoint(page2)
+
+    def test_include_deleted_respects_role_filter(self):
+        client = admin_client()
+        gone_teacher = UserFactory(role="teacher", email="delteach@dsat.local")
+        gone_teacher.soft_delete()
+        gone_public = UserFactory(role="public", email="delpub@dsat.local")
+        gone_public.soft_delete()
+        rows = client.get(ADMIN + "users/?include_deleted=true&role=teacher").data["data"]
+        emails = [u["email"] for u in rows]
+        assert "delteach@dsat.local" in emails
+        assert "delpub@dsat.local" not in emails

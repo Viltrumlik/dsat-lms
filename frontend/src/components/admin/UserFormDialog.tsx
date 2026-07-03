@@ -11,6 +11,7 @@ import { parseApiError } from '@/lib/api/errors'
 import { useI18n } from '@/lib/i18n/I18nProvider'
 import { useToast } from '@/components/ui/toast'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -209,15 +210,16 @@ export function UserFormDialog({
             </>
           )}
 
-          <label className="flex items-center gap-2 text-sm text-foreground">
-            <input
-              type="checkbox"
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="u-verified"
               checked={isVerified}
-              onChange={(e) => setIsVerified(e.target.checked)}
-              className="h-4 w-4 rounded border-input accent-primary"
+              onCheckedChange={(v) => setIsVerified(v === true)}
             />
-            {t('admin.users.emailVerified')}
-          </label>
+            <Label htmlFor="u-verified" className="text-sm font-normal">
+              {t('admin.users.emailVerified')}
+            </Label>
+          </div>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

@@ -58,6 +58,7 @@ jobs:
           python manage.py shell -c "from apps.identity.models import User; User.objects.filter(email='ci@dsat.local').exists() or User.objects.create_superuser(email='ci@dsat.local', password='ci-password-123', first_name='CI', last_name='Bot')"
           python manage.py seed_demo_exam
           python manage.py seed_demo_academy
+          python manage.py seed_demo_admin
 
       - name: Start backend
         working-directory: backend

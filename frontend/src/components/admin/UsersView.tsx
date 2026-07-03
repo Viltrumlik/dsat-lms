@@ -34,6 +34,7 @@ import { useToast } from '@/components/ui/toast'
 import { Badge, type BadgeProps } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -389,15 +390,16 @@ export function UsersView() {
         </Button>
       </div>
 
-      <label className="flex items-center gap-2 text-sm text-muted-foreground">
-        <input
-          type="checkbox"
+      <div className="flex items-center gap-2">
+        <Checkbox
+          id="include-deleted"
           checked={includeDeleted}
-          onChange={(e) => setIncludeDeleted(e.target.checked)}
-          className="h-4 w-4 rounded border-input accent-primary"
+          onCheckedChange={(v) => setIncludeDeleted(v === true)}
         />
-        {t('admin.users.showDeleted')}
-      </label>
+        <Label htmlFor="include-deleted" className="text-sm font-normal text-muted-foreground">
+          {t('admin.users.showDeleted')}
+        </Label>
+      </div>
 
       {/* States */}
       {query.isLoading && (
@@ -412,8 +414,11 @@ export function UsersView() {
 
       {query.isError && (
         <Card>
-          <CardContent className="p-5 text-sm text-muted-foreground">
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 p-5 text-sm text-muted-foreground">
             {t('admin.users.loadFailed')}
+            <Button variant="outline" size="sm" onClick={() => query.refetch()}>
+              {t('common.tryAgain')}
+            </Button>
           </CardContent>
         </Card>
       )}
@@ -490,7 +495,10 @@ export function UsersView() {
                             >
                               <Shield className="h-4 w-4" /> {t('admin.users.changeRole')}
                             </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => setPasswordUser(u)}>
+                            <DropdownMenuItem
+                              disabled={isSelf}
+                              onSelect={() => setPasswordUser(u)}
+                            >
                               <KeyRound className="h-4 w-4" /> {t('admin.users.setPassword')}
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />

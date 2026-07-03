@@ -412,6 +412,7 @@ THROTTLE_AUTH_LOGIN=30/min
 THROTTLE_AUTH_REGISTER=30/min
 THROTTLE_AUTH_PASSWORD_RESET=10/min
 THROTTLE_AUTH_VERIFY_EMAIL=10/min
+THROTTLE_ADMIN_SET_PASSWORD=10/min
 NUM_PROXIES=0   # 0 = no proxy (dev); behind Nginx set to the trusted hop count (1)
 
 # Storage (dev: local, prod: R2)

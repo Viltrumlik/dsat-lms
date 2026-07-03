@@ -57,6 +57,26 @@ def _reject_self(request, user, message, field=None):
     return None
 
 
+_LAST_ADMIN_MSG = "At least one active admin must remain."
+
+
+def _would_orphan_admins(user):
+    """True when `user` is the only remaining active admin — so demoting, deactivating,
+    or deleting them would leave the platform with zero admins.
+
+    Defense-in-depth: the practical lockout is already prevented (an admin can't act on
+    themselves — see _reject_self — and simplejwt rejects inactive users at auth, so the
+    acting admin is always another active admin). This makes the invariant explicit and
+    guards against future changes."""
+    if user.role != User.Role.ADMIN:
+        return False
+    return not (
+        User.objects.filter(role=User.Role.ADMIN, is_active=True, deleted_at__isnull=True)
+        .exclude(pk=user.pk)
+        .exists()
+    )
+
+
 class AdminUserListCreateView(APIView):
     """GET: paginated, filterable user list. POST: create a user of any role."""
 
@@ -121,6 +141,8 @@ class AdminUserDetailView(APIView):
         rejected = _reject_self(request, user, "You cannot delete your own account.")
         if rejected:
             return rejected
+        if _would_orphan_admins(user):
+            return ValidationError(_LAST_ADMIN_MSG).to_response()
         user.soft_delete()  # sets deleted_at + is_active=False
         return no_content_response()
 
@@ -137,7 +159,10 @@ class AdminUserRoleView(APIView):
             return rejected
         serializer = AdminUserRoleSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user.role = serializer.validated_data["role"]
+        new_role = serializer.validated_data["role"]
+        if new_role != User.Role.ADMIN and _would_orphan_admins(user):
+            return ValidationError(_LAST_ADMIN_MSG, field="role").to_response()
+        user.role = new_role
         user.save(update_fields=["role", "updated_at"])
         return success_response(AdminUserSerializer(user).data)
 
@@ -152,6 +177,8 @@ class AdminUserDeactivateView(APIView):
         rejected = _reject_self(request, user, "You cannot deactivate your own account.")
         if rejected:
             return rejected
+        if _would_orphan_admins(user):
+            return ValidationError(_LAST_ADMIN_MSG).to_response()
         if user.is_active:
             user.is_active = False
             user.save(update_fields=["is_active", "updated_at"])
@@ -181,9 +208,15 @@ class AdminUserSetPasswordView(APIView):
     """Admin sets a new password for a user; invalidates existing sessions."""
 
     permission_classes = [IsAdmin]
+    throttle_scope = "admin_set_password"
 
     def post(self, request, pk):
         user = _get_user(pk)
+        # Admins change their OWN password via the settings page (which verifies the
+        # current password); doing it here would blacklist their tokens mid-session.
+        rejected = _reject_self(request, user, "Use the settings page to change your own password.")
+        if rejected:
+            return rejected
         serializer = AdminSetPasswordSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user.set_password(serializer.validated_data["new_password"])
