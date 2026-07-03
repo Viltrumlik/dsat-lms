@@ -407,6 +407,12 @@ export const uz: Dictionary = {
       empty: 'Hali talabalar yoʻq — yuqorida email orqali qoʻshing.',
       loadFailed: 'Roʻyxatni yuklab boʻlmadi. Qayta urinib koʻring.',
     },
+    studentAnalytics: {
+      back: 'Roʻyxatga qaytish',
+      subtitle: 'Bu talabaning holati (faqat oʻqish uchun).',
+      loadFailed: 'Bu talabaning tahlilini yuklab boʻlmadi.',
+      noData: 'Bu talaba hali birorta savolga javob bermagan.',
+    },
     homework: {
       title: 'Uy vazifalari',
       subtitle: 'Sinflaringizga vazifa bering va topshiriqlarni kuzating.',

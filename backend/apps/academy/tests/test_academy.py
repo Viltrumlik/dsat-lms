@@ -89,3 +89,55 @@ class TestRosterAndEnroll:
             ).status_code
             == 404
         )
+
+
+class TestStudentAnalytics:
+    def _enrolled_student(self, client):
+        klass = ClassFactory(teacher=client.user)
+        student = UserFactory(role="student")
+        ClassEnrollment.objects.create(klass=klass, student=student)
+        return student
+
+    def test_teacher_sees_own_student(self):
+        client = teacher_client()
+        student = self._enrolled_student(client)
+        r = client.get(f"{TEACHER}students/{student.id}/analytics/")
+        assert r.status_code == 200
+        data = r.data["data"]
+        assert data["student"]["id"] == str(student.id)
+        assert set(data["summary"]) >= {"total_answered", "overall_accuracy", "exams_completed"}
+        assert data["progress"] == []  # no practice yet
+
+    def test_teacher_404_for_unrelated_student(self):
+        client = teacher_client()
+        stranger = UserFactory(role="student")  # not in any of this teacher's classes
+        assert client.get(f"{TEACHER}students/{stranger.id}/analytics/").status_code == 404
+
+    def test_teacher_404_for_other_teachers_student(self):
+        client = teacher_client()
+        other_class = ClassFactory()  # different teacher
+        student = UserFactory(role="student")
+        ClassEnrollment.objects.create(klass=other_class, student=student)
+        assert client.get(f"{TEACHER}students/{student.id}/analytics/").status_code == 404
+
+    def test_inactive_enrollment_is_not_visible(self):
+        client = teacher_client()
+        klass = ClassFactory(teacher=client.user)
+        student = UserFactory(role="student")
+        ClassEnrollment.objects.create(
+            klass=klass, student=student, status=ClassEnrollment.Status.REMOVED
+        )
+        assert client.get(f"{TEACHER}students/{student.id}/analytics/").status_code == 404
+
+    def test_public_user_forbidden(self, auth_client):
+        student = UserFactory(role="student")
+        assert auth_client.get(f"{TEACHER}students/{student.id}/analytics/").status_code == 403
+
+    def test_admin_sees_any_student(self):
+        admin = UserFactory(role="admin")
+        client = APIClient()
+        client.force_authenticate(admin)
+        student = UserFactory(role="student")  # not enrolled anywhere
+        r = client.get(f"{TEACHER}students/{student.id}/analytics/")
+        assert r.status_code == 200
+        assert r.data["data"]["student"]["id"] == str(student.id)

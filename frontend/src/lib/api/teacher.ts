@@ -7,7 +7,13 @@
 // ═══════════════════════════════════════
 
 import { get, post } from './client'
-import type { Homework, HomeworkSubmission, RosterEntry, TeacherClass } from '@/types'
+import type {
+  Homework,
+  HomeworkSubmission,
+  RosterEntry,
+  StudentAnalytics,
+  TeacherClass,
+} from '@/types'
 
 export interface CreateHomeworkPayload {
   title: string
@@ -36,4 +42,8 @@ export const teacherAPI = {
   /** Per-student submissions for one of the teacher's homework assignments. */
   submissions: (homeworkId: string) =>
     get<HomeworkSubmission[]>(`/homework/${homeworkId}/submissions/`),
+
+  /** Read-only analytics drilldown for one of the teacher's own students. */
+  studentAnalytics: (studentId: string) =>
+    get<StudentAnalytics>(`/teacher/students/${studentId}/analytics/`),
 }

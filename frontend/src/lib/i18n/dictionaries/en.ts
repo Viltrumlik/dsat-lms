@@ -404,6 +404,12 @@ export const en = {
       empty: 'No students enrolled yet — add one by email above.',
       loadFailed: "Couldn't load the roster. Please try again.",
     },
+    studentAnalytics: {
+      back: 'Back to roster',
+      subtitle: "A read-only view of this student's progress.",
+      loadFailed: "Couldn't load this student's analytics.",
+      noData: "This student hasn't answered any questions yet.",
+    },
     homework: {
       title: 'Homework',
       subtitle: 'Assign work to your classes and track submissions.',

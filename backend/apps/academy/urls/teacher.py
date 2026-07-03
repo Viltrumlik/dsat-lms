@@ -10,6 +10,7 @@ from apps.academy.views import (
     TeacherClassEnrollView,
     TeacherClassListCreateView,
     TeacherClassRosterView,
+    TeacherStudentAnalyticsView,
 )
 
 app_name = "academy_teacher"
@@ -21,5 +22,10 @@ urlpatterns = [
     ),
     path(
         "classes/<uuid:pk>/enroll/", TeacherClassEnrollView.as_view(), name="teacher-class-enroll"
+    ),
+    path(
+        "students/<uuid:pk>/analytics/",
+        TeacherStudentAnalyticsView.as_view(),
+        name="teacher-student-analytics",
     ),
 ]
