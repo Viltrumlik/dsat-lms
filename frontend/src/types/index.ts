@@ -67,6 +67,28 @@ export interface AuthSession {
   accessToken: string
 }
 
+/** Admin-facing user (GET /admin/users/) — exposes status + audit fields the
+ *  owner-facing `User` hides. */
+export interface AdminUser {
+  id: string
+  email: string
+  firstName: string
+  lastName: string
+  fullName: string
+  role: UserRole
+  isActive: boolean
+  isStaff: boolean
+  isEmailVerified: boolean
+  avatarUrl: string | null
+  satTargetScore: number | null
+  examDate: string | null // ISO date
+  timezone: string
+  lastLoginAt: string | null
+  createdAt: string
+  updatedAt: string
+  deletedAt: string | null
+}
+
 /** Compact user as nested in rosters and homework submissions. */
 export interface StudentMini {
   id: string
