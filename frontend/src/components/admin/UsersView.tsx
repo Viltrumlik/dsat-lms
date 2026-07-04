@@ -21,6 +21,7 @@ import {
   Search,
   Shield,
   Trash2,
+  Upload,
   UserCheck,
   Users,
   UserX,
@@ -70,6 +71,7 @@ import {
 } from '@/components/ui/table'
 import type { AdminUser, UserRole } from '@/types'
 import { UserFormDialog } from './UserFormDialog'
+import { BulkImportDialog } from './BulkImportDialog'
 
 const ROLES: UserRole[] = ['public', 'student', 'teacher', 'admin']
 const ROLE_BADGE: Record<UserRole, BadgeProps['variant']> = {
@@ -320,6 +322,7 @@ export function UsersView() {
 
   // Dialog state
   const [formDialog, setFormDialog] = React.useState<{ mode: 'create' | 'edit'; user?: AdminUser } | null>(null)
+  const [importOpen, setImportOpen] = React.useState(false)
   const [roleUser, setRoleUser] = React.useState<AdminUser | null>(null)
   const [passwordUser, setPasswordUser] = React.useState<AdminUser | null>(null)
   const [confirm, setConfirm] = React.useState<{ action: ConfirmAction; user: AdminUser } | null>(null)
@@ -385,6 +388,9 @@ export function UsersView() {
             <SelectItem value="inactive">{t('admin.users.statusInactive')}</SelectItem>
           </SelectContent>
         </Select>
+        <Button variant="outline" onClick={() => setImportOpen(true)}>
+          <Upload className="h-4 w-4" /> {t('admin.import.button')}
+        </Button>
         <Button onClick={() => setFormDialog({ mode: 'create' })}>
           <Plus className="h-4 w-4" /> {t('admin.users.newUser')}
         </Button>
@@ -550,6 +556,7 @@ export function UsersView() {
       )}
 
       {/* Dialogs */}
+      <BulkImportDialog open={importOpen} onOpenChange={setImportOpen} />
       {formDialog && (
         <UserFormDialog
           mode={formDialog.mode}

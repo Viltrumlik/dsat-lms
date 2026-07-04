@@ -60,4 +60,16 @@ export const adminUsersAPI = {
 
   setPassword: (id: string, newPassword: string) =>
     post<{ detail: string }>(`/admin/users/${id}/set-password/`, { newPassword }),
+
+  /** Bulk-create from CSV text (header: email, first_name, last_name, role, password?). */
+  importCsv: (csv: string) => post<ImportResult>('/admin/users/import/', { csv }),
+}
+
+export interface ImportResult {
+  createdCount: number
+  skippedCount: number
+  errorCount: number
+  created: string[]
+  skipped: { email: string; reason: string }[]
+  errors: { line: number; error: string }[]
 }

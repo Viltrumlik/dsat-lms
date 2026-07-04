@@ -5,7 +5,11 @@
 #             Mounted at /api/v1/admin/users/.
 # Permissions: IsAdmin (role == 'admin') on every endpoint.
 
+import csv
+import io
+
 from django.db.models import Q
+from django.utils.crypto import get_random_string
 from rest_framework.exceptions import NotFound
 from rest_framework.views import APIView
 
@@ -223,3 +227,59 @@ class AdminUserSetPasswordView(APIView):
         user.save(update_fields=["password"])
         _blacklist_user_tokens(user)  # log out every existing session
         return success_response({"detail": "Password updated."})
+
+
+class AdminUserImportView(APIView):
+    """Bulk-create users from a CSV (header row: email, first_name, last_name, role,
+    password?). Missing passwords are randomized (users recover via password reset).
+    Existing emails are skipped and malformed rows reported — partial success is fine.
+    Accepts a multipart `file` upload or a `csv` text field."""
+
+    permission_classes = [IsAdmin]
+
+    def post(self, request):
+        upload = request.FILES.get("file")
+        if upload is not None:
+            raw = upload.read().decode("utf-8-sig", errors="replace")
+        else:
+            raw = request.data.get("csv") or ""
+        if not raw.strip():
+            return ValidationError("Provide a CSV file or csv text.", field="file").to_response()
+
+        valid_roles = set(User.Role.values)
+        created, skipped, errors = [], [], []
+        reader = csv.DictReader(io.StringIO(raw))
+        for line, row in enumerate(reader, start=2):  # row 1 is the header
+            row = {(k or "").strip().lower(): (v or "").strip() for k, v in row.items()}
+            email = row.get("email", "").lower()
+            role = row.get("role") or "student"
+            first, last = row.get("first_name", ""), row.get("last_name", "")
+            if not email:
+                errors.append({"line": line, "error": "Missing email."})
+            elif role not in valid_roles:
+                errors.append({"line": line, "error": f"Invalid role: {role}"})
+            elif not first or not last:
+                errors.append({"line": line, "error": "Missing first_name/last_name."})
+            elif User.objects.filter(email__iexact=email).exists():
+                skipped.append({"email": email, "reason": "already exists"})
+            else:
+                User.objects.create_user(
+                    email=email,
+                    password=row.get("password") or get_random_string(16),
+                    first_name=first,
+                    last_name=last,
+                    role=role,
+                    is_email_verified=True,
+                )
+                created.append(email)
+
+        return success_response(
+            {
+                "created_count": len(created),
+                "skipped_count": len(skipped),
+                "error_count": len(errors),
+                "created": created,
+                "skipped": skipped,
+                "errors": errors,
+            }
+        )
