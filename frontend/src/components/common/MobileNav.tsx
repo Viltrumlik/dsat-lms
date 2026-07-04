@@ -8,13 +8,14 @@ import * as React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import * as DialogPrimitive from '@radix-ui/react-dialog'
-import { GraduationCap, LayoutDashboard, Menu, Presentation, X } from 'lucide-react'
+import { GraduationCap, LayoutDashboard, Menu, Presentation, Shield, X } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
 import { useT } from '@/lib/i18n/I18nProvider'
 import { useAuth } from '@/lib/auth/AuthProvider'
 import { Button } from '@/components/ui/button'
 import { visibleStudentNav, type NavItem } from './Sidebar'
 import { TEACHER_NAV } from './TeacherSidebar'
+import { ADMIN_NAV } from './AdminSidebar'
 
 export function MobileNav() {
   const [open, setOpen] = React.useState(false)
@@ -23,19 +24,29 @@ export function MobileNav() {
   const t = useT()
 
   const inTeacherArea = pathname.startsWith('/teacher')
+  const inAdminArea = pathname.startsWith('/admin')
   const isTeacher = user?.role === 'teacher' || user?.role === 'admin'
+  const isAdmin = user?.role === 'admin'
 
-  const items: NavItem[] = inTeacherArea
+  const items: NavItem[] = inAdminArea
     ? [
-        ...TEACHER_NAV,
-        { labelKey: 'teacher.nav.studentView', href: '/dashboard', icon: LayoutDashboard },
+        ...ADMIN_NAV,
+        { labelKey: 'admin.nav.studentView', href: '/dashboard', icon: LayoutDashboard },
       ]
-    : [
-        ...(isTeacher
-          ? [{ labelKey: 'nav.teacherPanel', href: '/teacher/classes', icon: Presentation }]
-          : []),
-        ...visibleStudentNav(user?.role),
-      ]
+    : inTeacherArea
+      ? [
+          ...TEACHER_NAV,
+          { labelKey: 'teacher.nav.studentView', href: '/dashboard', icon: LayoutDashboard },
+        ]
+      : [
+          ...(isAdmin
+            ? [{ labelKey: 'nav.adminPanel', href: '/admin/users', icon: Shield }]
+            : []),
+          ...(isTeacher
+            ? [{ labelKey: 'nav.teacherPanel', href: '/teacher/classes', icon: Presentation }]
+            : []),
+          ...visibleStudentNav(user?.role),
+        ]
 
   return (
     <DialogPrimitive.Root open={open} onOpenChange={setOpen}>

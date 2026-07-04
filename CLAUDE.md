@@ -412,6 +412,7 @@ THROTTLE_AUTH_LOGIN=30/min
 THROTTLE_AUTH_REGISTER=30/min
 THROTTLE_AUTH_PASSWORD_RESET=10/min
 THROTTLE_AUTH_VERIFY_EMAIL=10/min
+THROTTLE_ADMIN_SET_PASSWORD=10/min
 NUM_PROXIES=0   # 0 = no proxy (dev); behind Nginx set to the trusted hop count (1)
 
 # Storage (dev: local, prod: R2)
@@ -630,17 +631,17 @@ Admin content studio / exam builder / user management (+ their REST endpoints); 
 
 ### Slices — recommended order (dependency-aware; all three in scope)
 
-**3A — User management.** FIRST — simplest CRUD, unblocks onboarding, independent of the others.
-- Backend (`apps/identity/urls_admin.py` + `views_admin.py` + an admin user serializer): `GET /admin/users/` (filter role/active/verified, search email/name, cursor-paginated), `POST /admin/users/`, `GET/PATCH /admin/users/{id}/`, `PATCH /admin/users/{id}/role/`, `POST /admin/users/{id}/deactivate/` + `/reactivate/`, `DELETE` (soft). All `IsAdmin`. (Stretch: bulk CSV import, force password-reset.)
-- Frontend: the `(admin)` group + layout; `lib/api/admin/users.ts`; `/admin/users` table (filters + search) + edit/role dialogs.
+**3A — User management. — SHIPPED ✅** (branch `feat/phase3-admin`)
+- Backend (`apps/identity/views_admin.py` + `serializers_admin.py` + `urls_admin.py`): `GET /admin/users/` (filter role/active/verified + `include_deleted`, search email/name, cursor-paginated), `POST /admin/users/`, `GET/PATCH/DELETE /admin/users/{id}/` (DELETE = soft), `PATCH /admin/users/{id}/role/`, `POST /admin/users/{id}/deactivate|reactivate|set-password/`. All `IsAdmin`; self-action guards (can't deactivate/delete/demote self); reactivate also clears soft-delete. `seed_demo_admin` (admin@dsat.local / DevAdmin123!) + 29 endpoint tests. (Deferred stretch: bulk CSV import.)
+- Frontend: `(admin)` route group + `RequireRole roles={['admin']}` layout (Navbar + `AdminSidebar`); `lib/api/admin/users.ts` (+ vitest); `AdminUser` type; `/admin/users` = searchable/filterable/cursor-paginated table + create/edit dialog + row actions (role, set-password, deactivate/reactivate, soft-delete); admin-panel entry in student sidebar + mobile nav; full en/uz `admin.*`. Browser-verified (list/create/delete, EN+UZ).
 
-**3B — Content studio (question authoring + review).** Backend-first; the core content pipeline.
-- Backend (`apps/question_bank/urls_admin.py` + admin views/serializers): question CRUD (`POST`/`GET`/`PATCH`/`DELETE /admin/questions/` — all statuses, choices inline), lifecycle actions `POST /admin/questions/{id}/submit-for-review|approve|reject/` (wrap the model methods), `GET /admin/questions/{id}/reviews/` + `/revisions/`, categories + tags CRUD. `IsAdmin`. Enforce **§9 content lifecycle**: edit only in DRAFT; a PUBLISHED edit creates a new version (`parent` chain) and archives the old.
-- Frontend: `/admin/questions` list (status filter) + authoring editor (stem/choices/explanation with **KaTeX preview** — reuse `components/test-engine/MarkdownMath.tsx`) + a review queue (approve / reject-with-note).
+**3B — Content studio (question authoring + review). — SHIPPED ✅** (branch `feat/phase3-admin`)
+- Backend (`apps/question_bank/{views_admin,serializers_admin,services,urls_admin}.py`, mounted at `/api/v1/admin/` alongside identity admin): question CRUD (all statuses, inline choices, MCQ/grid-in validation), **draft-only** in-place edit, lifecycle `submit-for-review|approve|reject` (wrap the model methods; approve/reject record `QuestionReview` rows), **§9 versioning** (`new-version` clones a published question → draft revision with `parent` chain; approving the revision archives the parent), `reviews` + `revisions` endpoints, and category/tag CRUD (in-use guards). All `IsAdmin`, cursor-paginated question list. `services.py` = versioning helpers. 30 endpoint tests; full lifecycle HTTP-smoke-tested.
+- Frontend: `/admin/questions` list (status/module filter + search + row lifecycle actions; `status=review` = review queue) + `QuestionEditor` (create + edit) with **live KaTeX preview** (reuses `MarkdownMath`), draft-only editing (published = read-only + new-version), and inline review workflow (submit/approve/reject-with-note + history). `lib/api/admin/{questions,taxonomy}.ts`; `AdminQuestion*` types; full en/uz `admin.questions.*`. type-check + lint + vitest + build green. **Deferred:** categories/tags management UI (backend CRUD exists; editor uses category selector), tag/image/source fields in the editor, admin-questions e2e + browser verification (port 3000 was held by another session).
 
-**3C — Exam builder + assignments.** Depends on 3B (assembles existing questions).
-- Backend (`apps/assessments/urls_admin.py` + admin views/serializers): `ExamTemplate` CRUD; nested sections (`/admin/exams/{id}/sections/`) and section questions (`.../questions/` — add / reorder-by-position / remove); `ExamAssignment` CRUD (`/admin/assignments/` — assign to class or student, `opens_at`/`closes_at`, `max_attempts`) + `GET /admin/assignments/{id}/sessions/` (student progress). `IsAdmin`.
-- Frontend: `/admin/exams` list + builder (sections + a question picker from the bank, reorder) ; `/admin/assignments` (assign dialog + progress view).
+**3C — Exam builder + assignments. — SHIPPED ✅** (branch `feat/phase3-admin`)
+- Backend (`apps/assessments/{views_admin,serializers_admin,urls_admin}.py`, third mount at `/api/v1/admin/`): `ExamTemplate` CRUD (filters + search + soft-delete); nested sections (auto section-numbering + duplicate guard) and section questions (add **published-only** + dedupe + append, **reorder-as-permutation** via a position-offset swap, remove); `ExamAssignment` CRUD (assign to a class **or** a student — exactly-one + schedule validation, `max_attempts`) + `GET /admin/assignments/{id}/sessions/` (per-student progress + score). All `IsAdmin`, cursor-paginated lists. 22 endpoint tests; full builder+assignment flow HTTP-smoke-tested.
+- Frontend: `/admin/exams` list + create dialog + per-exam `ExamBuilder` (add/remove sections, published-question picker with search, up/down reorder, remove); `/admin/assignments` list + create dialog (exam + class-or-student target + schedule + attempts) + progress dialog. Class list reuses the teacher endpoint (admins see all); students from the admin users list. `lib/api/admin/exams.ts`; `AdminExam*`/`AdminAssignment*` types; Exams + Assignments nav; full en/uz. type-check + lint + vitest + build green. **Deferred:** exam-meta inline edit, section edit UI, assignment edit, browser verification + e2e (port 3000 held by another session).
 
 ### Conventions
 As Phases 1–2 (see §2, §6, §8, §9, §11). Every admin endpoint is `IsAdmin`, under `/api/v1/admin/`, standard `{success,data,meta}` envelope, cursor pagination, soft-delete. **Never in-place edit a PUBLISHED question** — version it (§9). All admin text through `useT` (en + uz). Server state via TanStack Query; **Zustand only** for the test engine.
@@ -653,4 +654,4 @@ Realtime (websocket) notifications; attendance tracking; official SAT scaling re
 
 ---
 
-*Oxirgi yangilangan: Phases 1–2 COMPLETE (merged to main) + teacher per-student analytics shipped. Phase 3 roadmap added (admin: user management → content studio → exam builder) — backend-first, endpoints under /api/v1/admin/.*
+*Oxirgi yangilangan: Phases 1–2 COMPLETE (merged to main). **Phase 3 COMPLETE** (branch `feat/phase3-admin`, not yet merged): **3A** admin user management (+ post-audit hardening), **3B** content studio (question authoring + review lifecycle + §9 versioning), **3C** exam builder + assignments — all with `/api/v1/admin/` endpoints (identity + question_bank + assessments, three includes at one prefix) + `(admin)` UI + tests (backend suite 232 green). Deferred across 3B/3C: browser verification + admin e2e specs (port 3000 was held by another session), categories/tags & exam-meta management UIs. Next: merge to main; Phase 4 (realtime, attendance, SAT scaling, deployment).*

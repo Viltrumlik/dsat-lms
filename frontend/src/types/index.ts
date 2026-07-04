@@ -67,6 +67,28 @@ export interface AuthSession {
   accessToken: string
 }
 
+/** Admin-facing user (GET /admin/users/) — exposes status + audit fields the
+ *  owner-facing `User` hides. */
+export interface AdminUser {
+  id: string
+  email: string
+  firstName: string
+  lastName: string
+  fullName: string
+  role: UserRole
+  isActive: boolean
+  isStaff: boolean
+  isEmailVerified: boolean
+  avatarUrl: string | null
+  satTargetScore: number | null
+  examDate: string | null // ISO date
+  timezone: string
+  lastLoginAt: string | null
+  createdAt: string
+  updatedAt: string
+  deletedAt: string | null
+}
+
 /** Compact user as nested in rosters and homework submissions. */
 export interface StudentMini {
   id: string
@@ -149,6 +171,149 @@ export interface QuestionDetail {
   tags: QuestionTag[]
   version: number
   createdAt: string
+}
+
+// ─────────────────────────────────────
+// Question Bank — admin authoring
+// ─────────────────────────────────────
+
+export type QuestionStatus = 'draft' | 'review' | 'published' | 'archived'
+export type QuestionSource = 'official' | 'custom' | 'imported'
+export type ReviewStatus = 'approved' | 'rejected' | 'needs_revision'
+
+/** Compact author shape (created_by / reviewed_by / reviewer). */
+export interface Author {
+  id: string
+  fullName: string
+  email: string
+}
+
+/** GET /admin/questions/ — list row (all statuses). */
+export interface AdminQuestionListItem {
+  id: string
+  module: QuestionModule
+  category: QuestionCategoryRef
+  difficulty: 1 | 2 | 3 | 4 | 5
+  answerType: AnswerType
+  hasMath: boolean
+  status: QuestionStatus
+  stem: string
+  tags: string[] // slugs
+  version: number
+  parent: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+/** GET /admin/questions/{id}/ — full admin authoring shape. */
+export interface AdminQuestion {
+  id: string
+  version: number
+  parent: string | null
+  module: QuestionModule
+  category: QuestionCategoryRef
+  difficulty: 1 | 2 | 3 | 4 | 5
+  status: QuestionStatus
+  answerType: AnswerType
+  hasMath: boolean
+  stem: string
+  stemImageUrl: string | null
+  passage: string | null
+  passageImageUrl: string | null
+  choices: QuestionChoice[]
+  correctAnswer: string
+  explanation: string | null
+  explanationImageUrl: string | null
+  source: QuestionSource
+  sourceRef: string | null
+  tags: QuestionTag[]
+  createdBy: Author
+  reviewedBy: Author | null
+  publishedAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface QuestionReviewEntry {
+  id: string
+  reviewer: Author
+  status: ReviewStatus
+  note: string | null
+  createdAt: string
+}
+
+// ─────────────────────────────────────
+// Assessments — admin exam builder + assignments
+// ─────────────────────────────────────
+
+/** A question slotted into a section (id = ExamQuestion pk, an integer). */
+export interface SectionQuestion {
+  id: number
+  position: number
+  question: {
+    id: string
+    stem: string
+    module: QuestionModule
+    difficulty: number
+    answerType: AnswerType
+    status: QuestionStatus
+  }
+}
+
+export interface AdminSection {
+  id: number
+  sectionNumber: number
+  title: string
+  module: QuestionModule // 'math' | 'reading_writing'
+  timeLimit: number | null
+  sortOrder: number
+  questions: SectionQuestion[]
+}
+
+/** GET /admin/exams/{id}/ — full exam with nested sections. */
+export interface AdminExam {
+  id: string
+  type: ExamType
+  title: string
+  description: string | null
+  module: ExamModule
+  timeLimit: number | null
+  isAdaptive: boolean
+  accessLevel: AccessLevel
+  sections: AdminSection[]
+  createdBy: Author
+  createdAt: string
+  updatedAt: string
+}
+
+export interface AssignmentClassRef {
+  id: string
+  name: string
+}
+
+/** GET /admin/assignments/ — an exam assigned to a class or a student. */
+export interface AdminAssignment {
+  id: string
+  exam: ExamSummary
+  assignedBy: Author
+  assignedClass: AssignmentClassRef | null
+  assignedStudent: Author | null
+  opensAt: string
+  closesAt: string
+  maxAttempts: number
+  instructions: string | null
+  createdAt: string
+}
+
+/** GET /admin/assignments/{id}/sessions/ — a student's progress row. */
+export interface AssignmentSessionRow {
+  id: string
+  student: Author
+  status: SessionStatus
+  startedAt: string
+  submittedAt: string | null
+  totalScore: number | null
+  accuracyPct: Decimalish
 }
 
 // ─────────────────────────────────────

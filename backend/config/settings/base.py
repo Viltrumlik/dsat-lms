@@ -182,6 +182,8 @@ REST_FRAMEWORK = {
         "auth_register": env("THROTTLE_AUTH_REGISTER", default="30/min"),
         "auth_password_reset": env("THROTTLE_AUTH_PASSWORD_RESET", default="10/min"),
         "auth_verify_email": env("THROTTLE_AUTH_VERIFY_EMAIL", default="10/min"),
+        # Admin resetting another user's password is auth-sensitive; cap it too.
+        "admin_set_password": env("THROTTLE_ADMIN_SET_PASSWORD", default="10/min"),
     },
 }
 
