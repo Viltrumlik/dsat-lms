@@ -654,4 +654,65 @@ Realtime (websocket) notifications; attendance tracking; official SAT scaling re
 
 ---
 
-*Oxirgi yangilangan: Phases 1–2 COMPLETE (merged to main). **Phase 3 COMPLETE + follow-ups** (branch `feat/phase3-admin`, [PR #5](https://github.com/Viltrumlik/dsat-lms/pull/5), not yet merged): **3A** admin user management (+ post-audit hardening + bulk CSV import), **3B** content studio (authoring + review lifecycle + §9 versioning + categories/tags management UI + tag/source editor fields), **3C** exam builder + assignments (+ assignment/exam-meta edit dialogs). All with `/api/v1/admin/` endpoints (identity + question_bank + assessments — three includes at one prefix) + `(admin)` UI. **Verified:** backend 234 pytest; frontend type-check + lint + 63 vitest (incl. admin render tests) + build; **browser-verified 3A/3B/3C in EN+UZ**; Playwright e2e for all three (`admin`, `content-studio`, `exam-builder` specs). Deferred (low-value): section-title inline edit; repo-wide drf-spectacular `serializer_class` (OpenAPI docs). Next: merge PR #5; Phase 4 (realtime, attendance, SAT scaling, deployment).*
+## PHASE 4 — PRODUCTION, CREDIBILITY & REACH
+
+> **Goal:** take the feature-complete platform (Phases 1–3) from "runs locally" to
+> "live, credible, and reachable" — **deploy it**, make its **scores official-grade**,
+> open a **public front door**, and finish the academy + realtime edges. Grounded in a
+> codebase recon: most backends are already ~80% there, so Phase 4 is mostly packaging,
+> wiring, and last-mile UI — not greenfield.
+
+### Readiness at a glance (verified by recon)
+- **Prod settings DONE** — `config/settings/production.py` is hardened (DEBUG off, SSL/HSTS, secure cookies, R2 `STORAGES`, Resend/SES, Sentry, `CONN_MAX_AGE`, `ATOMIC_REQUESTS`). The gap is **packaging + pipeline + server**, not settings.
+- **Scoring DONE-ish** — `apps/assessments/scoring.py` maps raw→scaled (200–800) via a *representative* curve, "swappable by design." Gap = per-form/official curves + score-based percentile.
+- **Public APIs DONE** — `/questions/`, `/exams/` already filter by `access_level=public`; auth flows exist. Gap = the marketing/landing + public-browse UI.
+- **Realtime foundation DONE** — Redis + an ASGI entrypoint + a clean `notify()` seam. Gap = Channels + a consumer + a frontend WS client (+ daphne in prod).
+- **Attendance NOT built** — `Class`/`ClassEnrollment` exist; no `ClassSession`/`Attendance` models (schema decision needed).
+- **Search is `icontains`** — fine now; PostgreSQL FTS is the next tier; OpenSearch only at 100k+ questions (→ Phase 5).
+
+### Slices — recommended order (dependency-aware; effort in parens)
+
+**4A — Deployment & production hardening. (XL — do FIRST; highest value.)** The app is fully built but nowhere live.
+- Packaging: multi-stage `backend/Dockerfile` (gunicorn + `collectstatic`/whitenoise) + `frontend/Dockerfile` (Next `output:'standalone'`); an entrypoint that runs `migrate` before serving. Fix `wsgi.py`/`asgi.py` to read `DJANGO_SETTINGS_MODULE` from env (currently hardcoded to `development`).
+- Orchestration: `docker-compose.prod.yml` (Postgres 16 + Redis 7 + backend + celery worker + beat + Nginx) + `nginx.conf` (reverse proxy, TLS termination, gzip, security headers, `NUM_PROXIES=1`; static/media via R2).
+- Pipeline: a CI **deploy** job — build + push images to GHCR, then a `workflow_dispatch`/SSH pull-and-restart on the Ubuntu host.
+- Ops: TLS (Certbot); Postgres backups (pg_dump cron); Redis `appendonly`; a `/healthz` endpoint + Uptime Kuma; Sentry env wired; an admin **audit log** (role changes, content approvals).
+- Docs: a `DEPLOY.md` runbook (DNS, firewall, env checklist, rollback).
+- Verify: `docker compose -f docker-compose.prod.yml up` against prod settings (DEBUG off) locally; smoke the full flow; deploy to staging.
+
+**4B — Official-style SAT scaling & score-based percentiles. (M — credibility.)**
+- Backend: a `ScalingCurve` model (JSON anchors/lookup, per exam-form/year) with an optional FK from `ExamTemplate` (fallback to the representative `CURVE`); persist `raw_score` on `ExamResult` for retroactive re-grading; move to **per-section** (not just per-module) scaling; key **percentile to `total_score`** (today it's accuracy-based in `analytics.calculate_percentile`). `scoring.py`'s call site stays stable by design.
+- Frontend: results screen surfaces section scores; the **3C exam builder gets a "Scaling curve" editor** (attach/upload a curve per exam).
+- Decision: College Board doesn't publish per-form tables → **admin-uploadable curves + a good default**. (Modeling the adaptive Module-2 branch = stretch / Phase 5.)
+- Verify: tests for curve lookup, per-section scaling, regrade, percentile-by-score.
+
+**4C — Public site & public content access. (L — growth; no backend blockers.)**
+- Frontend: a real landing `/` (hero, value prop, CTAs, SEO `<meta>`/OG), `/features`, a public header/nav, tailored 404; an **unauthenticated question/exam browse** honoring `access_level=public` (reuse the question-bank + `ExamListView` APIs) with a "limited past papers → join academy" upsell; `sitemap.xml`/`robots.txt`.
+- Backend: essentially ready (public APIs + access-level filtering exist).
+- Verify: a logged-out visitor sees the landing + browses public questions; e2e for the public happy path; EN + UZ.
+
+**4D — Realtime notifications (websockets). (L — polish; folds into 4A's ASGI.)**
+- Backend: add `channels[daphne]` + `channels-redis`; `CHANNEL_LAYERS` (Redis in prod, in-memory fallback for dev/tests); wire `config/asgi.py` (`ProtocolTypeRouter` + a JWT-auth middleware reading the token from the WS **query string** — browsers can't set `Authorization` on the handshake); `apps/notifications/consumers.py` (per-user group `notifications_<user_id>`); have `notify()` also `group_send` the new record. Run **daphne** in prod (from 4A).
+- Frontend: a `useNotificationsSocket` hook (connect with `?token=`, on message → prepend + bump the unread badge) that **replaces the 30s poll** on `NotificationBell`, with graceful fallback to polling if the socket drops.
+- Verify: authenticated WS connect; a homework-assign pushes instantly; poll fallback works.
+
+**4E — Academy attendance. (XL — academy completeness; needs a schema decision.)**
+- Decision: `ClassSession` (a held meeting: `class` FK, date, optional linked exam) + `AttendanceRecord` (`session` FK, `student` FK, `status` ∈ present/absent/late/excused, note).
+- Backend: models + migration; teacher endpoints (`/teacher/classes/{id}/sessions/` CRUD, `/sessions/{sid}/attendance/` get + **bulk mark**), class-scoped exactly like the existing academy views (`_owned_class`/`_scoped_student`); admin registration; tests (own-class isolation, status state machine, teacher-only).
+- Frontend: `(teacher)/teacher/classes/[id]/attendance` (session list + a roster×status mark grid with bulk-apply); students see their attendance in their profile/analytics.
+- Verify: teacher-only + own-class scoping; mark/read; tests.
+
+**4F — Full-text search & analytics depth. (M — FTS now; warehouse later.)**
+- Backend: **PostgreSQL FTS** on questions (`SearchVector` on stem/passage + a GIN index + `SearchRank`) replacing `icontains` for public browse + admin — same API shape. Rankings: replace the top-50 in-memory sort with **cursor pagination + a Redis cache**; add a per-student trend endpoint.
+- Frontend: relevance-ordered search; optional analytics drill-downs (exam-by-exam trend, weak-area heatmap).
+- Verify: FTS phrase/prefix matches; ranking pagination; a benchmark note.
+
+### Conventions
+As Phases 1–3 (§2, §4, §6, §8). New infra is env-driven (§13) — no secrets in the repo. Realtime rides the existing `notify()` seam (don't fork notification creation). Scaling keeps `scoring.py`'s call site stable. All new text through `useT` (en + uz). Keep both CI jobs green.
+
+### Out of scope (Phase 5+)
+OpenSearch + analytics warehouse / time-series rollups / anomaly detection (only at real scale); a true adaptive Module-2 engine; HA / multi-region / IaC (Terraform) / secrets vault; payments & subscriptions; native mobile apps; cookie-consent / legal pages (unless a target market requires them).
+
+---
+
+*Oxirgi yangilangan: Phases 1–2 COMPLETE (merged to main). **Phase 3 COMPLETE + follow-ups** (branch `feat/phase3-admin`, [PR #5](https://github.com/Viltrumlik/dsat-lms/pull/5), not yet merged): **3A** admin user management (+ post-audit hardening + bulk CSV import), **3B** content studio (authoring + review lifecycle + §9 versioning + categories/tags management UI + tag/source editor fields), **3C** exam builder + assignments (+ assignment/exam-meta edit dialogs). All with `/api/v1/admin/` endpoints (identity + question_bank + assessments — three includes at one prefix) + `(admin)` UI. **Verified:** backend 234 pytest; frontend type-check + lint + 63 vitest (incl. admin render tests) + build; **browser-verified 3A/3B/3C in EN+UZ**; Playwright e2e for all three (`admin`, `content-studio`, `exam-builder` specs). Deferred (low-value): section-title inline edit; repo-wide drf-spectacular `serializer_class` (OpenAPI docs). Next: merge PR #5. **Phase 4 plan added** (see the PHASE 4 section) — recon-grounded; recommended order 4A deployment → 4B SAT scaling → 4C public site → 4D realtime → 4E attendance → 4F full-text search.*
