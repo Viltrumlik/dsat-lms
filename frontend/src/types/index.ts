@@ -243,6 +243,80 @@ export interface QuestionReviewEntry {
 }
 
 // ─────────────────────────────────────
+// Assessments — admin exam builder + assignments
+// ─────────────────────────────────────
+
+/** A question slotted into a section (id = ExamQuestion pk, an integer). */
+export interface SectionQuestion {
+  id: number
+  position: number
+  question: {
+    id: string
+    stem: string
+    module: QuestionModule
+    difficulty: number
+    answerType: AnswerType
+    status: QuestionStatus
+  }
+}
+
+export interface AdminSection {
+  id: number
+  sectionNumber: number
+  title: string
+  module: QuestionModule // 'math' | 'reading_writing'
+  timeLimit: number | null
+  sortOrder: number
+  questions: SectionQuestion[]
+}
+
+/** GET /admin/exams/{id}/ — full exam with nested sections. */
+export interface AdminExam {
+  id: string
+  type: ExamType
+  title: string
+  description: string | null
+  module: ExamModule
+  timeLimit: number | null
+  isAdaptive: boolean
+  accessLevel: AccessLevel
+  sections: AdminSection[]
+  createdBy: Author
+  createdAt: string
+  updatedAt: string
+}
+
+export interface AssignmentClassRef {
+  id: string
+  name: string
+}
+
+/** GET /admin/assignments/ — an exam assigned to a class or a student. */
+export interface AdminAssignment {
+  id: string
+  exam: ExamSummary
+  assignedBy: Author
+  assignedClass: AssignmentClassRef | null
+  assignedStudent: Author | null
+  opensAt: string
+  closesAt: string
+  maxAttempts: number
+  instructions: string | null
+  createdAt: string
+}
+
+/** GET /admin/assignments/{id}/sessions/ — a student's progress row. */
+export interface AssignmentSessionRow {
+  id: string
+  student: Author
+  status: SessionStatus
+  startedAt: string
+  submittedAt: string | null
+  totalScore: number | null
+  accuracyPct: Decimalish
+}
+
+// ─────────────────────────────────────
 // Test Engine / Sessions
 // ─────────────────────────────────────
 

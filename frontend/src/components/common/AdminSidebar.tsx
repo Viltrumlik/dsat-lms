@@ -5,7 +5,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { FileText, LayoutDashboard, Users } from 'lucide-react'
+import { CalendarClock, ClipboardList, FileText, LayoutDashboard, Users } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
 import { useT } from '@/lib/i18n/I18nProvider'
 import type { NavItem } from './Sidebar'
@@ -13,6 +13,8 @@ import type { NavItem } from './Sidebar'
 export const ADMIN_NAV: NavItem[] = [
   { labelKey: 'admin.nav.users', href: '/admin/users', icon: Users },
   { labelKey: 'admin.nav.questions', href: '/admin/questions', icon: FileText },
+  { labelKey: 'admin.nav.exams', href: '/admin/exams', icon: ClipboardList },
+  { labelKey: 'admin.nav.assignments', href: '/admin/assignments', icon: CalendarClock },
 ]
 
 export function AdminSidebar() {
