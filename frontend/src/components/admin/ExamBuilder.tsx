@@ -7,7 +7,7 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowDown, ArrowLeft, ArrowUp, Plus, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowLeft, ArrowUp, Pencil, Plus, Trash2 } from 'lucide-react'
 import { adminExamsAPI, type SectionWritePayload } from '@/lib/api/admin/exams'
 import { adminQuestionsAPI } from '@/lib/api/admin/questions'
 import { parseApiError } from '@/lib/api/errors'
@@ -36,9 +36,123 @@ import {
 import { FullPageSpinner } from '@/components/ui/spinner'
 import { DifficultyDots } from '@/components/question-bank/DifficultyDots'
 import { MODULE_LABEL_KEY } from '@/components/question-bank/labels'
-import type { AdminSection, QuestionModule } from '@/types'
+import type { AccessLevel, AdminExam, AdminSection, ExamModule, ExamType, QuestionModule } from '@/types'
 
 const SECTION_MODULES: QuestionModule[] = ['reading_writing', 'math']
+const EXAM_TYPES: ExamType[] = ['practice', 'past_paper', 'mock', 'midterm', 'assessment', 'homework']
+const EXAM_MODULES: ExamModule[] = ['full', 'math', 'reading_writing']
+
+// ── Edit exam metadata ──
+function EditExamDialog({ exam, open, onOpenChange }: { exam: AdminExam; open: boolean; onOpenChange: (o: boolean) => void }) {
+  const { t } = useI18n()
+  const { toast } = useToast()
+  const queryClient = useQueryClient()
+  const [title, setTitle] = React.useState(exam.title)
+  const [type, setType] = React.useState<ExamType>(exam.type)
+  const [moduleVal, setModuleVal] = React.useState<ExamModule>(exam.module)
+  const [timeLimit, setTimeLimit] = React.useState<number | null>(exam.timeLimit)
+  const [accessLevel, setAccessLevel] = React.useState<AccessLevel>(exam.accessLevel)
+
+  React.useEffect(() => {
+    if (!open) return
+    setTitle(exam.title)
+    setType(exam.type)
+    setModuleVal(exam.module)
+    setTimeLimit(exam.timeLimit)
+    setAccessLevel(exam.accessLevel)
+  }, [open, exam])
+
+  const save = useMutation({
+    mutationFn: () => adminExamsAPI.update(exam.id, { title, type, module: moduleVal, timeLimit, accessLevel }),
+    onSuccess: () => {
+      onOpenChange(false)
+      queryClient.invalidateQueries({ queryKey: ['admin', 'exam', exam.id] })
+      queryClient.invalidateQueries({ queryKey: ['admin', 'exams'] })
+      toast({ variant: 'success', title: t('admin.exams.updated') })
+    },
+    onError: (err) => toast({ variant: 'error', title: t('admin.exams.actionFailed'), description: parseApiError(err).message }),
+  })
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t('admin.exams.editTitle')}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="ee-title">{t('admin.exams.exam')}</Label>
+            <Input id="ee-title" value={title} onChange={(e) => setTitle(e.target.value)} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="ee-type">{t('admin.exams.type')}</Label>
+              <Select value={type} onValueChange={(v) => setType(v as ExamType)}>
+                <SelectTrigger id="ee-type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {EXAM_TYPES.map((ty) => (
+                    <SelectItem key={ty} value={ty}>
+                      {t(`admin.exams.typeLabel.${ty}`)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="ee-module">{t('admin.exams.module')}</Label>
+              <Select value={moduleVal} onValueChange={(v) => setModuleVal(v as ExamModule)}>
+                <SelectTrigger id="ee-module">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {EXAM_MODULES.map((m) => (
+                    <SelectItem key={m} value={m}>
+                      {t(`modules.${m}`)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="ee-time">{t('admin.exams.timeLimit')}</Label>
+              <Input
+                id="ee-time"
+                type="number"
+                min={0}
+                value={timeLimit ?? ''}
+                onChange={(e) => setTimeLimit(e.target.value ? Number(e.target.value) : null)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="ee-access">{t('admin.exams.access')}</Label>
+              <Select value={accessLevel} onValueChange={(v) => setAccessLevel(v as AccessLevel)}>
+                <SelectTrigger id="ee-access">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="public">{t('admin.exams.accessPublic')}</SelectItem>
+                  <SelectItem value="academy">{t('admin.exams.accessAcademy')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            {t('admin.common.cancel')}
+          </Button>
+          <Button loading={save.isPending} disabled={!title.trim()} onClick={() => save.mutate()}>
+            {t('admin.exams.save')}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
 
 // ── Add-section dialog ──
 function AddSectionDialog({
@@ -338,6 +452,7 @@ function SectionCard({ examId, section }: { examId: string; section: AdminSectio
 export function ExamBuilder({ examId }: { examId: string }) {
   const { t } = useI18n()
   const [addSectionOpen, setAddSectionOpen] = React.useState(false)
+  const [editExamOpen, setEditExamOpen] = React.useState(false)
 
   const exam = useQuery({ queryKey: ['admin', 'exam', examId], queryFn: () => adminExamsAPI.get(examId) })
 
@@ -363,6 +478,9 @@ export function ExamBuilder({ examId }: { examId: string }) {
           <Badge variant={e.accessLevel === 'public' ? 'success' : 'outline'}>
             {t(e.accessLevel === 'public' ? 'admin.exams.accessPublic' : 'admin.exams.accessAcademy')}
           </Badge>
+          <Button variant="ghost" size="sm" onClick={() => setEditExamOpen(true)}>
+            <Pencil className="h-4 w-4" /> {t('admin.exams.editDetails')}
+          </Button>
         </div>
         <p className="text-muted-foreground">
           {t(`modules.${e.module}`)}
@@ -388,6 +506,7 @@ export function ExamBuilder({ examId }: { examId: string }) {
       </Button>
 
       <AddSectionDialog examId={examId} open={addSectionOpen} onOpenChange={setAddSectionOpen} />
+      <EditExamDialog exam={e} open={editExamOpen} onOpenChange={setEditExamOpen} />
     </div>
   )
 }
