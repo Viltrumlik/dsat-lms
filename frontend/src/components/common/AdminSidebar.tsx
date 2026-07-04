@@ -5,13 +5,14 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, Users } from 'lucide-react'
+import { FileText, LayoutDashboard, Users } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
 import { useT } from '@/lib/i18n/I18nProvider'
 import type { NavItem } from './Sidebar'
 
 export const ADMIN_NAV: NavItem[] = [
   { labelKey: 'admin.nav.users', href: '/admin/users', icon: Users },
+  { labelKey: 'admin.nav.questions', href: '/admin/questions', icon: FileText },
 ]
 
 export function AdminSidebar() {

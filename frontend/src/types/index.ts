@@ -174,6 +174,75 @@ export interface QuestionDetail {
 }
 
 // ─────────────────────────────────────
+// Question Bank — admin authoring
+// ─────────────────────────────────────
+
+export type QuestionStatus = 'draft' | 'review' | 'published' | 'archived'
+export type QuestionSource = 'official' | 'custom' | 'imported'
+export type ReviewStatus = 'approved' | 'rejected' | 'needs_revision'
+
+/** Compact author shape (created_by / reviewed_by / reviewer). */
+export interface Author {
+  id: string
+  fullName: string
+  email: string
+}
+
+/** GET /admin/questions/ — list row (all statuses). */
+export interface AdminQuestionListItem {
+  id: string
+  module: QuestionModule
+  category: QuestionCategoryRef
+  difficulty: 1 | 2 | 3 | 4 | 5
+  answerType: AnswerType
+  hasMath: boolean
+  status: QuestionStatus
+  stem: string
+  tags: string[] // slugs
+  version: number
+  parent: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+/** GET /admin/questions/{id}/ — full admin authoring shape. */
+export interface AdminQuestion {
+  id: string
+  version: number
+  parent: string | null
+  module: QuestionModule
+  category: QuestionCategoryRef
+  difficulty: 1 | 2 | 3 | 4 | 5
+  status: QuestionStatus
+  answerType: AnswerType
+  hasMath: boolean
+  stem: string
+  stemImageUrl: string | null
+  passage: string | null
+  passageImageUrl: string | null
+  choices: QuestionChoice[]
+  correctAnswer: string
+  explanation: string | null
+  explanationImageUrl: string | null
+  source: QuestionSource
+  sourceRef: string | null
+  tags: QuestionTag[]
+  createdBy: Author
+  reviewedBy: Author | null
+  publishedAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface QuestionReviewEntry {
+  id: string
+  reviewer: Author
+  status: ReviewStatus
+  note: string | null
+  createdAt: string
+}
+
+// ─────────────────────────────────────
 // Test Engine / Sessions
 // ─────────────────────────────────────
 
