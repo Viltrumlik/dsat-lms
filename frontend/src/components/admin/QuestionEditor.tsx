@@ -10,7 +10,7 @@ import { useRouter } from 'next/navigation'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, CheckCircle2, Copy, Send, X } from 'lucide-react'
 import { adminQuestionsAPI, type QuestionWritePayload } from '@/lib/api/admin/questions'
-import { adminCategoriesAPI } from '@/lib/api/admin/taxonomy'
+import { adminCategoriesAPI, adminTagsAPI } from '@/lib/api/admin/taxonomy'
 import { parseApiError } from '@/lib/api/errors'
 import { useI18n } from '@/lib/i18n/I18nProvider'
 import { useToast } from '@/components/ui/toast'
@@ -39,7 +39,7 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { FullPageSpinner } from '@/components/ui/spinner'
 import { MarkdownMath } from '@/components/test-engine/MarkdownMath'
-import type { AnswerType, QuestionModule, QuestionStatus } from '@/types'
+import type { AnswerType, QuestionModule, QuestionSource, QuestionStatus } from '@/types'
 
 const LABELS = ['A', 'B', 'C', 'D'] as const
 type ChoiceMap = Record<(typeof LABELS)[number], string>
@@ -69,6 +69,9 @@ export function QuestionEditor({ mode, questionId }: { mode: 'create' | 'edit'; 
   const [errors, setErrors] = React.useState<Record<string, string>>({})
   const [rejectOpen, setRejectOpen] = React.useState(false)
   const [rejectNote, setRejectNote] = React.useState('')
+  const [tagIds, setTagIds] = React.useState<string[]>([])
+  const [source, setSource] = React.useState<QuestionSource>('custom')
+  const [sourceRef, setSourceRef] = React.useState('')
 
   const detail = useQuery({
     queryKey: ['admin', 'question', questionId],
@@ -84,6 +87,7 @@ export function QuestionEditor({ mode, questionId }: { mode: 'create' | 'edit'; 
     queryKey: ['admin', 'categories', moduleVal],
     queryFn: () => adminCategoriesAPI.list(moduleVal),
   })
+  const allTags = useQuery({ queryKey: ['admin', 'tags-all'], queryFn: () => adminTagsAPI.list() })
 
   const status = detail.data?.status
   const readOnly = mode === 'edit' && status !== undefined && status !== 'draft'
@@ -104,6 +108,9 @@ export function QuestionEditor({ mode, questionId }: { mode: 'create' | 'edit'; 
     const next: ChoiceMap = { A: '', B: '', C: '', D: '' }
     for (const c of q.choices) if (c.label in next) next[c.label as keyof ChoiceMap] = c.text
     setChoices(next)
+    setTagIds(q.tags.map((tag) => tag.id))
+    setSource(q.source)
+    setSourceRef(q.sourceRef ?? '')
   }, [detail.data])
 
   function buildPayload(): QuestionWritePayload {
@@ -126,6 +133,9 @@ export function QuestionEditor({ mode, questionId }: { mode: 'create' | 'edit'; 
       correctAnswer,
       explanation: explanation.trim() ? explanation : null,
       choices: choiceList,
+      tags: tagIds,
+      source,
+      sourceRef: sourceRef.trim() ? sourceRef : null,
     }
   }
 
@@ -371,6 +381,59 @@ export function QuestionEditor({ mode, questionId }: { mode: 'create' | 'edit'; 
               rows={3}
               disabled={disabled}
             />
+          </div>
+
+          {(allTags.data?.length ?? 0) > 0 && (
+            <div className="space-y-2">
+              <Label>{t('admin.questions.tags')}</Label>
+              <div className="flex flex-wrap gap-1.5">
+                {allTags.data!.map((tag) => {
+                  const on = tagIds.includes(tag.id)
+                  return (
+                    <button
+                      key={tag.id}
+                      type="button"
+                      disabled={disabled}
+                      onClick={() =>
+                        setTagIds((prev) => (on ? prev.filter((id) => id !== tag.id) : [...prev, tag.id]))
+                      }
+                      className={
+                        'rounded-full border px-2.5 py-0.5 text-xs transition-colors disabled:opacity-50 ' +
+                        (on ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-foreground hover:bg-muted')
+                      }
+                    >
+                      {tag.name}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="q-source">{t('admin.questions.source')}</Label>
+              <Select value={source} onValueChange={(v) => setSource(v as QuestionSource)} disabled={disabled}>
+                <SelectTrigger id="q-source">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="official">{t('admin.questions.sourceOfficial')}</SelectItem>
+                  <SelectItem value="custom">{t('admin.questions.sourceCustom')}</SelectItem>
+                  <SelectItem value="imported">{t('admin.questions.sourceImported')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="q-sourceref">{t('admin.questions.sourceRef')}</Label>
+              <Input
+                id="q-sourceref"
+                value={sourceRef}
+                onChange={(e) => setSourceRef(e.target.value)}
+                placeholder={t('admin.questions.sourceRefPlaceholder')}
+                disabled={disabled}
+              />
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
