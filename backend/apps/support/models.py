@@ -19,7 +19,7 @@ from django.db import models
 
 from common.models import BaseModel
 
-from .enums import BookingStatus, Subject
+from .enums import BookingStatus, Priority, Subject, TicketStatus
 
 
 class TeacherAvailability(BaseModel):
@@ -149,3 +149,75 @@ class SessionRating(BaseModel):
 
     def __str__(self):
         return f"Rating<{self.booking_id}> {self.score}★"
+
+
+class SupportTicket(BaseModel):
+    """An async question a student asks staff (S2 "Ask a Question"). Lives in a
+    shared pool — `assigned_to` null = unclaimed; any staff may answer. The first
+    staff reply stamps `answered_at` (immutable) and flips status to ANSWERED;
+    `last_reply_at` bumps the ticket on every message. Status is server-managed by
+    support/services.py (change_ticket_status + add_reply)."""
+
+    student = models.ForeignKey(
+        "identity.User", on_delete=models.CASCADE, related_name="support_tickets"
+    )
+    subject = models.CharField(max_length=20, choices=Subject.choices)
+    body = models.TextField()
+    priority = models.CharField(max_length=10, choices=Priority.choices, default=Priority.NORMAL)
+    status = models.CharField(
+        max_length=10, choices=TicketStatus.choices, default=TicketStatus.OPEN, db_index=True
+    )
+    assigned_to = models.ForeignKey(
+        "identity.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="assigned_support_tickets",
+    )
+    answered_at = models.DateTimeField(null=True, blank=True)  # immutable first staff answer
+    last_reply_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "support_tickets"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["student", "status"]),
+            models.Index(fields=["status", "priority"]),
+            models.Index(fields=["assigned_to", "status"]),
+        ]
+
+    def __str__(self):
+        return f"Ticket<{self.student_id}> {self.subject} ({self.status})"
+
+
+class TicketReply(BaseModel):
+    """A message in a ticket thread — a student message or a staff answer."""
+
+    ticket = models.ForeignKey(SupportTicket, on_delete=models.CASCADE, related_name="replies")
+    author = models.ForeignKey("identity.User", on_delete=models.CASCADE, related_name="+")
+    body = models.TextField()
+    is_staff_answer = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = "support_ticket_replies"
+        ordering = ["created_at"]
+        indexes = [models.Index(fields=["ticket", "created_at"])]
+
+    def __str__(self):
+        return f"Reply<{self.ticket_id}> by {self.author_id}"
+
+
+class SupportTicketAttachment(BaseModel):
+    """Links an uploaded files.Attachment to a ticket. The attachment must be owned
+    by the person linking it (validated server-side) so a ticket can never
+    reference another user's private file."""
+
+    ticket = models.ForeignKey(SupportTicket, on_delete=models.CASCADE, related_name="attachments")
+    attachment = models.ForeignKey("files.Attachment", on_delete=models.PROTECT, related_name="+")
+
+    class Meta:
+        db_table = "support_ticket_attachments"
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"TicketAttachment<{self.ticket_id}>"

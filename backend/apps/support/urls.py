@@ -24,6 +24,19 @@ urlpatterns = [
         name="booking-cancel",
     ),
     path("bookings/<uuid:pk>/rate/", views.SupportBookingRateView.as_view(), name="booking-rate"),
+    # ─── Student: Ask a Question (tickets) ───
+    path("tickets/", views.SupportTicketListCreateView.as_view(), name="ticket-list"),
+    path("tickets/<uuid:pk>/", views.SupportTicketDetailView.as_view(), name="ticket-detail"),
+    path(
+        "tickets/<uuid:pk>/replies/",
+        views.SupportTicketReplyView.as_view(),
+        name="ticket-reply",
+    ),
+    path(
+        "tickets/<uuid:pk>/status/",
+        views.SupportTicketStatusView.as_view(),
+        name="ticket-status",
+    ),
     # ─── Teacher: own availability (self-service) ───
     path("availability/", views_staff.MyAvailabilityView.as_view(), name="availability"),
     path(
@@ -47,5 +60,27 @@ urlpatterns = [
         "staff/bookings/<uuid:pk>/outcome/",
         views_staff.StaffBookingOutcomeView.as_view(),
         name="staff-booking-outcome",
+    ),
+    # ─── Staff: ticket queue ───
+    path("staff/tickets/", views_staff.StaffTicketListView.as_view(), name="staff-ticket-list"),
+    path(
+        "staff/tickets/<uuid:pk>/",
+        views_staff.StaffTicketDetailView.as_view(),
+        name="staff-ticket-detail",
+    ),
+    path(
+        "staff/tickets/<uuid:pk>/replies/",
+        views_staff.StaffTicketReplyView.as_view(),
+        name="staff-ticket-reply",
+    ),
+    path(
+        "staff/tickets/<uuid:pk>/assign/",
+        views_staff.StaffTicketAssignView.as_view(),
+        name="staff-ticket-assign",
+    ),
+    path(
+        "staff/tickets/<uuid:pk>/status/",
+        views_staff.StaffTicketStatusView.as_view(),
+        name="staff-ticket-status",
     ),
 ]

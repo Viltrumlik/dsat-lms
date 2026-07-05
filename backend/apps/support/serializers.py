@@ -10,8 +10,16 @@ from rest_framework import serializers
 
 from apps.identity.models import User
 
-from .enums import Subject
-from .models import SessionOutcome, SessionRating, SupportBooking, TeacherAvailability
+from .enums import Priority, Subject, TicketStatus
+from .models import (
+    SessionOutcome,
+    SessionRating,
+    SupportBooking,
+    SupportTicket,
+    SupportTicketAttachment,
+    TeacherAvailability,
+    TicketReply,
+)
 
 
 class UserMiniSerializer(serializers.ModelSerializer):
@@ -175,3 +183,101 @@ class BookingStatusChangeSerializer(serializers.Serializer):
 
     status = serializers.ChoiceField(choices=["confirmed", "completed", "cancelled", "no_show"])
     actual_duration_minutes = serializers.IntegerField(required=False, min_value=1, max_value=600)
+
+
+# ─────────────────────────────────────
+# Tickets (S2 — Ask a Question)
+# ─────────────────────────────────────
+
+
+class TicketAttachmentSerializer(serializers.ModelSerializer):
+    """Flattens a linked files.Attachment for display in a ticket thread."""
+
+    id = serializers.UUIDField(source="attachment.id", read_only=True)
+    original_name = serializers.CharField(source="attachment.original_name", read_only=True)
+    content_type = serializers.CharField(source="attachment.content_type", read_only=True)
+    size = serializers.IntegerField(source="attachment.size", read_only=True)
+    download_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = SupportTicketAttachment
+        fields = ["id", "original_name", "content_type", "size", "download_url"]
+
+    def get_download_url(self, obj):
+        from apps.files.services import attachment_download_url
+
+        return attachment_download_url(obj.attachment)
+
+
+class TicketReplySerializer(serializers.ModelSerializer):
+    author = UserMiniSerializer(read_only=True)
+
+    class Meta:
+        model = TicketReply
+        fields = ["id", "author", "body", "is_staff_answer", "created_at"]
+
+
+class SupportTicketListSerializer(serializers.ModelSerializer):
+    student = UserMiniSerializer(read_only=True)
+    assigned_to = UserMiniSerializer(read_only=True)
+    reply_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = SupportTicket
+        fields = [
+            "id",
+            "student",
+            "subject",
+            "body",
+            "priority",
+            "status",
+            "assigned_to",
+            "answered_at",
+            "last_reply_at",
+            "reply_count",
+            "created_at",
+        ]
+
+    def get_reply_count(self, obj):
+        annotated = getattr(obj, "reply_count_annotated", None)
+        return annotated if annotated is not None else obj.replies.count()
+
+
+class SupportTicketDetailSerializer(SupportTicketListSerializer):
+    replies = TicketReplySerializer(many=True, read_only=True)
+    attachments = TicketAttachmentSerializer(many=True, read_only=True)
+
+    class Meta(SupportTicketListSerializer.Meta):
+        fields = SupportTicketListSerializer.Meta.fields + ["replies", "attachments"]
+
+
+class TicketCreateSerializer(serializers.Serializer):
+    subject = serializers.ChoiceField(choices=Subject.choices)
+    body = serializers.CharField()
+    priority = serializers.ChoiceField(
+        choices=Priority.choices, required=False, default=Priority.NORMAL
+    )
+    attachment_ids = serializers.ListField(
+        child=serializers.UUIDField(), required=False, default=list
+    )
+
+
+class TicketReplyCreateSerializer(serializers.Serializer):
+    body = serializers.CharField()
+
+
+class TicketStatusSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(choices=[TicketStatus.OPEN, TicketStatus.CLOSED])
+
+
+class TicketAssignSerializer(serializers.Serializer):
+    assignee = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.filter(deleted_at__isnull=True),
+        required=False,
+        allow_null=True,
+    )
+
+    def validate_assignee(self, value):
+        if value is not None and not value.is_academy_staff:
+            raise serializers.ValidationError("Assignee must be a staff member.")
+        return value

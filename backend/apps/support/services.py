@@ -17,8 +17,14 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from .availability import generate_slots
-from .enums import BookingStatus
-from .models import SessionRating, SupportBooking
+from .enums import BookingStatus, Priority, TicketStatus
+from .models import (
+    SessionRating,
+    SupportBooking,
+    SupportTicket,
+    SupportTicketAttachment,
+    TicketReply,
+)
 
 # Allowed status moves. completed / cancelled / no_show are terminal.
 _ALLOWED_TRANSITIONS = {
@@ -187,3 +193,106 @@ def _notify_transition(booking, new_status, *, by):
                 url="/support/sessions",
             )
     # NO_SHOW sends no notification (no such Notification.Type by design).
+
+
+# ─────────────────────────────────────
+# Tickets (S2 — Ask a Question)
+# ─────────────────────────────────────
+
+_ALLOWED_TICKET_TRANSITIONS = {
+    TicketStatus.OPEN: {TicketStatus.CLOSED},
+    TicketStatus.ANSWERED: {TicketStatus.CLOSED},
+    TicketStatus.CLOSED: {TicketStatus.OPEN},
+}
+
+
+def create_ticket(*, student, subject, body, priority=Priority.NORMAL, attachment_ids=None):
+    """Create an OPEN ticket and link the student's own attachments. Raises
+    ValueError('invalid_attachment') if an id isn't a live file owned by the
+    student (so a ticket can't reference someone else's private file)."""
+    from apps.files.models import Attachment
+
+    attachments = []
+    for att_id in attachment_ids or []:
+        att = Attachment.objects.filter(pk=att_id, owner=student, deleted_at__isnull=True).first()
+        if att is None:
+            raise ValueError("invalid_attachment")
+        attachments.append(att)
+
+    with transaction.atomic():
+        ticket = SupportTicket.objects.create(
+            student=student, subject=subject, body=body, priority=priority
+        )
+        for att in attachments:
+            SupportTicketAttachment.objects.create(ticket=ticket, attachment=att)
+    return ticket
+
+
+def add_ticket_reply(ticket, *, author, body, is_staff_answer):
+    """Append a message to the thread. The first staff answer stamps `answered_at`
+    (immutable) and flips status to ANSWERED; `last_reply_at` always bumps.
+    Replying to a CLOSED ticket is rejected. Notifies the counterparty."""
+    if ticket.status == TicketStatus.CLOSED:
+        raise ValueError("ticket_closed")
+
+    now = timezone.now()
+    reply = TicketReply.objects.create(
+        ticket=ticket, author=author, body=body, is_staff_answer=is_staff_answer
+    )
+    update_fields = ["last_reply_at", "updated_at"]
+    ticket.last_reply_at = now
+    if is_staff_answer and ticket.answered_at is None:
+        ticket.answered_at = now
+        ticket.status = TicketStatus.ANSWERED
+        update_fields += ["answered_at", "status"]
+    ticket.save(update_fields=update_fields)
+
+    _notify_ticket_reply(ticket, is_staff_answer=is_staff_answer)
+    return reply
+
+
+def change_ticket_status(ticket, new_status, *, by=None):
+    """Close (open/answered → closed) or reopen (closed → open). Raises
+    ValueError('same_status' | 'invalid_transition'). ANSWERED is only reachable
+    via the first staff answer, never set manually here."""
+    if new_status == ticket.status:
+        raise ValueError("same_status")
+    if new_status not in _ALLOWED_TICKET_TRANSITIONS.get(ticket.status, set()):
+        raise ValueError("invalid_transition")
+    ticket.status = new_status
+    ticket.save(update_fields=["status", "updated_at"])
+    return ticket
+
+
+def assign_ticket(ticket, assignee):
+    """Assign the ticket to a staff member (or None to return it to the pool)."""
+    ticket.assigned_to = assignee
+    ticket.save(update_fields=["assigned_to", "updated_at"])
+    return ticket
+
+
+def _notify_ticket_reply(ticket, *, is_staff_answer):
+    from apps.notifications.models import Notification
+    from apps.notifications.services import notify
+
+    data = {"ticket_id": str(ticket.id), "subject": ticket.subject}
+    if is_staff_answer:
+        # Staff answered → notify the student.
+        notify(
+            ticket.student,
+            Notification.Type.SUPPORT_REPLY,
+            "New reply to your question",
+            data={**data, "url": f"/support/tickets/{ticket.id}"},
+        )
+    elif ticket.assigned_to_id:
+        # Student replied on an assigned ticket → notify the assignee.
+        notify(
+            ticket.assigned_to,
+            Notification.Type.SUPPORT_REPLY,
+            "New reply on a support ticket",
+            data={
+                **data,
+                "student_name": ticket.student.get_full_name(),
+                "url": "/teacher/support?tab=questions",
+            },
+        )

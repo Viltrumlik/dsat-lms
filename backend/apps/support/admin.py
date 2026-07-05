@@ -7,7 +7,15 @@ Description: Django-admin registrations for the S1 booking models (ops visibilit
 
 from django.contrib import admin
 
-from .models import SessionOutcome, SessionRating, SupportBooking, TeacherAvailability
+from .models import (
+    SessionOutcome,
+    SessionRating,
+    SupportBooking,
+    SupportTicket,
+    SupportTicketAttachment,
+    TeacherAvailability,
+    TicketReply,
+)
 
 
 @admin.register(TeacherAvailability)
@@ -44,3 +52,23 @@ class SessionRatingAdmin(admin.ModelAdmin):
     list_display = ("booking", "score")
     list_filter = ("score",)
     raw_id_fields = ("booking",)
+
+
+class TicketReplyInline(admin.TabularInline):
+    model = TicketReply
+    extra = 0
+    raw_id_fields = ("author",)
+
+
+class SupportTicketAttachmentInline(admin.TabularInline):
+    model = SupportTicketAttachment
+    extra = 0
+    raw_id_fields = ("attachment",)
+
+
+@admin.register(SupportTicket)
+class SupportTicketAdmin(admin.ModelAdmin):
+    list_display = ("student", "subject", "priority", "status", "assigned_to", "last_reply_at")
+    list_filter = ("status", "priority", "subject")
+    raw_id_fields = ("student", "assigned_to")
+    inlines = [TicketReplyInline, SupportTicketAttachmentInline]

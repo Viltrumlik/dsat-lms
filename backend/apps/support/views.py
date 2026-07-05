@@ -12,6 +12,7 @@ from datetime import timedelta
 from zoneinfo import ZoneInfo
 
 from django.conf import settings
+from django.db.models import Count
 from django.utils import timezone
 from rest_framework.exceptions import NotFound
 from rest_framework.views import APIView
@@ -23,15 +24,27 @@ from common.responses import created_response, success_response
 
 from .availability import generate_slots
 from .enums import BookingStatus
-from .models import SupportBooking, TeacherAvailability
+from .models import SupportBooking, SupportTicket, TeacherAvailability
 from .serializers import (
     SessionRatingSerializer,
     SlotSerializer,
     SupportBookingCreateSerializer,
     SupportBookingSerializer,
+    SupportTicketDetailSerializer,
+    SupportTicketListSerializer,
+    TicketCreateSerializer,
+    TicketReplyCreateSerializer,
+    TicketStatusSerializer,
     UserMiniSerializer,
 )
-from .services import change_booking_status, create_booking, rate_booking
+from .services import (
+    add_ticket_reply,
+    change_booking_status,
+    change_ticket_status,
+    create_booking,
+    create_ticket,
+    rate_booking,
+)
 
 # ValueError codes raised by the service layer → human message + field, mirroring
 # academy StudentStatusView. Shared with views_staff.py.
@@ -49,6 +62,20 @@ _BOOKING_ERRORS = {
 def booking_error_response(exc):
     """Translate a service-layer ValueError code into a standard 400."""
     message, field = _BOOKING_ERRORS.get(str(exc), ("Invalid request.", None))
+    return APIValidationError(message, field=field).to_response()
+
+
+# Ticket ValueError codes → message + field. Shared with views_staff.py.
+_TICKET_ERRORS = {
+    "invalid_attachment": ("One of the attached files is invalid.", "attachment_ids"),
+    "ticket_closed": ("This ticket is closed. Reopen it to reply.", "body"),
+    "same_status": ("The ticket is already in that status.", "status"),
+    "invalid_transition": ("That status change isn't allowed.", "status"),
+}
+
+
+def ticket_error_response(exc):
+    message, field = _TICKET_ERRORS.get(str(exc), ("Invalid request.", None))
     return APIValidationError(message, field=field).to_response()
 
 
@@ -193,3 +220,93 @@ class SupportBookingRateView(APIView):
         except ValueError as exc:
             return booking_error_response(exc)
         return created_response(SupportBookingSerializer(booking).data)
+
+
+# ─────────────────────────────────────
+# Ask a Question (S2) — student tickets
+# ─────────────────────────────────────
+
+
+def _own_ticket_or_404(request, pk):
+    ticket = (
+        SupportTicket.objects.filter(pk=pk, student=request.user)
+        .select_related("student", "assigned_to")
+        .prefetch_related("replies__author", "attachments__attachment")
+        .first()
+    )
+    if ticket is None:
+        raise NotFound("Ticket not found.")
+    return ticket
+
+
+class SupportTicketListCreateView(APIView):
+    permission_classes = [IsAcademyStudent]
+
+    def get(self, request):
+        queryset = (
+            SupportTicket.objects.filter(student=request.user)
+            .select_related("student", "assigned_to")
+            .annotate(reply_count_annotated=Count("replies"))
+        )
+        status_filter = request.query_params.get("status")
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+        paginator = CursorPagination()
+        page = paginator.paginate_queryset(queryset, request, view=self)
+        return paginator.get_paginated_response(SupportTicketListSerializer(page, many=True).data)
+
+    def post(self, request):
+        serializer = TicketCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        try:
+            ticket = create_ticket(
+                student=request.user,
+                subject=data["subject"],
+                body=data["body"],
+                priority=data["priority"],
+                attachment_ids=data.get("attachment_ids"),
+            )
+        except ValueError as exc:
+            return ticket_error_response(exc)
+        return created_response(SupportTicketDetailSerializer(ticket).data)
+
+
+class SupportTicketDetailView(APIView):
+    permission_classes = [IsAcademyStudent]
+
+    def get(self, request, pk):
+        return success_response(SupportTicketDetailSerializer(_own_ticket_or_404(request, pk)).data)
+
+
+class SupportTicketReplyView(APIView):
+    permission_classes = [IsAcademyStudent]
+
+    def post(self, request, pk):
+        ticket = _own_ticket_or_404(request, pk)
+        serializer = TicketReplyCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            add_ticket_reply(
+                ticket,
+                author=request.user,
+                body=serializer.validated_data["body"],
+                is_staff_answer=False,
+            )
+        except ValueError as exc:
+            return ticket_error_response(exc)
+        return created_response(SupportTicketDetailSerializer(_own_ticket_or_404(request, pk)).data)
+
+
+class SupportTicketStatusView(APIView):
+    permission_classes = [IsAcademyStudent]
+
+    def post(self, request, pk):
+        ticket = _own_ticket_or_404(request, pk)
+        serializer = TicketStatusSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            change_ticket_status(ticket, serializer.validated_data["status"], by=request.user)
+        except ValueError as exc:
+            return ticket_error_response(exc)
+        return success_response(SupportTicketDetailSerializer(_own_ticket_or_404(request, pk)).data)
