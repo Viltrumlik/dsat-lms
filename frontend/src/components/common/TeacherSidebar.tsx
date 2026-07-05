@@ -5,14 +5,24 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ClipboardList, LayoutDashboard, Users } from 'lucide-react'
+import {
+  ClipboardCheck,
+  ClipboardList,
+  Gauge,
+  GraduationCap,
+  LayoutDashboard,
+  Users,
+} from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
 import { useT } from '@/lib/i18n/I18nProvider'
 import type { NavItem } from './Sidebar'
 
 export const TEACHER_NAV: NavItem[] = [
+  { labelKey: 'teacher.nav.dashboard', href: '/teacher/dashboard', icon: Gauge },
+  { labelKey: 'teacher.nav.students', href: '/teacher/students', icon: GraduationCap },
   { labelKey: 'teacher.nav.classes', href: '/teacher/classes', icon: Users },
   { labelKey: 'teacher.nav.homework', href: '/teacher/homework', icon: ClipboardList },
+  { labelKey: 'teacher.nav.grading', href: '/teacher/grading', icon: ClipboardCheck },
 ]
 
 export function TeacherSidebar() {

@@ -58,7 +58,7 @@ export function Sidebar() {
             )}
             {isTeacher && (
               <Link
-                href="/teacher/classes"
+                href="/teacher/dashboard"
                 className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
               >
                 <Presentation className="h-5 w-5" />

@@ -9,11 +9,14 @@ export default function TeacherStudentPage({
   searchParams,
 }: {
   params: { id: string }
-  searchParams: { class?: string }
+  searchParams: { class?: string; from?: string }
 }) {
-  const backHref = searchParams.class
-    ? `/teacher/classes/${searchParams.class}`
-    : '/teacher/classes'
+  const backHref =
+    searchParams.from === 'students'
+      ? '/teacher/students'
+      : searchParams.class
+        ? `/teacher/classes/${searchParams.class}`
+        : '/teacher/classes'
   return (
     <div className="mx-auto max-w-4xl">
       <StudentAnalytics studentId={params.id} backHref={backHref} />

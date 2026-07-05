@@ -521,12 +521,134 @@ export interface RosterEntry {
   createdAt: string
 }
 
+// ─────────────────────────────────────
+// Teacher insights (Phase 4A — dashboard + risk)
+// ─────────────────────────────────────
+
+export type RiskLevel = 'green' | 'yellow' | 'red'
+
+export type RiskSignal =
+  | 'homework_completion'
+  | 'accuracy'
+  | 'accuracy_trend'
+  | 'activity_recency'
+
+/** One contributing signal behind a risk level (only non-green signals surface). */
+export interface RiskReason {
+  signal: RiskSignal
+  level: RiskLevel
+  value: number | null
+  unit: 'percent' | 'percent_delta' | 'days'
+  message: string // server-rendered fallback; UI localizes from signal/value/unit
+}
+
+export interface RiskAssessment {
+  level: RiskLevel
+  score: number
+  reasons: RiskReason[]
+}
+
+export interface HomeworkStats {
+  assigned: number
+  submitted: number // includes graded
+  graded: number
+  completionPct: number
+  overdueIncomplete: number
+}
+
+export type TrendDirection = 'up' | 'down' | 'flat' | 'insufficient_data'
+
+export interface ImprovementTrend {
+  recentAvgAccuracy: number | null
+  priorAvgAccuracy: number | null
+  deltaPct: number | null
+  trend: TrendDirection
+  resultsConsidered: number
+}
+
+export interface WeakTopic {
+  categoryId: string
+  categoryName: string
+  module: QuestionModule
+  accuracyPct: number
+  totalAnswered: number
+}
+
+export interface RecentScoreEstimate {
+  estimate: number | null
+  basedOn: number
+  method: string // 'recent_average' — descriptive, not predictive
+  latestTotalScore: number | null
+  latestMathScore: number | null
+  latestRwScore: number | null
+}
+
 /** GET /teacher/students/{id}/analytics/ — a teacher's drilldown for one student. */
 export interface StudentAnalytics {
   student: StudentMini
   summary: AnalyticsSummary
   progress: CategoryProgress[]
+  homeworkStats: HomeworkStats
+  riskAssessment: RiskAssessment
+  improvementTrend: ImprovementTrend
+  weakTopics: WeakTopic[]
+  recentScoreEstimate: RecentScoreEstimate
 }
+
+// GET /teacher/dashboard/
+export interface TeacherDashboardCounts {
+  classes: number
+  activeStudents: number
+  pendingGrading: number
+  atRiskStudents: number
+}
+
+export interface AtRiskStudent {
+  student: StudentMini
+  classId: string
+  risk: RiskAssessment
+}
+
+/** Lean overview — counts + a short at-risk preview. The full, growing lists live
+ *  on their own paginated pages (/teacher/students, /teacher/grading). */
+export interface TeacherDashboard {
+  counts: TeacherDashboardCounts
+  atRiskStudents: AtRiskStudent[]
+}
+
+/** GET /teacher/grading/ row (cursor-paginated). */
+export interface GradingItem {
+  submissionId: string
+  homeworkId: string
+  homeworkTitle: string
+  student: StudentMini
+  status: HomeworkStatus
+  submittedAt: string | null
+  classId: string
+}
+
+// GET /teacher/classes/{id}/overview/
+export interface ClassOverviewRosterEntry {
+  student: StudentMini
+  risk: RiskAssessment
+  overallAccuracy: number | null
+  homeworkCompletionPct: number | null
+  daysInactive: number | null
+}
+
+export interface ClassOverview {
+  class: { id: string; name: string; studentCount: number }
+  group: {
+    avgAccuracy: number | null
+    homeworkCompletionRate: number
+    atRiskCount: number
+  }
+  roster: ClassOverviewRosterEntry[]
+}
+
+/** GET /teacher/students/ row (cursor-paginated) — same shape as a class-overview
+ *  roster entry, across all the teacher's classes. */
+export type TeacherStudentRow = ClassOverviewRosterEntry
 
 // ─────────────────────────────────────
 // Homework

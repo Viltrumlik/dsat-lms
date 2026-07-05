@@ -6,14 +6,28 @@
 //   server-side to the requesting teacher's classes (admin sees all).
 // ═══════════════════════════════════════
 
-import { get, post } from './client'
+import { get, getPaginated, post } from './client'
 import type {
+  ClassOverview,
+  GradingItem,
   Homework,
   HomeworkSubmission,
   RosterEntry,
   StudentAnalytics,
   TeacherClass,
+  TeacherDashboard,
+  TeacherStudentRow,
 } from '@/types'
+
+export interface StudentsListParams {
+  search?: string
+  cursor?: string
+}
+
+export interface GradingListParams {
+  status?: 'pending' | 'all'
+  cursor?: string
+}
 
 export interface CreateHomeworkPayload {
   title: string
@@ -24,6 +38,21 @@ export interface CreateHomeworkPayload {
 }
 
 export const teacherAPI = {
+  /** Teacher home — counts, at-risk students, pending grading, upcoming/recent. */
+  dashboard: () => get<TeacherDashboard>('/teacher/dashboard/'),
+
+  /** Group stats + per-student risk roster for one of the teacher's classes. */
+  classOverview: (classId: string) =>
+    get<ClassOverview>(`/teacher/classes/${classId}/overview/`),
+
+  /** All students across the teacher's classes (cursor-paginated, searchable). */
+  students: (params: StudentsListParams = {}) =>
+    getPaginated<TeacherStudentRow>('/teacher/students/', params),
+
+  /** Homework submission queue (cursor-paginated). status=pending (default)|all. */
+  grading: (params: GradingListParams = {}) =>
+    getPaginated<GradingItem>('/teacher/grading/', params),
+
   /** Own classes, newest first (unpaginated). */
   classes: () => get<TeacherClass[]>('/teacher/classes/'),
 
