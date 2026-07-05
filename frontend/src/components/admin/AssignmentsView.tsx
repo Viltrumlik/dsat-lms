@@ -8,7 +8,7 @@ import * as React from 'react'
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import { uz as uzDate } from 'date-fns/locale'
-import { BarChart3, Plus, Trash2 } from 'lucide-react'
+import { BarChart3, Pencil, Plus, Trash2 } from 'lucide-react'
 import { adminAssignmentsAPI, adminExamsAPI, type AssignmentWritePayload } from '@/lib/api/admin/exams'
 import { adminUsersAPI } from '@/lib/api/admin/users'
 import { cursorFromUrl } from '@/lib/api/client'
@@ -287,12 +287,103 @@ function ProgressDialog({
   )
 }
 
+// ── Edit dialog (schedule / attempts / instructions) ──
+function EditAssignmentDialog({
+  assignment,
+  open,
+  onOpenChange,
+}: {
+  assignment: AdminAssignment
+  open: boolean
+  onOpenChange: (o: boolean) => void
+}) {
+  const { t } = useI18n()
+  const { toast } = useToast()
+  const queryClient = useQueryClient()
+  const [opensAt, setOpensAt] = React.useState('')
+  const [closesAt, setClosesAt] = React.useState('')
+  const [maxAttempts, setMaxAttempts] = React.useState(1)
+  const [instructions, setInstructions] = React.useState('')
+
+  React.useEffect(() => {
+    if (!open) return
+    setOpensAt(assignment.opensAt.slice(0, 16))
+    setClosesAt(assignment.closesAt.slice(0, 16))
+    setMaxAttempts(assignment.maxAttempts)
+    setInstructions(assignment.instructions ?? '')
+  }, [open, assignment])
+
+  const save = useMutation({
+    mutationFn: () =>
+      adminAssignmentsAPI.update(assignment.id, {
+        opensAt,
+        closesAt,
+        maxAttempts,
+        instructions: instructions.trim() || null,
+      }),
+    onSuccess: () => {
+      onOpenChange(false)
+      queryClient.invalidateQueries({ queryKey: ['admin', 'assignments'] })
+      toast({ variant: 'success', title: t('admin.assignments.updated') })
+    },
+    onError: (err) =>
+      toast({ variant: 'error', title: t('admin.assignments.actionFailed'), description: parseApiError(err).message }),
+  })
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t('admin.assignments.editTitle')}</DialogTitle>
+          <DialogDescription>{assignment.exam.title}</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="ea-opens">{t('admin.assignments.opensAt')}</Label>
+              <Input id="ea-opens" type="datetime-local" value={opensAt} onChange={(e) => setOpensAt(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="ea-closes">{t('admin.assignments.closesAt')}</Label>
+              <Input id="ea-closes" type="datetime-local" value={closesAt} onChange={(e) => setClosesAt(e.target.value)} />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="ea-attempts">{t('admin.assignments.maxAttempts')}</Label>
+            <Input
+              id="ea-attempts"
+              type="number"
+              min={1}
+              value={maxAttempts}
+              onChange={(e) => setMaxAttempts(Math.max(1, Number(e.target.value) || 1))}
+              className="w-24"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="ea-instructions">{t('admin.assignments.instructions')}</Label>
+            <Textarea id="ea-instructions" value={instructions} onChange={(e) => setInstructions(e.target.value)} rows={2} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            {t('admin.common.cancel')}
+          </Button>
+          <Button loading={save.isPending} onClick={() => save.mutate()}>
+            {t('admin.assignments.save')}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 export function AssignmentsView() {
   const { t, locale } = useI18n()
   const { toast } = useToast()
   const queryClient = useQueryClient()
   const [createOpen, setCreateOpen] = React.useState(false)
   const [progressFor, setProgressFor] = React.useState<AdminAssignment | null>(null)
+  const [editFor, setEditFor] = React.useState<AdminAssignment | null>(null)
 
   const query = useInfiniteQuery({
     queryKey: ['admin', 'assignments'],
@@ -377,7 +468,7 @@ export function AssignmentsView() {
                     </TableCell>
                     <TableCell className="text-muted-foreground">{fmt(a.opensAt)}</TableCell>
                     <TableCell className="text-muted-foreground">{fmt(a.closesAt)}</TableCell>
-                    <TableCell className="w-24 text-right">
+                    <TableCell className="w-36 whitespace-nowrap text-right">
                       <Button
                         variant="ghost"
                         size="icon"
@@ -385,6 +476,14 @@ export function AssignmentsView() {
                         onClick={() => setProgressFor(a)}
                       >
                         <BarChart3 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label={t('admin.assignments.edit')}
+                        onClick={() => setEditFor(a)}
+                      >
+                        <Pencil className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="ghost"
@@ -418,6 +517,9 @@ export function AssignmentsView() {
           open
           onOpenChange={(o) => !o && setProgressFor(null)}
         />
+      )}
+      {editFor && (
+        <EditAssignmentDialog assignment={editFor} open onOpenChange={(o) => !o && setEditFor(null)} />
       )}
     </div>
   )

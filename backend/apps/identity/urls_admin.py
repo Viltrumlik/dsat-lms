@@ -10,6 +10,7 @@ from django.urls import path
 from .views_admin import (
     AdminUserDeactivateView,
     AdminUserDetailView,
+    AdminUserImportView,
     AdminUserListCreateView,
     AdminUserReactivateView,
     AdminUserRoleView,
@@ -20,6 +21,7 @@ app_name = "identity_admin"
 
 urlpatterns = [
     path("users/", AdminUserListCreateView.as_view(), name="user-list"),
+    path("users/import/", AdminUserImportView.as_view(), name="user-import"),
     path("users/<uuid:pk>/", AdminUserDetailView.as_view(), name="user-detail"),
     path("users/<uuid:pk>/role/", AdminUserRoleView.as_view(), name="user-role"),
     path("users/<uuid:pk>/deactivate/", AdminUserDeactivateView.as_view(), name="user-deactivate"),

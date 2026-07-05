@@ -307,6 +307,32 @@ class TestSetPassword:
         assert r.status_code == 400
         assert "new_password" in r.data["error"]["fields"]
 
+
+class TestBulkImport:
+    def test_import_creates_skips_and_errors(self):
+        client = admin_client()
+        UserFactory(email="dup@dsat.local")
+        csv_text = (
+            "email,first_name,last_name,role,password\n"
+            "new1@dsat.local,New,One,student,StrongPass1!\n"
+            "NEW2@DSAT.local,New,Two,teacher,\n"  # normalized + random password
+            "dup@dsat.local,Dup,User,student,\n"  # skipped (exists)
+            "bad@dsat.local,,,student,\n"  # error (missing name)
+            "wrong@dsat.local,W,R,wizard,\n"  # error (bad role)
+        )
+        r = client.post(ADMIN + "users/import/", {"csv": csv_text}, format="json")
+        assert r.status_code == 200
+        d = r.data["data"]
+        assert d["created_count"] == 2
+        assert d["skipped_count"] == 1
+        assert d["error_count"] == 2
+        assert User.objects.filter(email="new1@dsat.local", role="student").exists()
+        assert User.objects.filter(email="new2@dsat.local", role="teacher").exists()  # normalized
+
+    def test_import_requires_content(self):
+        client = admin_client()
+        assert client.post(ADMIN + "users/import/", {}, format="json").status_code == 400
+
     def test_cannot_set_own_password(self):
         client = admin_client()
         r = client.post(
