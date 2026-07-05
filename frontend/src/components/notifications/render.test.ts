@@ -116,6 +116,21 @@ describe('notificationText', () => {
     expect(title).toContain('"name":"Dilnoza K"')
   })
 
+  it('renders support_recommendation with a topic', () => {
+    const { title } = notificationText(
+      notification('support_recommendation', { topic: 'Algebra', subject: 'math' }),
+      t,
+      'en'
+    )
+    expect(title).toContain('notifications.templates.supportRecommendationWithTopic|')
+    expect(title).toContain('"topic":"Algebra"')
+  })
+
+  it('renders support_recommendation without a topic', () => {
+    const { title } = notificationText(notification('support_recommendation', {}), t, 'en')
+    expect(title).toBe('notifications.templates.supportRecommendation|{}')
+  })
+
   it('falls back to server strings for old rows and unknown types', () => {
     expect(notificationText(notification('exam_graded'), t, 'en')).toEqual({
       title: 'Server title',

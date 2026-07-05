@@ -13,6 +13,7 @@ import type {
   StaffSessionOutcome,
   StaffSupportBooking,
   SupportBooking,
+  SupportRecommendation,
   SupportSlot,
   SupportSubject,
   SupportTicket,
@@ -28,6 +29,7 @@ export interface CreateBookingPayload {
   scheduledAt: string // ISO datetime from a slot
   topic?: string
   reason?: string
+  recommendation?: string // S4 — the proactive rec this booking acts on
 }
 
 export interface SlotsParams {
@@ -125,6 +127,13 @@ export const supportAPI = {
       post<SupportTicket>(`/support/staff/tickets/${id}/assign/`, { assignee }),
     setStatus: (id: string, status: 'open' | 'closed') =>
       post<SupportTicket>(`/support/staff/tickets/${id}/status/`, { status }),
+  },
+
+  /** Proactive recommendations (S4) — a student's active nudges. */
+  recommendations: {
+    list: () => get<SupportRecommendation[]>('/support/recommendations/'),
+    dismiss: (id: string) =>
+      post<SupportRecommendation>(`/support/recommendations/${id}/dismiss/`),
   },
 }
 

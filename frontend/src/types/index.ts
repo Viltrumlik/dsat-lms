@@ -886,6 +886,27 @@ export interface StudentSupportSummary {
   tickets: { total: number; open: number; answered: number; closed: number }
 }
 
+// Proactive Support Session Trigger (Phase 4 S4)
+export type RecSeverity = 'info' | 'warning' | 'critical'
+export type RecStatus = 'new' | 'acted' | 'dismissed' | 'expired' | 'superseded'
+export type RecRuleKey =
+  | 'category_accuracy_low'
+  | 'score_trend_declining'
+  | 'inactive_days'
+  | 'homework_completion_low'
+
+export interface SupportRecommendation {
+  id: string
+  ruleKey: RecRuleKey
+  severity: RecSeverity
+  status: RecStatus
+  subject: SupportSubject | ''
+  topic: string
+  evidence: Record<string, unknown>
+  createdAt: string
+  expiresAt: string | null
+}
+
 // ─────────────────────────────────────
 // Notifications
 // ─────────────────────────────────────

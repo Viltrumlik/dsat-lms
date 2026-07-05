@@ -69,6 +69,16 @@ export function notificationText(
     }
   }
 
+  if (notification.type === 'support_recommendation') {
+    const topic = str(data['topic'])
+    return {
+      title: topic
+        ? t('notifications.templates.supportRecommendationWithTopic', { topic })
+        : t('notifications.templates.supportRecommendation'),
+      body: '',
+    }
+  }
+
   // A cancellation can reach either party, so it names no one — just the date.
   if (notification.type === 'booking_cancelled') {
     const when = dueDate(data['scheduledAt'], locale)

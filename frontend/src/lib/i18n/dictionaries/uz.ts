@@ -338,6 +338,8 @@ export const uz: Dictionary = {
       bookingCompleted: '{name} bilan {date} kunidagi mashgʻulot yakunlandi',
       supportReply: 'Savolingizga yangi javob',
       supportReplyFromStudent: '{name}dan yordam soʻroviga yangi javob',
+      supportRecommendation: 'Yordam mashgʻuloti rivojlanishingizga koʻmaklashadi',
+      supportRecommendationWithTopic: 'Yordam mashgʻuloti {topic} boʻyicha koʻmaklashadi',
     },
   },
   homework: {
@@ -1103,6 +1105,21 @@ export const uz: Dictionary = {
       upcoming: 'Boʻlajak',
       questionsAsked: 'Berilgan savollar',
       questionsAnswered: 'Javob berilgan',
+    },
+    recommendation: {
+      book: 'Yordam band qilish',
+      dismiss: 'Yopish',
+      dismissFailed: 'Bu taklifni yopib boʻlmadi',
+      rule: {
+        category_accuracy_low:
+          '{topic} sizga qiyin kelyapti — yakkama-yakka mashgʻulot yordam berishi mumkin.',
+        score_trend_declining:
+          'Soʻnggi natijalaringiz pasaymoqda — mashgʻulot yana yoʻlga tushishga yordam beradi.',
+        inactive_days:
+          'Anchadan beri mashq qilmadingiz — mashgʻulot qayta boshlashga yordam beradi.',
+        homework_completion_low:
+          'Uy vazifalaridan orqada qolyapsiz — oʻqituvchi yetib olishga yordam beradi.',
+      },
     },
   },
   errors: {

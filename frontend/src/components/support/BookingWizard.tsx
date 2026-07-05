@@ -37,6 +37,22 @@ export function BookingWizard() {
   const [slot, setSlot] = React.useState<SupportSlot | null>(null)
   const [topic, setTopic] = React.useState('')
   const [reason, setReason] = React.useState('')
+  const [rec, setRec] = React.useState<string | null>(null)
+
+  // Deep-link from the S4 recommendation banner: /support/book?subject=&topic=&rec=
+  // Read client-side (not useSearchParams) to keep it out of the static build.
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const s = params.get('subject')
+    if (s === 'math' || s === 'reading_writing') {
+      setSubject(s)
+      setStep('teacher')
+    }
+    const tp = params.get('topic')
+    if (tp) setTopic(tp)
+    const r = params.get('rec')
+    if (r) setRec(r)
+  }, [])
 
   const teachersQuery = useQuery({
     queryKey: ['support', 'bookable-teachers', subject],
@@ -59,6 +75,7 @@ export function BookingWizard() {
         scheduledAt: slot!.scheduledAt,
         topic: topic.trim(),
         reason: reason.trim(),
+        ...(rec ? { recommendation: rec } : {}),
       }),
     onSuccess: () => {
       toast({ variant: 'success', title: t('support.book.booked') })

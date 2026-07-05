@@ -125,6 +125,29 @@ class Command(BaseCommand):
                 av_made += int(created)
         self._note("support availability", f"{teacher.email} (+{av_made} new)", av_made > 0)
 
+        # Support trigger (Phase 4 S4) — give the student a weak topic so the daily
+        # sweep raises a recommendation, then run the sweep so the dashboard banner
+        # + deep-link are demoable/e2e-able (idempotent: the sweep dedupes).
+        from apps.analytics.models import UserCategoryStat
+        from apps.question_bank.models import QuestionCategory
+        from apps.support.services import run_support_sweep
+
+        weak_cat, _ = QuestionCategory.objects.get_or_create(
+            slug="algebra-demo", defaults={"module": "math", "name": "Algebra"}
+        )
+        UserCategoryStat.objects.update_or_create(
+            user=student,
+            category=weak_cat,
+            defaults={
+                "total_answered": 12,
+                "total_correct": 4,
+                "accuracy_pct": 35,
+                "last_practiced_at": timezone.now(),
+            },
+        )
+        sweep = run_support_sweep()
+        self._note("support recommendations (sweep)", f"+{sweep.get('created', 0)}", True)
+
         self.stdout.write(self.style.SUCCESS(f"TEACHER={TEACHER_EMAIL} / {TEACHER_PASSWORD}"))
         self.stdout.write(self.style.SUCCESS(f"STUDENT={STUDENT_EMAIL} / {STUDENT_PASSWORD}"))
         self.stdout.write(

@@ -15,6 +15,7 @@ import { SummaryCards } from '@/components/dashboard/SummaryCards'
 import { GoalCard } from '@/components/dashboard/GoalCard'
 import { AvailableTests } from '@/components/dashboard/AvailableTests'
 import { RecentSessions } from '@/components/dashboard/RecentSessions'
+import { SupportRecommendationBanner } from '@/components/support/SupportRecommendationBanner'
 
 function VerifyBanner() {
   const { toast } = useToast()
@@ -68,6 +69,8 @@ export default function DashboardPage() {
       </div>
 
       {user && !user.isEmailVerified && <VerifyBanner />}
+
+      <SupportRecommendationBanner />
 
       <GoalCard />
       <SummaryCards />

@@ -335,6 +335,8 @@ export const en = {
       bookingCompleted: 'Session with {name} on {date} is complete',
       supportReply: 'New reply to your question',
       supportReplyFromStudent: 'New reply from {name} on a support ticket',
+      supportRecommendation: 'A support session could help you improve',
+      supportRecommendationWithTopic: 'A support session could help with {topic}',
     },
   },
   homework: {
@@ -1100,6 +1102,18 @@ export const en = {
       upcoming: 'Upcoming',
       questionsAsked: 'Questions asked',
       questionsAnswered: 'Answered',
+    },
+    recommendation: {
+      book: 'Book help',
+      dismiss: 'Dismiss',
+      dismissFailed: 'Could not dismiss this suggestion',
+      rule: {
+        category_accuracy_low: "You're finding {topic} tricky — a 1:1 session could help.",
+        score_trend_declining:
+          'Your recent scores are slipping — a session can help you get back on track.',
+        inactive_days: "It's been a while since you practiced — a session can help you restart.",
+        homework_completion_low: "You're behind on homework — a teacher can help you catch up.",
+      },
     },
   },
   errors: {

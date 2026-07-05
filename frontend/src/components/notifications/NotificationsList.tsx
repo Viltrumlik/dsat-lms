@@ -13,7 +13,7 @@ import {
 } from '@tanstack/react-query'
 import { formatDistanceToNow } from 'date-fns'
 import { uz as uzDate } from 'date-fns/locale'
-import { BellOff, CalendarClock, CheckCheck, ClipboardList, GraduationCap, Info, LifeBuoy, Megaphone, MessageSquare } from 'lucide-react'
+import { BellOff, CalendarClock, CheckCheck, ClipboardList, GraduationCap, Info, LifeBuoy, Megaphone, MessageSquare, Sparkles } from 'lucide-react'
 import { notificationAPI } from '@/lib/api/notifications'
 import { cursorFromUrl } from '@/lib/api/client'
 import { useI18n } from '@/lib/i18n/I18nProvider'
@@ -39,6 +39,7 @@ const TYPE_ICON: Partial<Record<NotificationType, React.ComponentType<{ classNam
   booking_cancelled: LifeBuoy,
   booking_completed: LifeBuoy,
   support_reply: MessageSquare,
+  support_recommendation: Sparkles,
 }
 
 function relativeTime(iso: string, locale: Locale) {
