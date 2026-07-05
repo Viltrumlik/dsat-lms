@@ -141,3 +141,135 @@ class TestStudentAnalytics:
         r = client.get(f"{TEACHER}students/{student.id}/analytics/")
         assert r.status_code == 200
         assert r.data["data"]["student"]["id"] == str(student.id)
+
+    def test_insight_keys_present_and_backward_compatible(self):
+        client = teacher_client()
+        student = self._enrolled_student(client)
+        data = client.get(f"{TEACHER}students/{student.id}/analytics/").data["data"]
+        # Original keys must survive the extension.
+        assert {"student", "summary", "progress"} <= set(data)
+        # New insight layer.
+        assert {
+            "homework_stats",
+            "risk_assessment",
+            "improvement_trend",
+            "weak_topics",
+            "recent_score_estimate",
+        } <= set(data)
+        assert data["risk_assessment"]["level"] in ("green", "yellow", "red")
+
+
+class TestDashboard:
+    def test_public_user_forbidden(self, auth_client):
+        assert auth_client.get(TEACHER + "dashboard/").status_code == 403
+
+    def test_counts_scoped_to_own_classes(self):
+        client = teacher_client()
+        mine = ClassFactory(teacher=client.user)
+        ClassEnrollment.objects.create(klass=mine, student=UserFactory(role="student"))
+        # Another teacher's class + student must not leak in.
+        other = ClassFactory()
+        ClassEnrollment.objects.create(klass=other, student=UserFactory(role="student"))
+        data = client.get(TEACHER + "dashboard/").data["data"]
+        assert data["counts"]["classes"] == 1
+        assert data["counts"]["active_students"] == 1
+        # Lean overview: counts + at-risk preview only. The full lists moved to
+        # their own paginated pages (/teacher/students, /teacher/grading).
+        assert set(data) == {"counts", "at_risk_students"}
+
+    def test_admin_sees_all_classes(self):
+        admin = UserFactory(role="admin")
+        client = APIClient()
+        client.force_authenticate(admin)
+        ClassFactory()
+        ClassFactory()
+        assert client.get(TEACHER + "dashboard/").data["data"]["counts"]["classes"] >= 2
+
+
+class TestStudentsList:
+    def test_public_user_forbidden(self, auth_client):
+        assert auth_client.get(TEACHER + "students/").status_code == 403
+
+    def test_lists_own_active_students_with_risk(self):
+        client = teacher_client()
+        klass = ClassFactory(teacher=client.user)
+        ClassEnrollment.objects.create(klass=klass, student=UserFactory(role="student"))
+        # Another teacher's student and an inactive one must not appear.
+        ClassEnrollment.objects.create(klass=ClassFactory(), student=UserFactory(role="student"))
+        ClassEnrollment.objects.create(
+            klass=klass,
+            student=UserFactory(role="student"),
+            status=ClassEnrollment.Status.REMOVED,
+        )
+        r = client.get(TEACHER + "students/")
+        assert r.status_code == 200
+        assert len(r.data["data"]) == 1
+        row = r.data["data"][0]
+        assert row["risk"]["level"] in ("green", "yellow", "red")
+        assert {"student", "risk", "overall_accuracy", "homework_completion_pct"} <= set(row)
+        assert "pagination" in r.data["meta"]
+
+    def test_search_filters_by_name(self):
+        client = teacher_client()
+        klass = ClassFactory(teacher=client.user)
+        ClassEnrollment.objects.create(
+            klass=klass, student=UserFactory(role="student", first_name="Zebra")
+        )
+        ClassEnrollment.objects.create(
+            klass=klass, student=UserFactory(role="student", first_name="Yak")
+        )
+        data = client.get(TEACHER + "students/?search=zeb").data["data"]
+        assert len(data) == 1
+        assert data[0]["student"]["first_name"] == "Zebra"
+
+
+class TestGradingQueue:
+    def test_public_user_forbidden(self, auth_client):
+        assert auth_client.get(TEACHER + "grading/").status_code == 403
+
+    def test_pending_default_excludes_graded(self):
+        from apps.homework.models import HomeworkSubmission
+        from apps.homework.tests.factories import HomeworkFactory, HomeworkSubmissionFactory
+
+        client = teacher_client()
+        klass = ClassFactory(teacher=client.user)
+        hw = HomeworkFactory(assigned_class=klass, is_published=True)
+        HomeworkSubmissionFactory(homework=hw, status=HomeworkSubmission.Status.SUBMITTED)
+        HomeworkSubmissionFactory(homework=hw, status=HomeworkSubmission.Status.GRADED)
+
+        pending = client.get(TEACHER + "grading/").data["data"]
+        assert len(pending) == 1
+        assert pending[0]["status"] == "submitted"
+
+        every = client.get(TEACHER + "grading/?status=all").data["data"]
+        assert len(every) == 2
+
+    def test_scoped_to_own_classes(self):
+        from apps.homework.models import HomeworkSubmission
+        from apps.homework.tests.factories import HomeworkFactory, HomeworkSubmissionFactory
+
+        client = teacher_client()
+        other_hw = HomeworkFactory(assigned_class=ClassFactory(), is_published=True)
+        HomeworkSubmissionFactory(homework=other_hw, status=HomeworkSubmission.Status.SUBMITTED)
+        assert client.get(TEACHER + "grading/").data["data"] == []
+
+
+class TestClassOverview:
+    def test_public_user_forbidden(self, auth_client):
+        klass = ClassFactory()
+        assert auth_client.get(f"{TEACHER}classes/{klass.id}/overview/").status_code == 403
+
+    def test_cannot_view_other_teachers_class(self):
+        client = teacher_client()
+        other = ClassFactory()
+        assert client.get(f"{TEACHER}classes/{other.id}/overview/").status_code == 404
+
+    def test_own_class_overview(self):
+        client = teacher_client()
+        klass = ClassFactory(teacher=client.user)
+        ClassEnrollment.objects.create(klass=klass, student=UserFactory(role="student"))
+        data = client.get(f"{TEACHER}classes/{klass.id}/overview/").data["data"]
+        assert data["class"]["student_count"] == 1
+        assert len(data["roster"]) == 1
+        assert data["roster"][0]["risk"]["level"] in ("green", "yellow", "red")
+        assert {"avg_accuracy", "homework_completion_rate", "at_risk_count"} <= set(data["group"])

@@ -9,7 +9,7 @@ import Link from 'next/link'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import { uz as uzDate } from 'date-fns/locale'
-import { ArrowLeft, UserPlus, Users } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, Target, UserPlus, Users } from 'lucide-react'
 import { teacherAPI } from '@/lib/api/teacher'
 import { parseApiError } from '@/lib/api/errors'
 import { useI18n } from '@/lib/i18n/I18nProvider'
@@ -27,6 +27,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { pct } from '@/lib/utils/num'
+import { RiskBadge } from './RiskBadge'
 
 function EnrollForm({ classId }: { classId: string }) {
   const { t } = useI18n()
@@ -96,6 +98,16 @@ export function ClassRoster({ classId }: { classId: string }) {
     queryFn: () => teacherAPI.roster(classId),
   })
 
+  // Group stats + per-student risk (insight layer, Phase 4A).
+  const overviewQuery = useQuery({
+    queryKey: ['teacher', 'overview', classId],
+    queryFn: () => teacherAPI.classOverview(classId),
+  })
+  const riskByStudent = new Map(
+    (overviewQuery.data?.roster ?? []).map((r) => [r.student.id, r])
+  )
+  const group = overviewQuery.data?.group
+
   return (
     <div className="space-y-6">
       <Link
@@ -111,6 +123,52 @@ export function ClassRoster({ classId }: { classId: string }) {
         </h1>
         <p className="text-muted-foreground">{t('teacher.roster.subtitle')}</p>
       </div>
+
+      {group && (
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Card>
+            <CardContent className="flex items-center gap-3 p-4">
+              <Target className="h-5 w-5 text-muted-foreground" />
+              <div>
+                <p className="text-xl font-bold tabular-nums">{pct(group.avgAccuracy)}</p>
+                <p className="text-xs text-muted-foreground">
+                  {t('teacher.overview.group.avgAccuracy')}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="flex items-center gap-3 p-4">
+              <Users className="h-5 w-5 text-muted-foreground" />
+              <div>
+                <p className="text-xl font-bold tabular-nums">
+                  {pct(group.homeworkCompletionRate)}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {t('teacher.overview.group.completion')}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="flex items-center gap-3 p-4">
+              <AlertTriangle
+                className={
+                  group.atRiskCount > 0
+                    ? 'h-5 w-5 text-error-dark'
+                    : 'h-5 w-5 text-muted-foreground'
+                }
+              />
+              <div>
+                <p className="text-xl font-bold tabular-nums">{group.atRiskCount}</p>
+                <p className="text-xs text-muted-foreground">
+                  {t('teacher.overview.group.atRisk')}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       <Card>
         <CardContent className="p-5">
@@ -151,29 +209,38 @@ export function ClassRoster({ classId }: { classId: string }) {
             <TableHeader>
               <TableRow>
                 <TableHead>{t('teacher.roster.student')}</TableHead>
-                <TableHead>{t('teacher.roster.email')}</TableHead>
+                <TableHead>{t('teacher.overview.status')}</TableHead>
+                <TableHead>{t('teacher.overview.accuracy')}</TableHead>
                 <TableHead>{t('teacher.roster.enrolledAt')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rosterQuery.data.map((entry) => (
-                <TableRow key={entry.id}>
-                  <TableCell className="font-medium">
-                    <Link
-                      href={`/teacher/students/${entry.student.id}?class=${classId}`}
-                      className="text-primary hover:underline"
-                    >
-                      {entry.student.fullName || entry.student.email}
-                    </Link>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{entry.student.email}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {format(new Date(entry.createdAt), 'PP', {
-                      locale: locale === 'uz' ? uzDate : undefined,
-                    })}
-                  </TableCell>
-                </TableRow>
-              ))}
+              {rosterQuery.data.map((entry) => {
+                const row = riskByStudent.get(entry.student.id)
+                return (
+                  <TableRow key={entry.id}>
+                    <TableCell className="font-medium">
+                      <Link
+                        href={`/teacher/students/${entry.student.id}?class=${classId}`}
+                        className="text-primary hover:underline"
+                      >
+                        {entry.student.fullName || entry.student.email}
+                      </Link>
+                    </TableCell>
+                    <TableCell>
+                      {row ? <RiskBadge level={row.risk.level} /> : <span className="text-muted-foreground">—</span>}
+                    </TableCell>
+                    <TableCell className="tabular-nums text-muted-foreground">
+                      {row && row.overallAccuracy !== null ? pct(row.overallAccuracy) : '—'}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {format(new Date(entry.createdAt), 'PP', {
+                        locale: locale === 'uz' ? uzDate : undefined,
+                      })}
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
             </TableBody>
           </Table>
         </Card>

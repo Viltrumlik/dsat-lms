@@ -43,7 +43,7 @@ export function MobileNav() {
             ? [{ labelKey: 'nav.adminPanel', href: '/admin/users', icon: Shield }]
             : []),
           ...(isTeacher
-            ? [{ labelKey: 'nav.teacherPanel', href: '/teacher/classes', icon: Presentation }]
+            ? [{ labelKey: 'nav.teacherPanel', href: '/teacher/dashboard', icon: Presentation }]
             : []),
           ...visibleStudentNav(user?.role),
         ]
