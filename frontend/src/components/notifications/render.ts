@@ -58,6 +58,17 @@ export function notificationText(
     }
   }
 
+  if (notification.type === 'support_reply') {
+    // Staff-facing rows carry studentName; the student-facing one doesn't.
+    const student = str(data['studentName'])
+    return {
+      title: student
+        ? t('notifications.templates.supportReplyFromStudent', { name: student })
+        : t('notifications.templates.supportReply'),
+      body: '',
+    }
+  }
+
   // A cancellation can reach either party, so it names no one — just the date.
   if (notification.type === 'booking_cancelled') {
     const when = dueDate(data['scheduledAt'], locale)

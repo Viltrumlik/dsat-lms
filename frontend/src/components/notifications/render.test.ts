@@ -101,6 +101,21 @@ describe('notificationText', () => {
     })
   })
 
+  it('renders support_reply (student-facing, no name)', () => {
+    const { title } = notificationText(notification('support_reply', { ticketId: 't1' }), t, 'en')
+    expect(title).toBe('notifications.templates.supportReply|{}')
+  })
+
+  it('renders support_reply from a student name (staff-facing)', () => {
+    const { title } = notificationText(
+      notification('support_reply', { studentName: 'Dilnoza K', ticketId: 't1' }),
+      t,
+      'en'
+    )
+    expect(title).toContain('notifications.templates.supportReplyFromStudent|')
+    expect(title).toContain('"name":"Dilnoza K"')
+  })
+
   it('falls back to server strings for old rows and unknown types', () => {
     expect(notificationText(notification('exam_graded'), t, 'en')).toEqual({
       title: 'Server title',

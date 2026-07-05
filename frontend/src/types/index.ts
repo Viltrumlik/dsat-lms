@@ -809,6 +809,45 @@ export interface StaffSupportBooking extends Omit<SupportBooking, 'outcome'> {
   outcome: StaffSessionOutcome | null
 }
 
+// Ask a Question (Phase 4 S2 — tickets)
+export type TicketStatus = 'open' | 'answered' | 'closed'
+export type TicketPriority = 'low' | 'normal' | 'high'
+
+export interface TicketAttachment {
+  id: string
+  originalName: string
+  contentType: string
+  size: number
+  downloadUrl: string
+}
+
+export interface TicketReply {
+  id: string
+  author: StudentMini
+  body: string
+  isStaffAnswer: boolean
+  createdAt: string
+}
+
+export interface SupportTicketSummary {
+  id: string
+  student: StudentMini
+  subject: SupportSubject
+  body: string
+  priority: TicketPriority
+  status: TicketStatus
+  assignedTo: StudentMini | null
+  answeredAt: string | null
+  lastReplyAt: string | null
+  replyCount: number
+  createdAt: string
+}
+
+export interface SupportTicket extends SupportTicketSummary {
+  replies: TicketReply[]
+  attachments: TicketAttachment[]
+}
+
 // ─────────────────────────────────────
 // Notifications
 // ─────────────────────────────────────

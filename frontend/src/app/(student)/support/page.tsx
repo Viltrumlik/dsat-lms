@@ -5,7 +5,7 @@
 'use client'
 
 import Link from 'next/link'
-import { CalendarPlus, ClipboardList } from 'lucide-react'
+import { CalendarPlus, ClipboardList, MessageSquarePlus } from 'lucide-react'
 import { useT } from '@/lib/i18n/I18nProvider'
 import { Card, CardContent } from '@/components/ui/card'
 
@@ -21,6 +21,12 @@ const TILES = [
     icon: ClipboardList,
     titleKey: 'support.landing.sessionsTitle',
     descKey: 'support.landing.sessionsDesc',
+  },
+  {
+    href: '/support/tickets',
+    icon: MessageSquarePlus,
+    titleKey: 'support.landing.askTitle',
+    descKey: 'support.landing.askDesc',
   },
 ] as const
 

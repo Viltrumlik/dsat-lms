@@ -15,7 +15,11 @@ import type {
   SupportBooking,
   SupportSlot,
   SupportSubject,
+  SupportTicket,
+  SupportTicketSummary,
   TeacherAvailability,
+  TicketPriority,
+  TicketStatus,
 } from '@/types'
 
 export interface CreateBookingPayload {
@@ -97,4 +101,36 @@ export const supportAPI = {
     outcome: (id: string, payload: OutcomePayload) =>
       post<StaffSessionOutcome>(`/support/staff/bookings/${id}/outcome/`, payload),
   },
+
+  /** Ask a Question — a student's own tickets. */
+  tickets: {
+    list: (params: { status?: TicketStatus; cursor?: string } = {}) =>
+      getPaginated<SupportTicketSummary>('/support/tickets/', params),
+    get: (id: string) => get<SupportTicket>(`/support/tickets/${id}/`),
+    create: (payload: CreateTicketPayload) => post<SupportTicket>('/support/tickets/', payload),
+    reply: (id: string, body: string) =>
+      post<SupportTicket>(`/support/tickets/${id}/replies/`, { body }),
+    setStatus: (id: string, status: 'open' | 'closed') =>
+      post<SupportTicket>(`/support/tickets/${id}/status/`, { status }),
+  },
+
+  /** Staff ticket queue (shared pool — any staff sees all). */
+  staffTickets: {
+    list: (params: { status?: TicketStatus; assigned?: 'me' | 'unassigned'; cursor?: string } = {}) =>
+      getPaginated<SupportTicketSummary>('/support/staff/tickets/', params),
+    get: (id: string) => get<SupportTicket>(`/support/staff/tickets/${id}/`),
+    reply: (id: string, body: string) =>
+      post<SupportTicket>(`/support/staff/tickets/${id}/replies/`, { body }),
+    assign: (id: string, assignee: string | null) =>
+      post<SupportTicket>(`/support/staff/tickets/${id}/assign/`, { assignee }),
+    setStatus: (id: string, status: 'open' | 'closed') =>
+      post<SupportTicket>(`/support/staff/tickets/${id}/status/`, { status }),
+  },
+}
+
+export interface CreateTicketPayload {
+  subject: SupportSubject
+  body: string
+  priority?: TicketPriority
+  attachmentIds?: string[]
 }
