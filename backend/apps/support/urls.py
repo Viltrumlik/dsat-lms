@@ -37,6 +37,8 @@ urlpatterns = [
         views.SupportTicketStatusView.as_view(),
         name="ticket-status",
     ),
+    # ─── Student: support analytics summary ───
+    path("analytics/", views.StudentSupportSummaryView.as_view(), name="student-analytics"),
     # ─── Teacher: own availability (self-service) ───
     path("availability/", views_staff.MyAvailabilityView.as_view(), name="availability"),
     path(
@@ -82,5 +84,9 @@ urlpatterns = [
         "staff/tickets/<uuid:pk>/status/",
         views_staff.StaffTicketStatusView.as_view(),
         name="staff-ticket-status",
+    ),
+    # ─── Staff: support analytics (own vs. all) ───
+    path(
+        "staff/analytics/", views_staff.StaffSupportAnalyticsView.as_view(), name="staff-analytics"
     ),
 ]

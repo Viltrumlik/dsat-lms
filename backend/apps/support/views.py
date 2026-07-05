@@ -22,6 +22,7 @@ from common.pagination import CursorPagination
 from common.permissions import IsAcademyStudent
 from common.responses import created_response, success_response
 
+from .analytics_services import student_support_summary
 from .availability import generate_slots
 from .enums import BookingStatus
 from .models import SupportBooking, SupportTicket, TeacherAvailability
@@ -310,3 +311,15 @@ class SupportTicketStatusView(APIView):
         except ValueError as exc:
             return ticket_error_response(exc)
         return success_response(SupportTicketDetailSerializer(_own_ticket_or_404(request, pk)).data)
+
+
+# ─────────────────────────────────────
+# Support analytics (S3) — student self-summary
+# ─────────────────────────────────────
+
+
+class StudentSupportSummaryView(APIView):
+    permission_classes = [IsAcademyStudent]
+
+    def get(self, request):
+        return success_response(student_support_summary(request.user))

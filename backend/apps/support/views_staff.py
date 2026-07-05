@@ -18,6 +18,7 @@ from common.pagination import CursorPagination
 from common.permissions import IsAnyStaff, IsOperationsStaff, IsTeacher
 from common.responses import created_response, no_content_response, success_response
 
+from .analytics_services import staff_support_analytics
 from .models import SessionOutcome, SupportBooking, SupportTicket, TeacherAvailability
 from .scoping import scope_teacher_rows
 from .serializers import (
@@ -241,3 +242,15 @@ class StaffTicketStatusView(APIView):
         except ValueError as exc:
             return ticket_error_response(exc)
         return success_response(SupportTicketDetailSerializer(_staff_ticket_or_404(pk)).data)
+
+
+# ─────────────────────────────────────
+# Support analytics (S3) — staff KPIs (own vs. all, row-scoped)
+# ─────────────────────────────────────
+
+
+class StaffSupportAnalyticsView(APIView):
+    permission_classes = [IsAnyStaff]
+
+    def get(self, request):
+        return success_response(staff_support_analytics(request))
