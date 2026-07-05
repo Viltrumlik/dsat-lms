@@ -1,0 +1,46 @@
+"""
+DSAT LMS v2 — Support Center admin
+Domain: Support
+Description: Django-admin registrations for the S1 booking models (ops visibility;
+    the REST API is the real management surface).
+"""
+
+from django.contrib import admin
+
+from .models import SessionOutcome, SessionRating, SupportBooking, TeacherAvailability
+
+
+@admin.register(TeacherAvailability)
+class TeacherAvailabilityAdmin(admin.ModelAdmin):
+    list_display = (
+        "teacher",
+        "subject",
+        "weekday",
+        "start_time",
+        "end_time",
+        "slot_minutes",
+        "is_active",
+    )
+    list_filter = ("subject", "is_active", "weekday")
+    raw_id_fields = ("teacher",)
+
+
+@admin.register(SupportBooking)
+class SupportBookingAdmin(admin.ModelAdmin):
+    list_display = ("student", "teacher", "subject", "scheduled_at", "status")
+    list_filter = ("status", "subject")
+    raw_id_fields = ("student", "teacher")
+    date_hierarchy = "scheduled_at"
+
+
+@admin.register(SessionOutcome)
+class SessionOutcomeAdmin(admin.ModelAdmin):
+    list_display = ("booking",)
+    raw_id_fields = ("booking",)
+
+
+@admin.register(SessionRating)
+class SessionRatingAdmin(admin.ModelAdmin):
+    list_display = ("booking", "score")
+    list_filter = ("score",)
+    raw_id_fields = ("booking",)
