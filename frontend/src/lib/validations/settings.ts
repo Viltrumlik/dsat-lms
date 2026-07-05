@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════
 // DSAT LMS v2 — Settings form schemas (Zod)
-// Domain: Identity
+// Domain: Identity (profile/password) + Academy (personal info)
 // ═══════════════════════════════════════
 
 import { z } from 'zod'
@@ -22,6 +22,16 @@ export const profileSchema = z.object({
   examDate: z.string(), // yyyy-mm-dd from <input type="date">, '' = unset
 })
 export type ProfileValues = z.infer<typeof profileSchema>
+
+export const personalInfoSchema = z.object({
+  gender: z.enum(['', 'male', 'female', 'other']),
+  dateOfBirth: z.string(), // yyyy-mm-dd or '' (unset)
+  phone: z.string().max(32, 'Phone is too long.'),
+  address: z.string().max(255, 'Address is too long.'),
+  school: z.string().max(150, 'School name is too long.'),
+  grade: z.string().max(50, 'Grade is too long.'),
+})
+export type PersonalInfoValues = z.infer<typeof personalInfoSchema>
 
 export const changePasswordSchema = z
   .object({

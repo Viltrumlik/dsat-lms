@@ -44,7 +44,13 @@ export type Decimalish = number | string | null
 // Identity
 // ─────────────────────────────────────
 
-export type UserRole = 'public' | 'student' | 'teacher' | 'admin'
+export type UserRole =
+  | 'public'
+  | 'student'
+  | 'teacher'
+  | 'receptionist'
+  | 'academic_manager'
+  | 'admin'
 
 export interface User {
   id: string
@@ -96,6 +102,53 @@ export interface StudentMini {
   firstName: string
   lastName: string
   fullName: string
+}
+
+// ─────────────────────────────────────
+// CRM person layer (4D)
+// ─────────────────────────────────────
+
+export type LifecycleStatus = 'active' | 'frozen' | 'graduated' | 'dropped'
+export type Gender = 'male' | 'female' | 'other'
+export type GuardianRelation = 'father' | 'mother' | 'guardian' | 'other'
+
+export interface Guardian {
+  id: string
+  relation: GuardianRelation
+  name: string
+  phone: string
+  telegram: string
+  email: string
+  isEmergency: boolean
+  createdAt: string
+}
+
+export interface StudentProfile {
+  id: string
+  student: StudentMini
+  avatarUrl: string | null
+  gender: Gender | ''
+  dateOfBirth: string | null // yyyy-mm-dd
+  phone: string
+  address: string
+  school: string
+  grade: string
+  status: LifecycleStatus
+  statusChangedAt: string | null
+  statusChangedBy: StudentMini | null
+  enrolledAt: string | null
+  guardians: Guardian[]
+  updatedAt: string
+}
+
+/** Demographics subset editable by the student (self-serve) or operational staff. */
+export interface StudentProfileUpdate {
+  gender?: Gender | ''
+  dateOfBirth?: string | null
+  phone?: string
+  address?: string
+  school?: string
+  grade?: string
 }
 
 // ─────────────────────────────────────

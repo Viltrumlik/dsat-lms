@@ -18,6 +18,7 @@ from common.permissions import IsAdminOrTeacher
 from common.responses import created_response, success_response
 
 from .models import Class, ClassEnrollment
+from .scoping import scoped_classes, scoped_student_or_404
 from .serializers import (
     ClassCreateSerializer,
     ClassSerializer,
@@ -26,33 +27,17 @@ from .serializers import (
     StudentMiniSerializer,
 )
 
-
-def _scoped_classes(request):
-    if request.user.is_admin:
-        return Class.objects.all()
-    return Class.objects.filter(teacher=request.user)
+# Back-compat aliases — the shared row-scoping layer now lives in academy/scoping.py
+# (extended to the 6-role access matrix). Existing call sites keep working.
+_scoped_classes = scoped_classes
+_scoped_student = scoped_student_or_404
 
 
 def _owned_class(request, pk):
     try:
-        return _scoped_classes(request).get(pk=pk)
+        return scoped_classes(request).get(pk=pk)
     except Class.DoesNotExist:
         raise NotFound("Class not found.") from None
-
-
-def _scoped_student(request, pk):
-    """The user `pk`, but only if the requester may see them: admins see anyone;
-    a teacher sees only students actively enrolled in one of their own classes."""
-    qs = User.objects.filter(pk=pk)
-    if not request.user.is_admin:
-        qs = qs.filter(
-            enrollments__klass__teacher=request.user,
-            enrollments__status=ClassEnrollment.Status.ACTIVE,
-        )
-    student = qs.distinct().first()
-    if student is None:
-        raise NotFound("Student not found.")
-    return student
 
 
 class TeacherClassListCreateView(APIView):

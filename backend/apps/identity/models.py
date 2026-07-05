@@ -34,16 +34,20 @@ class User(AbstractBaseUser, PermissionsMixin):
     DSAT platformasining asosiy foydalanuvchi modeli.
 
     Role hierarchy:
-        public  → Ro'yxatdan o'tgan, lekin akademiya a'zosi emas
-        student → Akademiya o'quvchisi (to'liq kirish)
-        teacher → O'qituvchi
-        admin   → To'liq nazorat
+        public           → Ro'yxatdan o'tgan, lekin akademiya a'zosi emas
+        student          → Akademiya o'quvchisi (to'liq kirish)
+        teacher          → O'qituvchi (faqat o'z sinfi)
+        receptionist     → Front-desk operatsiyalar (barcha studentni ko'radi)
+        academic_manager → Akademik boshqaruvchi (barcha studentga to'liq akademik)
+        admin            → To'liq nazorat
     """
 
     class Role(models.TextChoices):
         PUBLIC = "public", "Public User"
         STUDENT = "student", "Academy Student"
         TEACHER = "teacher", "Teacher"
+        RECEPTIONIST = "receptionist", "Receptionist"
+        ACADEMIC_MANAGER = "academic_manager", "Academic Manager"
         ADMIN = "admin", "Admin"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -52,11 +56,13 @@ class User(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(unique=True, db_index=True)
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
-    role = models.CharField(max_length=20, choices=Role.choices, default=Role.PUBLIC)
+    role = models.CharField(max_length=20, choices=Role.choices, default=Role.PUBLIC, db_index=True)
 
     # Status
     is_active = models.BooleanField(default=True)
-    is_staff = models.BooleanField(default=False)  # Django admin access
+    # NOTE: Django-admin access flag — ORTHOGONAL to the academy staff roles above.
+    # Do not add a role-cluster property named `is_staff`; use `is_academy_staff`.
+    is_staff = models.BooleanField(default=False)
     is_email_verified = models.BooleanField(default=False)
 
     # Profile
@@ -112,9 +118,40 @@ class User(AbstractBaseUser, PermissionsMixin):
         return self.role == self.Role.PUBLIC
 
     @property
+    def is_receptionist(self):
+        return self.role == self.Role.RECEPTIONIST
+
+    @property
+    def is_academic_manager(self):
+        return self.role == self.Role.ACADEMIC_MANAGER
+
+    @property
+    def is_academy_staff(self):
+        """Any staff operator (teacher/receptionist/academic_manager/admin).
+        Orthogonal to Django's `is_staff` (admin-panel) flag."""
+        return self.role in (
+            self.Role.TEACHER,
+            self.Role.RECEPTIONIST,
+            self.Role.ACADEMIC_MANAGER,
+            self.Role.ADMIN,
+        )
+
+    @property
+    def can_read_all_students(self):
+        """Staff who see EVERY student, not just their own class: admin, academic
+        manager, receptionist. Teachers are own-class-scoped (see academy/scoping)."""
+        return self.role in (self.Role.ADMIN, self.Role.ACADEMIC_MANAGER, self.Role.RECEPTIONIST)
+
+    @property
     def has_full_access(self):
-        """Academy-only content'ga kirish huquqi."""
-        return self.role in (self.Role.STUDENT, self.Role.TEACHER, self.Role.ADMIN)
+        """Academy-only content'ga kirish huquqi (all academy members + staff)."""
+        return self.role in (
+            self.Role.STUDENT,
+            self.Role.TEACHER,
+            self.Role.RECEPTIONIST,
+            self.Role.ACADEMIC_MANAGER,
+            self.Role.ADMIN,
+        )
 
     def soft_delete(self):
         self.deleted_at = timezone.now()

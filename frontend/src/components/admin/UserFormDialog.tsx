@@ -32,7 +32,14 @@ import {
 } from '@/components/ui/select'
 import type { AdminUser, UserRole } from '@/types'
 
-const ROLES: UserRole[] = ['public', 'student', 'teacher', 'admin']
+const ROLES: UserRole[] = [
+  'public',
+  'student',
+  'teacher',
+  'receptionist',
+  'academic_manager',
+  'admin',
+]
 
 export function UserFormDialog({
   mode,

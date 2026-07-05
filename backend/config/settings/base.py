@@ -57,6 +57,7 @@ LOCAL_APPS = [
     "apps.homework",
     "apps.analytics",
     "apps.notifications",
+    "apps.files",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -142,6 +143,10 @@ CELERY_BEAT_SCHEDULE = {
     "abandon-stale-sessions": {
         "task": "apps.assessments.tasks.abandon_stale_sessions",
         "schedule": crontab(hour=3, minute=30),  # daily, CELERY_TIMEZONE
+    },
+    "purge-soft-deleted-attachments": {
+        "task": "apps.files.tasks.purge_soft_deleted_attachments",
+        "schedule": crontab(hour=4, minute=0),  # daily, CELERY_TIMEZONE
     },
 }
 
@@ -272,6 +277,17 @@ STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+# File storage — local filesystem by default (dev/tests); production.py repoints
+# the default backend at Cloudflare R2 (S3) via django-storages when STORAGE_BACKEND=r2.
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+}
+
+# Absolute base URL of THIS backend — used to build stable file download URLs
+# (stored in User.avatar_url), so they don't embed an expiring signed token.
+BACKEND_PUBLIC_URL = env("BACKEND_PUBLIC_URL", default="http://localhost:8000")
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

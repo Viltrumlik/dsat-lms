@@ -7,15 +7,21 @@ Permission class hierarchy:
     IsTeacher
     IsAcademyStudent
     IsPublicUser
+    IsReceptionist
+    IsAcademicManager
     IsOwner (object-level)
 
 Composite:
     IsAdminOrTeacher
     IsAdminOrOwner
+    IsAdminOrAcademicManager
+    IsAnyStaff          (teacher/receptionist/academic_manager/admin)
+    IsOperationsStaff   (staff who may write operational data; row-scoped)
 
 Object-level:
     CanAccessExam
-    CanViewStudentData
+
+Row-level student/class scoping lives in apps/academy/scoping.py, not here.
 """
 
 from rest_framework.permissions import BasePermission
@@ -70,6 +76,26 @@ class IsStudentOrPublic(BasePermission):
         )
 
 
+class IsReceptionist(BasePermission):
+    """Faqat receptionist."""
+
+    def has_permission(self, request, view):
+        return bool(
+            request.user and request.user.is_authenticated and request.user.role == "receptionist"
+        )
+
+
+class IsAcademicManager(BasePermission):
+    """Faqat academic manager."""
+
+    def has_permission(self, request, view):
+        return bool(
+            request.user
+            and request.user.is_authenticated
+            and request.user.role == "academic_manager"
+        )
+
+
 # ─────────────────────────────────────
 # Composite
 # ─────────────────────────────────────
@@ -83,6 +109,42 @@ class IsAdminOrTeacher(BasePermission):
             request.user
             and request.user.is_authenticated
             and request.user.role in ("admin", "teacher")
+        )
+
+
+class IsAdminOrAcademicManager(BasePermission):
+    """Full academic authority: admin yoki academic manager (all students)."""
+
+    def has_permission(self, request, view):
+        return bool(
+            request.user
+            and request.user.is_authenticated
+            and request.user.role in ("admin", "academic_manager")
+        )
+
+
+class IsAnyStaff(BasePermission):
+    """Any academy staff operator: teacher, receptionist, academic_manager, admin.
+    Coarse gate only — row visibility is decided by apps/academy/scoping.py."""
+
+    def has_permission(self, request, view):
+        return bool(
+            request.user
+            and request.user.is_authenticated
+            and request.user.role in ("teacher", "receptionist", "academic_manager", "admin")
+        )
+
+
+class IsOperationsStaff(BasePermission):
+    """Staff who may WRITE operational data (enrollment, attendance, guardians,
+    schedule): admin, academic_manager, receptionist, or teacher. Teachers are
+    row-scoped to their own classes by apps/academy/scoping.py."""
+
+    def has_permission(self, request, view):
+        return bool(
+            request.user
+            and request.user.is_authenticated
+            and request.user.role in ("admin", "academic_manager", "receptionist", "teacher")
         )
 
 
@@ -128,19 +190,3 @@ class CanAccessExam(BasePermission):
             return True
         # Academy-only
         return request.user.role in ("student", "teacher", "admin")
-
-
-class CanViewStudentData(BasePermission):
-    """
-    Student ma'lumotlarini ko'rish:
-    - Admin: hamma student
-    - Teacher: faqat o'z sinfidagi studentlar
-    - Student: faqat o'zining
-    """
-
-    def has_permission(self, request, view):
-        return bool(
-            request.user
-            and request.user.is_authenticated
-            and request.user.role in ("admin", "teacher", "student")
-        )

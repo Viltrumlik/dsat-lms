@@ -22,11 +22,14 @@ urlpatterns = [
     path(API_V1 + "sessions/", include("apps.assessments.urls")),
     path(API_V1 + "analytics/", include("apps.analytics.urls")),
     path(API_V1 + "teacher/", include("apps.academy.urls.teacher")),
+    path(API_V1 + "staff/", include("apps.identity.urls_staff")),
+    path(API_V1 + "students/", include("apps.academy.urls.students")),
     path(API_V1 + "admin/", include("apps.identity.urls_admin")),
     path(API_V1 + "admin/", include("apps.question_bank.urls_admin")),
     path(API_V1 + "admin/", include("apps.assessments.urls_admin")),
     path(API_V1 + "notifications/", include("apps.notifications.urls")),
     path(API_V1 + "homework/", include("apps.homework.urls")),
+    path(API_V1 + "files/", include("apps.files.urls")),
 ]
 
 if settings.DEBUG:

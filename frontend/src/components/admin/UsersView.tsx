@@ -32,7 +32,8 @@ import { parseApiError } from '@/lib/api/errors'
 import { useI18n } from '@/lib/i18n/I18nProvider'
 import { useAuth } from '@/lib/auth/AuthProvider'
 import { useToast } from '@/components/ui/toast'
-import { Badge, type BadgeProps } from '@/components/ui/badge'
+import { Badge } from '@/components/ui/badge'
+import { RoleBadge } from '@/components/common/RoleBadge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -73,14 +74,14 @@ import type { AdminUser, UserRole } from '@/types'
 import { UserFormDialog } from './UserFormDialog'
 import { BulkImportDialog } from './BulkImportDialog'
 
-const ROLES: UserRole[] = ['public', 'student', 'teacher', 'admin']
-const ROLE_BADGE: Record<UserRole, BadgeProps['variant']> = {
-  admin: 'default',
-  teacher: 'warning',
-  student: 'success',
-  public: 'secondary',
-}
-
+const ROLES: UserRole[] = [
+  'public',
+  'student',
+  'teacher',
+  'receptionist',
+  'academic_manager',
+  'admin',
+]
 type ConfirmAction = 'deactivate' | 'reactivate' | 'delete'
 
 // ─────────────────────────────────────
@@ -463,7 +464,7 @@ export function UsersView() {
                         <div className="text-sm text-muted-foreground">{u.email}</div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={ROLE_BADGE[u.role]}>{t(`admin.roles.${u.role}`)}</Badge>
+                        <RoleBadge role={u.role} />
                       </TableCell>
                       <TableCell>
                         <StatusBadge user={u} />
