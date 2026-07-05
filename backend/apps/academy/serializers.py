@@ -7,7 +7,7 @@ from rest_framework import serializers
 
 from apps.identity.models import User
 
-from .models import Class, ClassEnrollment
+from .models import Class, ClassEnrollment, Guardian, StudentProfile
 
 
 class ClassSerializer(serializers.ModelSerializer):
@@ -49,3 +49,72 @@ class RosterEntrySerializer(serializers.ModelSerializer):
 
 class EnrollSerializer(serializers.Serializer):
     email = serializers.EmailField()
+
+
+class GuardianSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Guardian
+        fields = [
+            "id",
+            "relation",
+            "name",
+            "phone",
+            "telegram",
+            "email",
+            "is_emergency",
+            "created_at",
+        ]
+        read_only_fields = ["id", "created_at"]
+
+
+class StudentProfileSerializer(serializers.ModelSerializer):
+    """Read: demographics + lifecycle status + the linked user's basics + guardians.
+    The profile photo is the user's avatar_url (managed by the files pipeline)."""
+
+    student = StudentMiniSerializer(source="user", read_only=True)
+    avatar_url = serializers.CharField(source="user.avatar_url", read_only=True)
+    status_changed_by = StudentMiniSerializer(read_only=True)
+    guardians = GuardianSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = StudentProfile
+        fields = [
+            "id",
+            "student",
+            "avatar_url",
+            "gender",
+            "date_of_birth",
+            "phone",
+            "address",
+            "school",
+            "grade",
+            "status",
+            "status_changed_at",
+            "status_changed_by",
+            "enrolled_at",
+            "guardians",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "student",
+            "avatar_url",
+            "status",
+            "status_changed_at",
+            "status_changed_by",
+            "enrolled_at",
+            "guardians",
+            "updated_at",
+        ]
+
+
+class StudentProfileUpdateSerializer(serializers.ModelSerializer):
+    """Write: demographics only. Lifecycle status has its own guarded endpoint."""
+
+    class Meta:
+        model = StudentProfile
+        fields = ["gender", "date_of_birth", "phone", "address", "school", "grade"]
+
+
+class StatusChangeSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(choices=StudentProfile.LifecycleStatus.choices)

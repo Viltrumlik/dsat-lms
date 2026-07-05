@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth/AuthProvider'
 import { useT } from '@/lib/i18n/I18nProvider'
 import { AvatarUploader } from '@/components/settings/AvatarUploader'
 import { ProfileForm } from '@/components/settings/ProfileForm'
+import { PersonalInfoForm } from '@/components/settings/PersonalInfoForm'
 import { ChangePasswordForm } from '@/components/settings/ChangePasswordForm'
 
 export default function SettingsPage() {
@@ -22,6 +23,7 @@ export default function SettingsPage() {
       </div>
       <AvatarUploader user={user} />
       <ProfileForm user={user} />
+      {user.role === 'student' && <PersonalInfoForm />}
       <ChangePasswordForm />
     </div>
   )
