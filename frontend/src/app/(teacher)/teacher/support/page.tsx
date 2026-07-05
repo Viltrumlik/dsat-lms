@@ -9,8 +9,9 @@ import { useT } from '@/lib/i18n/I18nProvider'
 import { cn } from '@/lib/utils/cn'
 import { StaffBookings } from '@/components/support/StaffBookings'
 import { StaffTickets } from '@/components/support/StaffTickets'
+import { StaffSupportAnalytics } from '@/components/support/StaffSupportAnalytics'
 
-type Tab = 'sessions' | 'questions'
+type Tab = 'sessions' | 'questions' | 'overview'
 
 export default function TeacherSupportPage() {
   const t = useT()
@@ -31,7 +32,7 @@ export default function TeacherSupportPage() {
       </div>
 
       <div className="flex gap-1 border-b border-border">
-        {(['sessions', 'questions'] as Tab[]).map((value) => (
+        {(['sessions', 'questions', 'overview'] as Tab[]).map((value) => (
           <button
             key={value}
             onClick={() => setTab(value)}
@@ -47,7 +48,9 @@ export default function TeacherSupportPage() {
         ))}
       </div>
 
-      {tab === 'sessions' ? <StaffBookings /> : <StaffTickets />}
+      {tab === 'sessions' && <StaffBookings />}
+      {tab === 'questions' && <StaffTickets />}
+      {tab === 'overview' && <StaffSupportAnalytics />}
     </div>
   )
 }

@@ -848,6 +848,44 @@ export interface SupportTicket extends SupportTicketSummary {
   attachments: TicketAttachment[]
 }
 
+// Support analytics (Phase 4 S3). NOTE: the API client camelizes nested keys, so
+// the backend's by_status.no_show arrives as byStatus.noShow.
+export interface SupportBookingKpis {
+  total: number
+  byStatus: {
+    pending: number
+    confirmed: number
+    completed: number
+    cancelled: number
+    noShow: number
+  }
+  completed: number
+  noShowRate: number | null
+  avgRating: number | null
+  avgWaitMinutes: number | null
+  utilization: number | null
+}
+
+export interface SupportTicketKpis {
+  total: number
+  open: number
+  answered: number
+  closed: number
+  avgResponseMinutes: number | null
+  answeredByMe: number | null
+}
+
+export interface StaffSupportAnalytics {
+  scope: 'own' | 'all'
+  bookings: SupportBookingKpis
+  tickets: SupportTicketKpis
+}
+
+export interface StudentSupportSummary {
+  sessions: { total: number; completed: number; upcoming: number; avgRatingGiven: number | null }
+  tickets: { total: number; open: number; answered: number; closed: number }
+}
+
 // ─────────────────────────────────────
 // Notifications
 // ─────────────────────────────────────

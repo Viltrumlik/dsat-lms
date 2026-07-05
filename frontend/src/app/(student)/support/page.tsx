@@ -8,6 +8,7 @@ import Link from 'next/link'
 import { CalendarPlus, ClipboardList, MessageSquarePlus } from 'lucide-react'
 import { useT } from '@/lib/i18n/I18nProvider'
 import { Card, CardContent } from '@/components/ui/card'
+import { SupportSummaryStrip } from '@/components/support/SupportSummaryStrip'
 
 const TILES = [
   {
@@ -38,6 +39,7 @@ export default function SupportPage() {
         <h1 className="text-2xl font-bold tracking-tight">{t('support.title')}</h1>
         <p className="text-muted-foreground">{t('support.subtitle')}</p>
       </div>
+      <SupportSummaryStrip />
       <div className="grid gap-4 sm:grid-cols-2">
         {TILES.map((tile) => {
           const Icon = tile.icon

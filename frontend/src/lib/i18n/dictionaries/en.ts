@@ -419,6 +419,7 @@ export const en = {
       tab: {
         sessions: '1:1 Sessions',
         questions: 'Questions',
+        overview: 'Overview',
       },
     },
     availability: {
@@ -1077,6 +1078,28 @@ export const en = {
       submit: 'Submit question',
       submitted: 'Question submitted',
       failed: 'Could not submit your question',
+    },
+    analytics: {
+      loadFailed: "Couldn't load analytics. Please try again.",
+      na: '—',
+      minutesUnit: '{n} min',
+      sessions: 'Sessions',
+      completed: 'Completed',
+      noShowRate: 'No-show rate',
+      avgRating: 'Avg rating',
+      avgWait: 'Avg wait',
+      utilization: 'Utilization (14d)',
+      byStatusTitle: 'Sessions by status',
+      ticketsOpen: 'Open questions',
+      ticketsAnswered: 'Answered',
+      avgResponse: 'Avg response',
+      answeredByMe: 'Answered by me',
+    },
+    summary: {
+      sessionsCompleted: 'Sessions completed',
+      upcoming: 'Upcoming',
+      questionsAsked: 'Questions asked',
+      questionsAnswered: 'Answered',
     },
   },
   errors: {

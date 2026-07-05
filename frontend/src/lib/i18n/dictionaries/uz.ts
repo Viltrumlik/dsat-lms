@@ -422,6 +422,7 @@ export const uz: Dictionary = {
       tab: {
         sessions: 'Yakkama-yakka mashgʻulotlar',
         questions: 'Savollar',
+        overview: 'Umumiy koʻrinish',
       },
     },
     availability: {
@@ -1080,6 +1081,28 @@ export const uz: Dictionary = {
       submit: 'Savolni yuborish',
       submitted: 'Savol yuborildi',
       failed: 'Savolingizni yuborib boʻlmadi',
+    },
+    analytics: {
+      loadFailed: 'Tahlilni yuklab boʻlmadi. Qayta urinib koʻring.',
+      na: '—',
+      minutesUnit: '{n} daq',
+      sessions: 'Mashgʻulotlar',
+      completed: 'Yakunlangan',
+      noShowRate: 'Kelmaslik ulushi',
+      avgRating: 'Oʻrtacha baho',
+      avgWait: 'Oʻrtacha kutish',
+      utilization: 'Bandlik (14 kun)',
+      byStatusTitle: 'Holat boʻyicha mashgʻulotlar',
+      ticketsOpen: 'Ochiq savollar',
+      ticketsAnswered: 'Javob berilgan',
+      avgResponse: 'Oʻrtacha javob',
+      answeredByMe: 'Men javob berdim',
+    },
+    summary: {
+      sessionsCompleted: 'Yakunlangan mashgʻulotlar',
+      upcoming: 'Boʻlajak',
+      questionsAsked: 'Berilgan savollar',
+      questionsAnswered: 'Javob berilgan',
     },
   },
   errors: {
