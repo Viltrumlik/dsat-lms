@@ -19,7 +19,7 @@ from django.db import models
 
 from common.models import BaseModel
 
-from .enums import BookingStatus, Priority, Subject, TicketStatus
+from .enums import BookingStatus, Priority, RecSeverity, RecStatus, Subject, TicketStatus
 
 
 class TeacherAvailability(BaseModel):
@@ -91,6 +91,15 @@ class SupportBooking(BaseModel):
     completed_at = models.DateTimeField(null=True, blank=True)
     cancelled_at = models.DateTimeField(null=True, blank=True)
     join_url = models.URLField(blank=True, default="")
+    # The proactive recommendation (S4) this booking acted on, if any. Set at
+    # booking-create from the ?rec= deep-link; flips the recommendation to ACTED.
+    source_recommendation = models.ForeignKey(
+        "support.SupportRecommendation",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
 
     class Meta:
         db_table = "support_bookings"
@@ -221,3 +230,48 @@ class SupportTicketAttachment(BaseModel):
 
     def __str__(self):
         return f"TicketAttachment<{self.ticket_id}>"
+
+
+class SupportRecommendation(BaseModel):
+    """A proactive nudge (S4) that a student would benefit from support, produced
+    by the daily trigger sweep from analytics signals. At most one active
+    recommendation per (student, rule_key) exists at a time (dedupe lives in the
+    sweep). Booking from the ?rec= deep-link flips it to ACTED and links the
+    booking. `evidence` is the JSON behind the rule — the 4th sanctioned JSONB use,
+    per the locked Phase 4 plan (alongside the §5 three)."""
+
+    student = models.ForeignKey(
+        "identity.User", on_delete=models.CASCADE, related_name="support_recommendations"
+    )
+    rule_key = models.CharField(max_length=50)
+    severity = models.CharField(
+        max_length=10, choices=RecSeverity.choices, default=RecSeverity.INFO
+    )
+    status = models.CharField(
+        max_length=12, choices=RecStatus.choices, default=RecStatus.NEW, db_index=True
+    )
+    subject = models.CharField(max_length=20, choices=Subject.choices, blank=True, default="")
+    topic = models.CharField(max_length=200, blank=True, default="")
+    evidence = models.JSONField(default=dict)
+    notification = models.ForeignKey(
+        "notifications.Notification",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    booking = models.ForeignKey(
+        SupportBooking, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    expires_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "support_recommendations"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["student", "status"]),
+            models.Index(fields=["student", "rule_key", "status"]),
+        ]
+
+    def __str__(self):
+        return f"Rec<{self.student_id}> {self.rule_key} ({self.status})"

@@ -24,13 +24,14 @@ from common.responses import created_response, success_response
 
 from .analytics_services import student_support_summary
 from .availability import generate_slots
-from .enums import BookingStatus
-from .models import SupportBooking, SupportTicket, TeacherAvailability
+from .enums import BookingStatus, RecStatus
+from .models import SupportBooking, SupportRecommendation, SupportTicket, TeacherAvailability
 from .serializers import (
     SessionRatingSerializer,
     SlotSerializer,
     SupportBookingCreateSerializer,
     SupportBookingSerializer,
+    SupportRecommendationSerializer,
     SupportTicketDetailSerializer,
     SupportTicketListSerializer,
     TicketCreateSerializer,
@@ -44,6 +45,7 @@ from .services import (
     change_ticket_status,
     create_booking,
     create_ticket,
+    dismiss_recommendation,
     rate_booking,
 )
 
@@ -172,6 +174,14 @@ class SupportBookingListCreateView(APIView):
         serializer = SupportBookingCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
+        recommendation = None
+        rec_id = data.get("recommendation")
+        if rec_id:
+            # Only an own recommendation links; an unknown id is silently ignored
+            # (the booking still succeeds).
+            recommendation = SupportRecommendation.objects.filter(
+                pk=rec_id, student=request.user
+            ).first()
         try:
             booking = create_booking(
                 student=request.user,
@@ -180,6 +190,7 @@ class SupportBookingListCreateView(APIView):
                 scheduled_at=data["scheduled_at"],
                 topic=data.get("topic", ""),
                 reason=data.get("reason", ""),
+                recommendation=recommendation,
             )
         except ValueError as exc:
             return booking_error_response(exc)
@@ -323,3 +334,34 @@ class StudentSupportSummaryView(APIView):
 
     def get(self, request):
         return success_response(student_support_summary(request.user))
+
+
+# ─────────────────────────────────────
+# Proactive recommendations (S4) — student
+# ─────────────────────────────────────
+
+
+class SupportRecommendationListView(APIView):
+    """A student's active (NEW) recommendations — powers the dashboard banner."""
+
+    permission_classes = [IsAcademyStudent]
+
+    def get(self, request):
+        recs = SupportRecommendation.objects.filter(student=request.user, status=RecStatus.NEW)
+        return success_response(SupportRecommendationSerializer(recs, many=True).data)
+
+
+class SupportRecommendationDismissView(APIView):
+    permission_classes = [IsAcademyStudent]
+
+    def post(self, request, pk):
+        rec = SupportRecommendation.objects.filter(pk=pk, student=request.user).first()
+        if rec is None:
+            raise NotFound("Recommendation not found.")
+        try:
+            dismiss_recommendation(rec)
+        except ValueError:
+            return APIValidationError(
+                "This recommendation can no longer be dismissed."
+            ).to_response()
+        return success_response(SupportRecommendationSerializer(rec).data)

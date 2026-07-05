@@ -11,6 +11,7 @@ from .models import (
     SessionOutcome,
     SessionRating,
     SupportBooking,
+    SupportRecommendation,
     SupportTicket,
     SupportTicketAttachment,
     TeacherAvailability,
@@ -72,3 +73,10 @@ class SupportTicketAdmin(admin.ModelAdmin):
     list_filter = ("status", "priority", "subject")
     raw_id_fields = ("student", "assigned_to")
     inlines = [TicketReplyInline, SupportTicketAttachmentInline]
+
+
+@admin.register(SupportRecommendation)
+class SupportRecommendationAdmin(admin.ModelAdmin):
+    list_display = ("student", "rule_key", "severity", "status", "subject", "topic", "expires_at")
+    list_filter = ("status", "severity", "rule_key")
+    raw_id_fields = ("student", "notification", "booking")

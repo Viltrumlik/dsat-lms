@@ -149,6 +149,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.files.tasks.purge_soft_deleted_attachments",
         "schedule": crontab(hour=4, minute=0),  # daily, CELERY_TIMEZONE
     },
+    "sweep-support-triggers": {
+        "task": "apps.support.tasks.sweep_support_triggers",
+        "schedule": crontab(hour=6, minute=0),  # daily, CELERY_TIMEZONE
+    },
 }
 
 # ─────────────────────────────────────

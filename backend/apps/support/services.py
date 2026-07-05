@@ -10,6 +10,7 @@ Description: Server-authoritative booking logic. create_booking validates the sl
     notifications (no_show intentionally sends none — there is no such type).
 """
 
+from datetime import timedelta
 from zoneinfo import ZoneInfo
 
 from django.conf import settings
@@ -17,14 +18,16 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from .availability import generate_slots
-from .enums import BookingStatus, Priority, TicketStatus
+from .enums import BookingStatus, Priority, RecSeverity, RecStatus, TicketStatus
 from .models import (
     SessionRating,
     SupportBooking,
+    SupportRecommendation,
     SupportTicket,
     SupportTicketAttachment,
     TicketReply,
 )
+from .rules import evaluate_rules
 
 # Allowed status moves. completed / cancelled / no_show are terminal.
 _ALLOWED_TRANSITIONS = {
@@ -47,13 +50,24 @@ _STATUS_STAMP = {
 
 
 def create_booking(
-    *, student, teacher, subject, scheduled_at, topic="", reason="", duration_minutes=None
+    *,
+    student,
+    teacher,
+    subject,
+    scheduled_at,
+    topic="",
+    reason="",
+    duration_minutes=None,
+    recommendation=None,
 ):
     """Create a PENDING booking for `student` with `teacher` at `scheduled_at`.
 
     The slot must be a real, free slot per generate_slots (freshness + availability
     + not-already-taken in one check). Raises ValueError('slot_unavailable') if not,
     or ValueError('slot_taken') if the unique constraint trips on a race.
+
+    If `recommendation` (an owned SupportRecommendation) is given, the booking links
+    it and — server-authoritatively — flips a NEW recommendation to ACTED.
     """
     tz = ZoneInfo(settings.TIME_ZONE)
     day = scheduled_at.astimezone(tz).date()
@@ -78,7 +92,12 @@ def create_booking(
                 duration_minutes=match["duration_minutes"],
                 topic=topic,
                 reason=reason,
+                source_recommendation=recommendation,
             )
+            if recommendation is not None and recommendation.status == RecStatus.NEW:
+                recommendation.status = RecStatus.ACTED
+                recommendation.booking = booking
+                recommendation.save(update_fields=["status", "booking", "updated_at"])
     except IntegrityError:
         raise ValueError("slot_taken") from None
 
@@ -296,3 +315,110 @@ def _notify_ticket_reply(ticket, *, is_staff_answer):
                 "url": "/teacher/support?tab=questions",
             },
         )
+
+
+# ─────────────────────────────────────
+# Proactive trigger sweep (S4)
+# ─────────────────────────────────────
+
+RECOMMENDATION_TTL_DAYS = 14
+_SEVERITY_RANK = {RecSeverity.INFO: 0, RecSeverity.WARNING: 1, RecSeverity.CRITICAL: 2}
+
+
+def dismiss_recommendation(recommendation):
+    """Student dismisses a NEW recommendation. Raises ValueError('not_active') if
+    it isn't dismissible (already acted/expired/dismissed)."""
+    if recommendation.status != RecStatus.NEW:
+        raise ValueError("not_active")
+    recommendation.status = RecStatus.DISMISSED
+    recommendation.save(update_fields=["status", "updated_at"])
+    return recommendation
+
+
+def _recommendation_data(rec):
+    from urllib.parse import urlencode
+
+    params = {}
+    if rec.subject:
+        params["subject"] = rec.subject
+    if rec.topic:
+        params["topic"] = rec.topic
+    params["rec"] = str(rec.id)
+    return {
+        "url": "/support/book?" + urlencode(params),
+        "recommendation_id": str(rec.id),
+        "rule_key": rec.rule_key,
+        "severity": rec.severity,
+        "subject": rec.subject,
+        "topic": rec.topic,
+    }
+
+
+def run_support_sweep():
+    """Daily proactive trigger. Reads the whole active-enrolled cohort's signals in
+    a fixed number of grouped queries (N-independent), fires the rules, dedupes on
+    (student, rule_key) against live recommendations, and notifies each student at
+    most once — for the highest-severity NEW recommendation. Expiry of stale NEW
+    recommendations is folded in. Returns a summary dict."""
+    from apps.academy.models import ClassEnrollment
+    from apps.analytics.services import _batch_signals, batch_weak_topics
+    from apps.identity.models import User
+    from apps.notifications.models import Notification
+    from apps.notifications.services import notify
+
+    now = timezone.now()
+    expired = SupportRecommendation.objects.filter(status=RecStatus.NEW, expires_at__lt=now).update(
+        status=RecStatus.EXPIRED, updated_at=now
+    )
+
+    student_ids = list(
+        ClassEnrollment.objects.filter(status=ClassEnrollment.Status.ACTIVE)
+        .values_list("student_id", flat=True)
+        .distinct()
+    )
+    if not student_ids:
+        return {"students": 0, "created": 0, "notified": 0, "expired": expired}
+
+    signals = _batch_signals(student_ids)
+    weak = batch_weak_topics(student_ids)
+    # Live (new/acted) recommendations already held, so we never duplicate a rule.
+    existing = set(
+        SupportRecommendation.objects.filter(
+            student_id__in=student_ids, status__in=[RecStatus.NEW, RecStatus.ACTED]
+        ).values_list("student_id", "rule_key")
+    )
+    users = User.objects.in_bulk(student_ids)
+    expires_at = now + timedelta(days=RECOMMENDATION_TTL_DAYS)
+
+    created = 0
+    notified = 0
+    for sid in student_ids:
+        fired = evaluate_rules(signals.get(sid, {}), weak.get(sid, []))
+        fresh = []
+        for rec_dict in fired:
+            if (sid, rec_dict["rule_key"]) in existing:
+                continue
+            rec = SupportRecommendation.objects.create(
+                student_id=sid, expires_at=expires_at, **rec_dict
+            )
+            existing.add((sid, rec_dict["rule_key"]))
+            fresh.append(rec)
+            created += 1
+        if fresh:
+            top = max(fresh, key=lambda r: _SEVERITY_RANK.get(r.severity, 0))
+            notif = notify(
+                users[sid],
+                Notification.Type.SUPPORT_RECOMMENDATION,
+                "A support session could help",
+                data=_recommendation_data(top),
+            )
+            top.notification = notif
+            top.save(update_fields=["notification", "updated_at"])
+            notified += 1
+
+    return {
+        "students": len(student_ids),
+        "created": created,
+        "notified": notified,
+        "expired": expired,
+    }

@@ -39,6 +39,17 @@ urlpatterns = [
     ),
     # ─── Student: support analytics summary ───
     path("analytics/", views.StudentSupportSummaryView.as_view(), name="student-analytics"),
+    # ─── Student: proactive recommendations ───
+    path(
+        "recommendations/",
+        views.SupportRecommendationListView.as_view(),
+        name="recommendation-list",
+    ),
+    path(
+        "recommendations/<uuid:pk>/dismiss/",
+        views.SupportRecommendationDismissView.as_view(),
+        name="recommendation-dismiss",
+    ),
     # ─── Teacher: own availability (self-service) ───
     path("availability/", views_staff.MyAvailabilityView.as_view(), name="availability"),
     path(

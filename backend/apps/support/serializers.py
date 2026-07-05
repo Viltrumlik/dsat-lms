@@ -15,6 +15,7 @@ from .models import (
     SessionOutcome,
     SessionRating,
     SupportBooking,
+    SupportRecommendation,
     SupportTicket,
     SupportTicketAttachment,
     TeacherAvailability,
@@ -175,6 +176,8 @@ class SupportBookingCreateSerializer(serializers.Serializer):
     scheduled_at = serializers.DateTimeField()
     topic = serializers.CharField(max_length=200, required=False, allow_blank=True, default="")
     reason = serializers.CharField(required=False, allow_blank=True, default="")
+    # Optional: the proactive recommendation this booking acts on (S4 deep-link).
+    recommendation = serializers.UUIDField(required=False, allow_null=True)
 
 
 class BookingStatusChangeSerializer(serializers.Serializer):
@@ -281,3 +284,25 @@ class TicketAssignSerializer(serializers.Serializer):
         if value is not None and not value.is_academy_staff:
             raise serializers.ValidationError("Assignee must be a staff member.")
         return value
+
+
+# ─────────────────────────────────────
+# Recommendations (S4 — proactive trigger)
+# ─────────────────────────────────────
+
+
+class SupportRecommendationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SupportRecommendation
+        fields = [
+            "id",
+            "rule_key",
+            "severity",
+            "status",
+            "subject",
+            "topic",
+            "evidence",
+            "created_at",
+            "expires_at",
+        ]
+        read_only_fields = fields

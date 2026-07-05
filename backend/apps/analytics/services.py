@@ -180,6 +180,36 @@ def weak_topics(user, limit=3, min_attempts=5):
     ]
 
 
+def batch_weak_topics(user_ids, limit=3, min_attempts=5):
+    """Grouped weak_topics for a cohort — a single ordered query bucketed per user
+    in Python (avoids N+1 in the support-trigger sweep). Returns {user_id:
+    [weak_topic, …]} with each user's `limit` lowest-accuracy categories that have
+    at least `min_attempts` answers. Mirrors weak_topics() row-for-row."""
+    user_ids = list(user_ids)
+    if not user_ids:
+        return {}
+    per_user = {}
+    for s in (
+        UserCategoryStat.objects.filter(
+            user_id__in=user_ids, total_answered__gte=min_attempts, accuracy_pct__isnull=False
+        )
+        .select_related("category")
+        .order_by("user_id", "accuracy_pct")
+    ):
+        bucket = per_user.setdefault(s.user_id, [])
+        if len(bucket) < limit:
+            bucket.append(
+                {
+                    "category_id": str(s.category_id),
+                    "category_name": s.category.name,
+                    "module": s.category.module,
+                    "accuracy_pct": float(s.accuracy_pct),
+                    "total_answered": s.total_answered,
+                }
+            )
+    return per_user
+
+
 def recent_score_estimate(user, window=3):
     """Average of recent FULL-length mock/past-paper total scores. This is a
     descriptive recent-average, explicitly NOT a prediction/ML model."""
