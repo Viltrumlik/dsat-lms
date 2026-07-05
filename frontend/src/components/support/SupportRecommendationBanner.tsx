@@ -40,7 +40,7 @@ export function SupportRecommendationBanner() {
   const { data } = useQuery({
     queryKey: ['support', 'recommendations'],
     queryFn: supportAPI.recommendations.list,
-    enabled: !!user && user.role !== 'public', // recs are academy-student only
+    enabled: !!user && user.role === 'student', // recs are academy-student only (matches endpoint)
   })
 
   const dismiss = useMutation({
