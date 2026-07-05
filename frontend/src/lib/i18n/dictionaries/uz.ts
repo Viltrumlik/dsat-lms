@@ -556,6 +556,8 @@ export const uz: Dictionary = {
       public: 'Ommaviy',
       student: 'Talaba',
       teacher: 'Oʻqituvchi',
+      receptionist: 'Qabulxona',
+      academic_manager: 'Akademik menejer',
       admin: 'Administrator',
     },
     users: {

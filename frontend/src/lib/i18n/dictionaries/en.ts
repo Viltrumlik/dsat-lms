@@ -553,6 +553,8 @@ export const en = {
       public: 'Public',
       student: 'Student',
       teacher: 'Teacher',
+      receptionist: 'Receptionist',
+      academic_manager: 'Academic manager',
       admin: 'Admin',
     },
     users: {

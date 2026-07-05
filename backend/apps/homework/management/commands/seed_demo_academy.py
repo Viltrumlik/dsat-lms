@@ -13,8 +13,10 @@ homework title).
     python manage.py seed_demo_academy
 
 Dev credentials:
-    teacher@dsat.local / DevTeacher123!
-    student@dsat.local / DevStudent123!
+    teacher@dsat.local      / DevTeacher123!
+    student@dsat.local      / DevStudent123!
+    receptionist@dsat.local / DevReception123!
+    manager@dsat.local      / DevManager123!   (academic_manager)
 """
 
 import datetime as dt
@@ -32,6 +34,10 @@ TEACHER_EMAIL = "teacher@dsat.local"
 TEACHER_PASSWORD = "DevTeacher123!"
 STUDENT_EMAIL = "student@dsat.local"
 STUDENT_PASSWORD = "DevStudent123!"
+RECEPTIONIST_EMAIL = "receptionist@dsat.local"
+RECEPTIONIST_PASSWORD = "DevReception123!"
+MANAGER_EMAIL = "manager@dsat.local"
+MANAGER_PASSWORD = "DevManager123!"
 CLASS_NAME = "SAT Morning Group"
 
 
@@ -45,6 +51,12 @@ class Command(BaseCommand):
         )
         student = self._get_or_create_user(
             STUDENT_EMAIL, STUDENT_PASSWORD, "Aziza", "Karimova", role="student"
+        )
+        self._get_or_create_user(
+            RECEPTIONIST_EMAIL, RECEPTIONIST_PASSWORD, "Dilnoza", "Yusupova", role="receptionist"
+        )
+        self._get_or_create_user(
+            MANAGER_EMAIL, MANAGER_PASSWORD, "Sardor", "Rahimov", role="academic_manager"
         )
 
         klass, created = Class.objects.get_or_create(name=CLASS_NAME, defaults={"teacher": teacher})
@@ -95,6 +107,10 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS(f"TEACHER={TEACHER_EMAIL} / {TEACHER_PASSWORD}"))
         self.stdout.write(self.style.SUCCESS(f"STUDENT={STUDENT_EMAIL} / {STUDENT_PASSWORD}"))
+        self.stdout.write(
+            self.style.SUCCESS(f"RECEPTIONIST={RECEPTIONIST_EMAIL} / {RECEPTIONIST_PASSWORD}")
+        )
+        self.stdout.write(self.style.SUCCESS(f"MANAGER={MANAGER_EMAIL} / {MANAGER_PASSWORD}"))
         self.stdout.write(self.style.SUCCESS(f"CLASS_ID={klass.id}"))
 
     def _get_or_create_user(self, email, password, first_name, last_name, role):

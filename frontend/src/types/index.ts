@@ -44,7 +44,13 @@ export type Decimalish = number | string | null
 // Identity
 // ─────────────────────────────────────
 
-export type UserRole = 'public' | 'student' | 'teacher' | 'admin'
+export type UserRole =
+  | 'public'
+  | 'student'
+  | 'teacher'
+  | 'receptionist'
+  | 'academic_manager'
+  | 'admin'
 
 export interface User {
   id: string
