@@ -855,6 +855,14 @@ export const uz: Dictionary = {
       changedDesc: 'Keyingi kirishda yangi parolingizdan foydalaning.',
       changeFailed: 'Parolni yangilab boʻlmadi',
     },
+    avatar: {
+      title: 'Profil rasmi',
+      subtitle: 'Profilingizda va sinf roʻyxatlarida koʻrsatiladi.',
+      change: 'Rasmni oʻzgartirish',
+      hint: 'JPG, PNG, WebP yoki GIF, 5 MB gacha.',
+      updated: 'Rasm yangilandi',
+      failed: 'Rasmni yangilab boʻlmadi',
+    },
   },
   errors: {
     appTitle: 'Xatolik yuz berdi',

@@ -4,6 +4,7 @@
 
 import { useAuth } from '@/lib/auth/AuthProvider'
 import { useT } from '@/lib/i18n/I18nProvider'
+import { AvatarUploader } from '@/components/settings/AvatarUploader'
 import { ProfileForm } from '@/components/settings/ProfileForm'
 import { ChangePasswordForm } from '@/components/settings/ChangePasswordForm'
 
@@ -19,6 +20,7 @@ export default function SettingsPage() {
         <h1 className="text-2xl font-bold tracking-tight">{t('settings.title')}</h1>
         <p className="text-muted-foreground">{t('settings.subtitle')}</p>
       </div>
+      <AvatarUploader user={user} />
       <ProfileForm user={user} />
       <ChangePasswordForm />
     </div>

@@ -1,0 +1,117 @@
+"""
+DSAT LMS v2 — Files services
+Domain: Files
+Description: Upload creation with server-side validation (size ceiling + content-type
+    allowlist + magic-byte sniff so a spoofed Content-Type can't smuggle a
+    non-image/non-pdf through), avatar wiring, and the access predicate.
+"""
+
+from django.conf import settings
+from django.utils import timezone
+
+from common.exceptions import ValidationError
+
+from .models import Attachment
+
+# Size ceilings (bytes).
+AVATAR_MAX_BYTES = 5 * 1024 * 1024
+FILE_MAX_BYTES = 25 * 1024 * 1024
+
+IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+# Allowed content types for non-avatar files. Every allowed type is magic-byte
+# sniffed below — do not add a type here without a matching sniff, or a spoofed
+# Content-Type could smuggle arbitrary bytes.
+FILE_TYPES = IMAGE_TYPES | {"application/pdf"}
+
+
+def _sniff_image(upload):
+    """Confirm the bytes really decode as an image (defeats a spoofed Content-Type)."""
+    from PIL import Image, UnidentifiedImageError
+
+    try:
+        upload.seek(0)
+        with Image.open(upload) as img:
+            img.verify()
+    except (UnidentifiedImageError, OSError, ValueError) as exc:
+        raise ValidationError("The uploaded file is not a valid image.", field="file") from exc
+    finally:
+        upload.seek(0)
+
+
+def _sniff_pdf(upload):
+    upload.seek(0)
+    head = upload.read(5)
+    upload.seek(0)
+    if head[:4] != b"%PDF":
+        raise ValidationError("The uploaded file is not a valid PDF.", field="file")
+
+
+def validate_upload(upload, kind):
+    content_type = (getattr(upload, "content_type", "") or "").lower()
+    is_avatar = kind == Attachment.Kind.AVATAR
+    max_bytes = AVATAR_MAX_BYTES if is_avatar else FILE_MAX_BYTES
+    if upload.size > max_bytes:
+        raise ValidationError(
+            f"File too large (max {max_bytes // (1024 * 1024)} MB).", field="file"
+        )
+    allowed = IMAGE_TYPES if is_avatar else FILE_TYPES
+    if content_type not in allowed:
+        raise ValidationError("Unsupported file type.", field="file")
+    if content_type in IMAGE_TYPES:
+        _sniff_image(upload)
+    elif content_type == "application/pdf":
+        _sniff_pdf(upload)
+
+
+def create_attachment(*, owner, uploaded_by, upload, kind):
+    """Validate + persist an upload. The blob is written to the default storage
+    under a server-controlled key (see storage.attachment_upload_to)."""
+    validate_upload(upload, kind)
+    attachment = Attachment(
+        owner=owner,
+        uploaded_by=uploaded_by,
+        kind=kind,
+        original_name=(upload.name or "file")[:255],
+        content_type=(getattr(upload, "content_type", "") or "application/octet-stream")[:100],
+        size=upload.size,
+    )
+    attachment.file = upload
+    attachment.save()
+    return attachment
+
+
+def attachment_download_url(attachment):
+    """Stable, cacheable absolute URL. The endpoint re-signs remote URLs per hit, so
+    this path never embeds an expiring token (safe to store in User.avatar_url)."""
+    base = settings.BACKEND_PUBLIC_URL.rstrip("/")
+    return f"{base}/api/v1/files/{attachment.id}/download/"
+
+
+def set_avatar(user, attachment):
+    """Point a user's avatar_url at an owned avatar attachment's stable download URL,
+    soft-deleting any superseded avatars so the old blobs enter the 30-day purge
+    (and stop being downloadable by their UUID)."""
+    Attachment.objects.filter(owner=user, kind=Attachment.Kind.AVATAR).exclude(
+        pk=attachment.pk
+    ).update(deleted_at=timezone.now())
+    user.avatar_url = attachment_download_url(attachment)
+    user.save(update_fields=["avatar_url", "updated_at"])
+    return user
+
+
+def can_access_attachment(user, attachment):
+    """F2 READ access: the owner, or full-access staff (admin / academic_manager /
+    receptionist). Teacher own-class file access lands with the profile Files tab."""
+    if attachment.owner_id == user.id:
+        return True
+    return bool(getattr(user, "can_read_all_students", False))
+
+
+def can_manage_user_files(actor, owner):
+    """WRITE access to files owned by another user (upload-on-behalf, set-avatar):
+    the user themselves, an admin, or full-access staff acting on a STUDENT. Staff
+    may never create/mutate files on another staff or admin account — no privilege
+    escalation (e.g. a receptionist overwriting an admin's avatar)."""
+    if owner.id == actor.id or actor.is_admin:
+        return True
+    return bool(getattr(actor, "can_read_all_students", False)) and owner.role == "student"

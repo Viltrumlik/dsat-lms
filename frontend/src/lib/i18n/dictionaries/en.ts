@@ -852,6 +852,14 @@ export const en = {
       changedDesc: 'Use your new password next time you sign in.',
       changeFailed: 'Could not update password',
     },
+    avatar: {
+      title: 'Profile photo',
+      subtitle: 'Shown on your profile and in class rosters.',
+      change: 'Change photo',
+      hint: 'JPG, PNG, WebP or GIF, up to 5 MB.',
+      updated: 'Photo updated',
+      failed: 'Could not update photo',
+    },
   },
   errors: {
     appTitle: 'Something went wrong',

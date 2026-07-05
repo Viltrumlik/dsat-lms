@@ -38,9 +38,14 @@ if STORAGE_BACKEND == "r2":
     AWS_SECRET_ACCESS_KEY = env("R2_SECRET_ACCESS_KEY")
     AWS_STORAGE_BUCKET_NAME = env("R2_BUCKET_NAME")
     AWS_S3_ENDPOINT_URL = f"https://{env('R2_ACCOUNT_ID')}.r2.cloudflarestorage.com"
-    AWS_S3_CUSTOM_DOMAIN = env("R2_CUSTOM_DOMAIN", default="")
-    AWS_DEFAULT_ACL = None
-    AWS_QUERYSTRING_AUTH = False
+    # PRIVATE objects, served via short-lived presigned URLs — student documents
+    # must never be world-readable. apps/files/storage.download_response re-signs
+    # per hit, so avatars (public-by-UUID at the endpoint layer) still render in
+    # <img> via a fresh 302 redirect. No public custom domain for this reason.
+    AWS_DEFAULT_ACL = "private"
+    AWS_QUERYSTRING_AUTH = True
+    AWS_QUERYSTRING_EXPIRE = env.int("R2_URL_EXPIRE_SECONDS", default=3600)
+    AWS_S3_FILE_OVERWRITE = False
     STORAGES = {
         "default": {"BACKEND": "storages.backends.s3.S3Storage"},
         "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
