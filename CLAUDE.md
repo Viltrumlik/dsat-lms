@@ -662,11 +662,13 @@ Realtime (websocket) notifications; attendance tracking; official SAT scaling re
 > Support Session Trigger** that detects struggle from analytics and recommends a booking *before*
 > the problem grows. Builds on the Phase 4 foundation already shipped (F1 roles/permissions,
 > F2 attachments, 4A teacher dashboard, 4D StudentProfile+Guardians).
-> **Status:** plan LOCKED. **S0 skeleton SHIPPED** (branch `feat/phase4-teacher-crm`) — `apps/support`
-> app (enums.py · scoping.py composing academy · empty models/urls) + `/api/v1/support/` mount + 10
-> Support-Center `Notification.Type` values (one migration) + student `nav.support` (academyOnly) +
-> en/uz `support.*` stub + coming-soon landing page. Next up: **S1** (Book a Teacher). Full design doc
-> lived in a session scratchpad; this section is the durable record.
+> **Status:** plan LOCKED. **S0 + S1 SHIPPED** (branch `feat/phase4-teacher-crm`). **S0**: `apps/support`
+> skeleton (enums · scoping · `/api/v1/support/` mount · 10 `Notification.Type` · nav · en/uz stub).
+> **S1 (Book a Teacher)**: `TeacherAvailability`/`SupportBooking`/`SessionOutcome`/`SessionRating`,
+> `generate_slots` (settings.TIME_ZONE), `change_booking_status`, booking notifications; student wizard +
+> My Sessions (cancel/rate) + teacher dashboard (confirm/complete/no-show/cancel/outcome) + availability
+> editor. Verified end-to-end in the browser + Playwright e2e. **Next up: S2** (Ask a Question). Full
+> design doc lived in a session scratchpad; this section is the durable record.
 
 ### Locked decisions (owner, 2026-07-05)
 1. **MVP = S0 + S1 + S2 + S4** (foundations · book-a-teacher · ask-a-question · proactive trigger). S3/S5/S6/S7 fast-follow.
@@ -718,4 +720,4 @@ Payments/billing; realtime (websocket) chat & student→mentor messaging; video/
 
 *Oxirgi yangilangan: Phases 1–2 COMPLETE (merged to main). **Phase 3 COMPLETE + follow-ups** (branch `feat/phase3-admin`; core merged to main via [PR #5](https://github.com/Viltrumlik/dsat-lms/pull/5), follow-ups + verification in [PR #6](https://github.com/Viltrumlik/dsat-lms/pull/6)): **3A** admin user management (+ post-audit hardening + bulk CSV import), **3B** content studio (authoring + review lifecycle + §9 versioning + categories/tags management UI + tag/source editor fields), **3C** exam builder + assignments (+ assignment/exam-meta edit dialogs). All with `/api/v1/admin/` endpoints (identity + question_bank + assessments — three includes at one prefix) + `(admin)` UI. **Verified:** backend 234 pytest; frontend type-check + lint + 63 vitest (incl. admin render tests) + build; **browser-verified 3A/3B/3C in EN+UZ**; Playwright e2e for all three (`admin`, `content-studio`, `exam-builder` specs). Deferred (low-value): section-title inline edit; repo-wide drf-spectacular `serializer_class` (OpenAPI docs).*
 
-***Phase 4 IN PROGRESS** (branch `feat/phase4-teacher-crm`): foundation shipped — F1 roles/permissions, F2 attachments pipeline, 4A teacher dashboard, 4D StudentProfile+Guardians CRM. **Support Center** designed + LOCKED (see the "PHASE 4 — SUPPORT CENTER" section above); MVP = S0+S1+S2+S4. **S0 skeleton SHIPPED** (`apps/support` app + enums + academy-composed scoping + `/api/v1/support/` mount + 10 `Notification.Type` values in one migration + student `nav.support` + en/uz `support.*` stub + coming-soon landing page; backend `check`/`makemigrations --check`/ruff/black + frontend type-check/lint/vitest/`next build` all green; adversarial 4-dimension review clean). **Next = S1** (Book a Teacher).*
+***Phase 4 IN PROGRESS** (branch `feat/phase4-teacher-crm`): foundation shipped — F1 roles/permissions, F2 attachments pipeline, 4A teacher dashboard, 4D StudentProfile+Guardians CRM. **Support Center** designed + LOCKED (see the "PHASE 4 — SUPPORT CENTER" section above); MVP = S0+S1+S2+S4. **S0 + S1 SHIPPED** (commits 7d3ef56 S0, a3bd9aa S1 backend, ede5ba2 S1 frontend). **S0** = `apps/support` skeleton (enums + academy-composed scoping + `/api/v1/support/` mount + 10 `Notification.Type` in one migration + nav + en/uz stub). **S1 (Book a Teacher)** = `TeacherAvailability`/`SupportBooking` (partial-unique no-double-book, server-stamped timestamps)/`SessionOutcome` (staff-only notes)/`SessionRating`; `generate_slots` (single slot def, settings.TIME_ZONE); `change_booking_status` (guarded, no-show time guard); booking_* notifications; student wizard + My Sessions (cancel/rate) + teacher dashboard + availability editor; row-scoped staff endpoints (404 out-of-scope). Verified: 375 pytest + ruff/black/makemigrations; frontend type-check/lint/vitest 71/`next build`; **browser-verified E2E** (student book → teacher confirm → notification, TZ round-trip) + Playwright `support.spec.ts`; adversarial cross-stack review clean (1 low fixed: teacher-only availability nav). **Next = S2** (Ask a Question).*
