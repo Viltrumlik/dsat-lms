@@ -10,14 +10,21 @@ import { Paperclip } from 'lucide-react'
 import { filesAPI } from '@/lib/api/files'
 import { useI18n } from '@/lib/i18n/I18nProvider'
 import { cn } from '@/lib/utils/cn'
+import { useToast } from '@/components/ui/toast'
 import { Badge } from '@/components/ui/badge'
 import type { SupportTicket, TicketAttachment } from '@/types'
 
 function AttachmentChip({ attachment }: { attachment: TicketAttachment }) {
+  const { t } = useI18n()
+  const { toast } = useToast()
   return (
     <button
       type="button"
-      onClick={() => filesAPI.download(attachment.downloadUrl, attachment.originalName).catch(() => {})}
+      onClick={() =>
+        filesAPI
+          .download(attachment.downloadUrl, attachment.originalName)
+          .catch(() => toast({ variant: 'error', title: t('support.tickets.downloadFailed') }))
+      }
       className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-muted"
     >
       <Paperclip className="h-3 w-3" /> {attachment.originalName}

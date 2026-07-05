@@ -1061,6 +1061,7 @@ export const en = {
       replyFailed: 'Could not send your reply',
       statusFailed: 'Could not update the question',
       notFound: "This question couldn't be found.",
+      downloadFailed: 'Could not download the file',
     },
     ask: {
       cta: 'Ask a question',

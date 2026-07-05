@@ -282,3 +282,24 @@ class TestStaffQueue:
 
     def test_student_cannot_access_staff_queue(self):
         assert authed(role="student").get(BASE + "staff/tickets/").status_code == 403
+
+
+class TestTicketAttachmentAccess:
+    """A teacher answering a pooled ticket must be able to read its (student-owned)
+    attachments, but not unrelated student files."""
+
+    def test_staff_can_access_ticket_linked_attachment(self):
+        from apps.files.services import can_access_attachment
+        from apps.support.models import SupportTicketAttachment
+
+        student = UserFactory(role="student")
+        att = make_attachment(student)
+        ticket = make_ticket(student)
+        SupportTicketAttachment.objects.create(ticket=ticket, attachment=att)
+        assert can_access_attachment(UserFactory(role="teacher"), att) is True
+
+    def test_teacher_cannot_access_unlinked_student_file(self):
+        from apps.files.services import can_access_attachment
+
+        att = make_attachment(UserFactory(role="student"))  # not linked to any ticket
+        assert can_access_attachment(UserFactory(role="teacher"), att) is False

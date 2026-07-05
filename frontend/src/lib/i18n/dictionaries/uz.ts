@@ -1064,6 +1064,7 @@ export const uz: Dictionary = {
       replyFailed: 'Javobingizni yuborib boʻlmadi',
       statusFailed: 'Savolni yangilab boʻlmadi',
       notFound: 'Bu savol topilmadi.',
+      downloadFailed: 'Faylni yuklab boʻlmadi',
     },
     ask: {
       cta: 'Savol berish',
