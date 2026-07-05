@@ -105,6 +105,26 @@ class Command(BaseCommand):
         )
         self._note("homework (plain)", hw_plain.title, created)
 
+        # Support Center (Phase 4 S1) — publish teacher availability so the
+        # "Book a Teacher" flow has bookable slots (idempotent). Mon–Fri, both
+        # subjects, 09:00–17:00 in 30-min slots.
+        from datetime import time as _time
+
+        from apps.support.models import TeacherAvailability
+
+        av_made = 0
+        for subject in ("math", "reading_writing"):
+            for weekday in range(5):
+                _, created = TeacherAvailability.objects.get_or_create(
+                    teacher=teacher,
+                    subject=subject,
+                    weekday=weekday,
+                    start_time=_time(9, 0),
+                    defaults={"end_time": _time(17, 0), "slot_minutes": 30},
+                )
+                av_made += int(created)
+        self._note("support availability", f"{teacher.email} (+{av_made} new)", av_made > 0)
+
         self.stdout.write(self.style.SUCCESS(f"TEACHER={TEACHER_EMAIL} / {TEACHER_PASSWORD}"))
         self.stdout.write(self.style.SUCCESS(f"STUDENT={STUDENT_EMAIL} / {STUDENT_PASSWORD}"))
         self.stdout.write(

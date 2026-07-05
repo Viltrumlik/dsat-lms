@@ -739,6 +739,77 @@ export interface HomeworkSubmission {
 }
 
 // ─────────────────────────────────────
+// Support Center (Phase 4 S1 — Book a Teacher)
+// ─────────────────────────────────────
+
+export type SupportSubject = 'math' | 'reading_writing'
+export type BookingStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'no_show'
+
+export interface TeacherAvailability {
+  id: string
+  subject: SupportSubject
+  weekday: number // 0=Mon … 6=Sun
+  startTime: string // "HH:MM:SS"
+  endTime: string
+  slotMinutes: number
+  isActive: boolean
+  createdAt: string
+}
+
+export interface BookableTeacher {
+  teacher: StudentMini
+  subjects: SupportSubject[]
+}
+
+export interface SupportSlot {
+  scheduledAt: string
+  durationMinutes: number
+}
+
+/** Student-facing outcome — deliberately OMITS the staff-only `notes` field. */
+export interface SessionOutcome {
+  topicsCovered: string
+  homework: string
+  nextRecommendation: string
+}
+
+/** Staff-facing outcome — includes `notes`. */
+export interface StaffSessionOutcome extends SessionOutcome {
+  notes: string
+}
+
+export interface SessionRating {
+  score: number
+  comment: string
+  createdAt: string
+}
+
+export interface SupportBooking {
+  id: string
+  student: StudentMini
+  teacher: StudentMini
+  subject: SupportSubject
+  topic: string
+  reason: string
+  scheduledAt: string
+  durationMinutes: number
+  actualDurationMinutes: number | null
+  status: BookingStatus
+  confirmedAt: string | null
+  completedAt: string | null
+  cancelledAt: string | null
+  joinUrl: string
+  outcome: SessionOutcome | null
+  rating: SessionRating | null
+  createdAt: string
+}
+
+/** Staff read of a booking — outcome carries the staff-only `notes`. */
+export interface StaffSupportBooking extends Omit<SupportBooking, 'outcome'> {
+  outcome: StaffSessionOutcome | null
+}
+
+// ─────────────────────────────────────
 // Notifications
 // ─────────────────────────────────────
 
@@ -749,6 +820,16 @@ export type NotificationType =
   | 'homework_due'
   | 'announcement'
   | 'system'
+  | 'booking_requested'
+  | 'booking_confirmed'
+  | 'booking_cancelled'
+  | 'booking_completed'
+  | 'support_reply'
+  | 'office_hours_reminder'
+  | 'office_hours_canceled'
+  | 'support_recommendation'
+  | 'mentor_assigned'
+  | 'mentor_checkin_due'
 
 export interface Notification {
   id: string

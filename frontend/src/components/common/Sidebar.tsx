@@ -17,6 +17,8 @@ export interface NavItem {
   icon: React.ComponentType<{ className?: string }>
   soon?: boolean
   academyOnly?: boolean
+  /** Teacher-shell items backed by IsTeacher-only endpoints (hidden from admins). */
+  teacherOnly?: boolean
 }
 
 export const STUDENT_NAV: NavItem[] = [

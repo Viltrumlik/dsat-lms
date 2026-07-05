@@ -58,5 +58,30 @@ export function notificationText(
     }
   }
 
+  // A cancellation can reach either party, so it names no one — just the date.
+  if (notification.type === 'booking_cancelled') {
+    const when = dueDate(data['scheduledAt'], locale)
+    if (!when) return fallback
+    return { title: t('notifications.templates.bookingCancelled', { date: when }), body: '' }
+  }
+
+  const bookingKeys: Partial<Record<Notification['type'], string>> = {
+    booking_requested: 'notifications.templates.bookingRequested',
+    booking_confirmed: 'notifications.templates.bookingConfirmed',
+    booking_completed: 'notifications.templates.bookingCompleted',
+  }
+  const bookingKey = bookingKeys[notification.type]
+  if (bookingKey) {
+    const when = dueDate(data['scheduledAt'], locale)
+    // A request lands on the teacher (shows the student); the rest land on the
+    // student (show the teacher).
+    const name =
+      notification.type === 'booking_requested'
+        ? str(data['studentName'])
+        : str(data['teacherName'])
+    if (!when || !name) return fallback
+    return { title: t(bookingKey, { name, date: when }), body: '' }
+  }
+
   return fallback
 }

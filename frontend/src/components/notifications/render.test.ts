@@ -66,6 +66,41 @@ describe('notificationText', () => {
     expect(body).toBe('')
   })
 
+  it('renders booking_confirmed from the teacher name + scheduledAt', () => {
+    const { title, body } = notificationText(
+      notification('booking_confirmed', {
+        teacherName: 'Ali Valiyev',
+        scheduledAt: '2026-07-08T09:00:00Z',
+      }),
+      t,
+      'en'
+    )
+    expect(title).toContain('notifications.templates.bookingConfirmed|')
+    expect(title).toContain('"name":"Ali Valiyev"')
+    expect(body).toBe('')
+  })
+
+  it('renders booking_requested from the student name (teacher-facing)', () => {
+    const { title } = notificationText(
+      notification('booking_requested', {
+        studentName: 'Dilnoza K',
+        teacherName: 'Ali Valiyev',
+        scheduledAt: '2026-07-08T09:00:00Z',
+      }),
+      t,
+      'en'
+    )
+    expect(title).toContain('notifications.templates.bookingRequested|')
+    expect(title).toContain('"name":"Dilnoza K"')
+  })
+
+  it('falls back when a booking notification lacks scheduledAt', () => {
+    expect(notificationText(notification('booking_confirmed', { teacherName: 'Ali' }), t, 'en')).toEqual({
+      title: 'Server title',
+      body: 'Server body',
+    })
+  })
+
   it('falls back to server strings for old rows and unknown types', () => {
     expect(notificationText(notification('exam_graded'), t, 'en')).toEqual({
       title: 'Server title',

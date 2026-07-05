@@ -1,12 +1,28 @@
 // Domain: Support
-// Description: Support Center landing (S0 skeleton). A "coming soon" placeholder
-//   so the nav entry resolves; the feature surfaces (book a teacher, ask a
-//   question, office hours, proactive recommendations) land in later slices.
+// Description: Support Center landing (S1). Entry points to the available support
+//   surfaces — Book a Teacher and My Sessions. More surfaces (Ask a Question,
+//   Office Hours) land in later slices.
 'use client'
 
-import { LifeBuoy } from 'lucide-react'
+import Link from 'next/link'
+import { CalendarPlus, ClipboardList } from 'lucide-react'
 import { useT } from '@/lib/i18n/I18nProvider'
 import { Card, CardContent } from '@/components/ui/card'
+
+const TILES = [
+  {
+    href: '/support/book',
+    icon: CalendarPlus,
+    titleKey: 'support.landing.bookTitle',
+    descKey: 'support.landing.bookDesc',
+  },
+  {
+    href: '/support/sessions',
+    icon: ClipboardList,
+    titleKey: 'support.landing.sessionsTitle',
+    descKey: 'support.landing.sessionsDesc',
+  },
+] as const
 
 export default function SupportPage() {
   const t = useT()
@@ -16,18 +32,24 @@ export default function SupportPage() {
         <h1 className="text-2xl font-bold tracking-tight">{t('support.title')}</h1>
         <p className="text-muted-foreground">{t('support.subtitle')}</p>
       </div>
-      <Card>
-        <CardContent className="flex flex-col items-center gap-4 py-16 text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary-50 text-primary-700 dark:bg-primary-800/40 dark:text-primary-100">
-            <LifeBuoy className="h-7 w-7" />
-          </div>
-          <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            {t('support.comingSoonTag')}
-          </span>
-          <h2 className="text-lg font-semibold">{t('support.comingSoonTitle')}</h2>
-          <p className="max-w-md text-sm text-muted-foreground">{t('support.comingSoonBody')}</p>
-        </CardContent>
-      </Card>
+      <div className="grid gap-4 sm:grid-cols-2">
+        {TILES.map((tile) => {
+          const Icon = tile.icon
+          return (
+            <Link key={tile.href} href={tile.href} className="group">
+              <Card className="h-full transition-colors group-hover:border-primary">
+                <CardContent className="flex flex-col gap-3 p-6">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-full bg-primary-50 text-primary-700 dark:bg-primary-800/40 dark:text-primary-100">
+                    <Icon className="h-6 w-6" />
+                  </div>
+                  <h2 className="text-lg font-semibold">{t(tile.titleKey)}</h2>
+                  <p className="text-sm text-muted-foreground">{t(tile.descKey)}</p>
+                </CardContent>
+              </Card>
+            </Link>
+          )
+        })}
+      </div>
     </div>
   )
 }
