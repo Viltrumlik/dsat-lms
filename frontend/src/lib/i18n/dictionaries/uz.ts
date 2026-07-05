@@ -21,6 +21,7 @@ export const uz: Dictionary = {
     practiceTests: 'Mashq testlari',
     questionBank: 'Savollar banki',
     homework: 'Uy vazifalari',
+    support: 'Yordam markazi',
     analytics: 'Tahlil',
     teacherPanel: 'Oʻqituvchi paneli',
     adminPanel: 'Administrator paneli',
@@ -880,6 +881,15 @@ export const uz: Dictionary = {
       updated: 'Rasm yangilandi',
       failed: 'Rasmni yangilab boʻlmadi',
     },
+  },
+  support: {
+    title: 'Yordam markazi',
+    subtitle:
+      'Kerak boʻlganda akademik yordam — oʻqituvchini band qiling, savol bering va rivojlanishingizga qarab tavsiyalar oling.',
+    comingSoonTag: 'Tez orada',
+    comingSoonTitle: 'Yordam markazi tez orada ishga tushadi',
+    comingSoonBody:
+      'Tez orada oʻqituvchi bilan yakkama-yakka mashgʻulot band qilishingiz, savol berib javob olishingiz, ochiq soatlarga qoʻshilishingiz va rivojlanishingiz talab qilganda faol yordam olishingiz mumkin boʻladi. Yaqinda qayta tekshiring.',
   },
   errors: {
     appTitle: 'Xatolik yuz berdi',

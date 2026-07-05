@@ -20,6 +20,7 @@ export const en = {
     practiceTests: 'Practice Tests',
     questionBank: 'Question Bank',
     homework: 'Homework',
+    support: 'Support Center',
     analytics: 'Analytics',
     teacherPanel: 'Teacher panel',
     adminPanel: 'Admin panel',
@@ -877,6 +878,15 @@ export const en = {
       updated: 'Photo updated',
       failed: 'Could not update photo',
     },
+  },
+  support: {
+    title: 'Support Center',
+    subtitle:
+      'Academic help when you need it — book a teacher, ask a question, and get proactive nudges based on your progress.',
+    comingSoonTag: 'Coming soon',
+    comingSoonTitle: 'The Support Center is on its way',
+    comingSoonBody:
+      "Soon you'll be able to book 1:1 sessions with a teacher, ask questions and get answers, join office hours, and receive proactive help when your progress needs it. Check back shortly.",
   },
   errors: {
     appTitle: 'Something went wrong',

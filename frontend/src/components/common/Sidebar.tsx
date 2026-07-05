@@ -6,7 +6,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { BarChart3, BookOpen, ClipboardList, LayoutDashboard, ListChecks, Presentation, Settings, Shield } from 'lucide-react'
+import { BarChart3, BookOpen, ClipboardList, LayoutDashboard, LifeBuoy, ListChecks, Presentation, Settings, Shield } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
 import { useT } from '@/lib/i18n/I18nProvider'
 import { useAuth } from '@/lib/auth/AuthProvider'
@@ -24,6 +24,7 @@ export const STUDENT_NAV: NavItem[] = [
   { labelKey: 'nav.practiceTests', href: '/dashboard#tests', icon: ListChecks },
   { labelKey: 'nav.questionBank', href: '/questions', icon: BookOpen },
   { labelKey: 'nav.homework', href: '/homework', icon: ClipboardList, academyOnly: true },
+  { labelKey: 'nav.support', href: '/support', icon: LifeBuoy, academyOnly: true },
   { labelKey: 'nav.analytics', href: '/analytics', icon: BarChart3 },
   { labelKey: 'nav.settings', href: '/settings', icon: Settings },
 ]
