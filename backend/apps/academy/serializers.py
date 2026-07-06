@@ -173,10 +173,27 @@ class MenteeSerializer(serializers.ModelSerializer):
         return latest.created_at if latest else None
 
 
+class MenteeDetailSerializer(serializers.ModelSerializer):
+    """A mentee's detail header for the mentor's drilldown — student + status +
+    guardians (so the parent-contact form has its recipient list) — WITHOUT the
+    class-scoped demographics of the full profile endpoint."""
+
+    student = StudentMiniSerializer(source="user", read_only=True)
+    guardians = GuardianSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = StudentProfile
+        fields = ["id", "student", "status", "mentor_assigned_at", "guardians"]
+
+
 class AssignMentorSerializer(serializers.Serializer):
+    """Assign by `email` (friendly, mirrors enroll-by-email) or by `mentor` id;
+    omit both / mentor=null to unassign."""
+
     mentor = serializers.PrimaryKeyRelatedField(
         queryset=User.objects.filter(deleted_at__isnull=True), required=False, allow_null=True
     )
+    email = serializers.EmailField(required=False, allow_blank=True)
 
 
 class CheckInCreateSerializer(serializers.Serializer):

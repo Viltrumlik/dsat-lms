@@ -153,6 +153,39 @@ class TestEndpoints:
         )
         assert r.status_code == 403
 
+    def test_manager_assigns_by_email(self):
+        student = UserFactory(role="student")
+        profile_for(student)
+        mentor = UserFactory(role="teacher", email="mentor@dsat.local")
+        r = authed(role="academic_manager").post(
+            STUDENTS + f"{student.id}/mentor/", {"email": "mentor@dsat.local"}, format="json"
+        )
+        assert r.status_code == 200
+        assert r.json()["data"]["mentor"]["id"] == str(mentor.id)
+
+    def test_assign_by_unknown_email_400(self):
+        student = UserFactory(role="student")
+        profile_for(student)
+        r = authed(role="admin").post(
+            STUDENTS + f"{student.id}/mentor/", {"email": "nobody@dsat.local"}, format="json"
+        )
+        assert r.status_code == 400
+
+    def test_mentee_detail_scoped(self):
+        student = UserFactory(role="student")
+        profile = profile_for(student)
+        mentor = UserFactory(role="teacher")
+        assign_mentor(profile, mentor)
+        Guardian.objects.create(profile=profile, name="Mom", relation="mother")
+        # the mentor sees the mentee + guardians
+        mine = authed(role="teacher", user=mentor).get(STUDENTS + f"{student.id}/mentee/")
+        assert mine.status_code == 200
+        assert mine.json()["data"]["student"]["id"] == str(student.id)
+        assert len(mine.json()["data"]["guardians"]) == 1
+        # a different teacher (not the mentor) → 404
+        other = authed(role="teacher").get(STUDENTS + f"{student.id}/mentee/")
+        assert other.status_code == 404
+
     def test_unassign_via_api(self):
         student = UserFactory(role="student")
         profile = profile_for(student)

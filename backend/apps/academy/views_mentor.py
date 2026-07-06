@@ -15,6 +15,7 @@ from django.db.models import Max
 from rest_framework.exceptions import NotFound
 from rest_framework.views import APIView
 
+from apps.identity.models import User
 from common.exceptions import ValidationError as APIValidationError
 from common.permissions import IsAdminOrAcademicManager, IsAnyStaff
 from common.responses import created_response, success_response
@@ -24,6 +25,7 @@ from .scoping import scoped_student_or_404
 from .serializers import (
     AssignMentorSerializer,
     CheckInCreateSerializer,
+    MenteeDetailSerializer,
     MenteeSerializer,
     MentorCheckInSerializer,
     ParentContactCreateSerializer,
@@ -61,7 +63,15 @@ class StudentMentorView(APIView):
         profile = get_or_create_student_profile(scoped_student_or_404(request, user_id))
         serializer = AssignMentorSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        mentor = serializer.validated_data.get("mentor")
+
+        email = serializer.validated_data.get("email")
+        if email:
+            mentor = User.objects.filter(email__iexact=email, deleted_at__isnull=True).first()
+            if mentor is None:
+                return APIValidationError("No user with that email.", field="email").to_response()
+        else:
+            mentor = serializer.validated_data.get("mentor")
+
         if mentor is None:
             unassign_mentor(profile, by=request.user)
         else:
@@ -73,7 +83,8 @@ class StudentMentorView(APIView):
                     if str(exc) == "not_staff"
                     else "That mentor is already assigned."
                 )
-                return APIValidationError(message, field="mentor").to_response()
+                field = "email" if email else "mentor"
+                return APIValidationError(message, field=field).to_response()
         return success_response(StudentProfileSerializer(profile).data)
 
 
@@ -90,6 +101,18 @@ class MyMenteesView(APIView):
             .order_by("user__first_name")
         )
         return success_response(MenteeSerializer(queryset, many=True).data)
+
+
+class MenteeDetailView(APIView):
+    """A single mentee's header (student + status + guardians) for the mentor's
+    drilldown. Mentor-scoped (not class-scoped), so a mentor can open a mentee who
+    isn't in their class."""
+
+    permission_classes = [IsAnyStaff]
+
+    def get(self, request, user_id):
+        profile = _mentee_profile_or_404(request, user_id)
+        return success_response(MenteeDetailSerializer(profile).data)
 
 
 class StudentCheckInsView(APIView):

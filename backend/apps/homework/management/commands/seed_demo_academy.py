@@ -164,6 +164,35 @@ class Command(BaseCommand):
         oh_made = materialize_office_hours()
         self._note("office-hours sessions (materialize)", f"+{oh_made}", oh_made > 0)
 
+        # Academic mentor (Phase 4 S6) — make the teacher the student's mentor, give
+        # the student a guardian, and log one check-in so the mentee surface (list,
+        # check-ins, parent contacts) is demoable/e2e-able (idempotent).
+        from apps.academy.models import Guardian
+        from apps.academy.services import (
+            assign_mentor,
+            get_or_create_student_profile,
+            log_mentor_check_in,
+        )
+
+        profile = get_or_create_student_profile(student)
+        if profile.mentor_id != teacher.id:
+            assign_mentor(profile, teacher, by=teacher)
+            profile.refresh_from_db()
+        self._note("mentor", f"{teacher.email} → {student.email}", profile.mentor_id == teacher.id)
+
+        guardian, g_created = Guardian.objects.get_or_create(
+            profile=profile,
+            name="Nodira Karimova",
+            defaults={"relation": "mother", "phone": "+998901234567", "is_emergency": True},
+        )
+        self._note("guardian", guardian.name, g_created)
+
+        if not profile.mentor_checkins.exists():
+            log_mentor_check_in(
+                profile, teacher, "Kickoff — strong in geometry, needs algebra reps."
+            )
+            self._note("mentor check-in", student.email, True)
+
         self.stdout.write(self.style.SUCCESS(f"TEACHER={TEACHER_EMAIL} / {TEACHER_PASSWORD}"))
         self.stdout.write(self.style.SUCCESS(f"STUDENT={STUDENT_EMAIL} / {STUDENT_PASSWORD}"))
         self.stdout.write(

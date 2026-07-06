@@ -8,6 +8,7 @@ Description: The CRM person layer (mounted at /api/v1/students/): a student's ow
 from django.urls import path
 
 from apps.academy.views_mentor import (
+    MenteeDetailView,
     StudentCheckInsView,
     StudentMentorView,
     StudentParentContactsView,
@@ -31,6 +32,7 @@ urlpatterns = [
     path("<uuid:user_id>/guardians/", StudentGuardiansView.as_view(), name="student-guardians"),
     # Academic mentor (S6)
     path("<uuid:user_id>/mentor/", StudentMentorView.as_view(), name="student-mentor"),
+    path("<uuid:user_id>/mentee/", MenteeDetailView.as_view(), name="mentee-detail"),
     path("<uuid:user_id>/checkins/", StudentCheckInsView.as_view(), name="student-checkins"),
     path(
         "<uuid:user_id>/parent-contacts/",
