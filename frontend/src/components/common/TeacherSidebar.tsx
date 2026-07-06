@@ -27,9 +27,10 @@ export const TEACHER_NAV: NavItem[] = [
   { labelKey: 'teacher.nav.homework', href: '/teacher/homework', icon: ClipboardList },
   { labelKey: 'teacher.nav.grading', href: '/teacher/grading', icon: ClipboardCheck },
   { labelKey: 'teacher.nav.support', href: '/teacher/support', icon: LifeBuoy },
-  // Availability is self-service for teachers only (IsTeacher endpoint); admins
-  // who share the teacher shell would 403, so hide it from them.
+  // Availability + office-hours are self-service for teachers only (IsTeacher
+  // endpoints); admins who share the teacher shell would 403, so hide from them.
   { labelKey: 'teacher.nav.availability', href: '/teacher/availability', icon: CalendarClock, teacherOnly: true },
+  { labelKey: 'teacher.nav.officeHours', href: '/teacher/office-hours', icon: Users, teacherOnly: true },
 ]
 
 /** Role-aware filter shared by the teacher sidebar and the mobile drawer. */

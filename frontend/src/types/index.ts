@@ -907,6 +907,55 @@ export interface SupportRecommendation {
   expiresAt: string | null
 }
 
+// Office Hours (Phase 4 S5)
+export type OfficeHourStatus = 'scheduled' | 'canceled' | 'completed'
+export type RSVP = 'joined' | 'left'
+
+export interface OfficeHour {
+  id: string
+  subject: SupportSubject
+  title: string
+  description: string
+  weekday: number
+  startTime: string
+  endTime: string
+  capacity: number
+  openToAll: boolean
+  location: string
+  joinUrl: string
+  isActive: boolean
+  createdAt: string
+}
+
+export interface OfficeHourSession {
+  id: string
+  title: string
+  subject: SupportSubject
+  teacher: StudentMini
+  startsAt: string
+  endsAt: string
+  capacity: number
+  location: string
+  joinUrl: string
+  status: OfficeHourStatus
+  joinedCount: number
+  seatsLeft: number
+  myRsvp: RSVP | null
+  createdAt: string
+}
+
+export interface OfficeHourAttendee {
+  id: string
+  student: StudentMini
+  rsvp: RSVP
+  attended: boolean
+  createdAt: string
+}
+
+export interface OfficeHourSessionRoster extends OfficeHourSession {
+  attendees: OfficeHourAttendee[]
+}
+
 // ─────────────────────────────────────
 // Notifications
 // ─────────────────────────────────────

@@ -5,7 +5,7 @@
 'use client'
 
 import Link from 'next/link'
-import { CalendarPlus, ClipboardList, MessageSquarePlus } from 'lucide-react'
+import { CalendarClock, CalendarPlus, ClipboardList, MessageSquarePlus } from 'lucide-react'
 import { useT } from '@/lib/i18n/I18nProvider'
 import { Card, CardContent } from '@/components/ui/card'
 import { SupportSummaryStrip } from '@/components/support/SupportSummaryStrip'
@@ -28,6 +28,12 @@ const TILES = [
     icon: MessageSquarePlus,
     titleKey: 'support.landing.askTitle',
     descKey: 'support.landing.askDesc',
+  },
+  {
+    href: '/support/office-hours',
+    icon: CalendarClock,
+    titleKey: 'support.landing.officeHoursTitle',
+    descKey: 'support.landing.officeHoursDesc',
   },
 ] as const
 

@@ -131,6 +131,32 @@ describe('notificationText', () => {
     expect(title).toBe('notifications.templates.supportRecommendation|{}')
   })
 
+  it('renders office_hours_reminder from title + startsAt', () => {
+    const { title } = notificationText(
+      notification('office_hours_reminder', { title: 'Math drop-in', startsAt: '2026-07-08T15:00:00Z' }),
+      t,
+      'en'
+    )
+    expect(title).toContain('notifications.templates.officeHoursReminder|')
+    expect(title).toContain('"title":"Math drop-in"')
+  })
+
+  it('renders office_hours_canceled', () => {
+    const { title } = notificationText(
+      notification('office_hours_canceled', { title: 'Math drop-in', startsAt: '2026-07-08T15:00:00Z' }),
+      t,
+      'en'
+    )
+    expect(title).toContain('notifications.templates.officeHoursCanceled|')
+  })
+
+  it('falls back for office hours without startsAt', () => {
+    expect(notificationText(notification('office_hours_reminder', { title: 'X' }), t, 'en')).toEqual({
+      title: 'Server title',
+      body: 'Server body',
+    })
+  })
+
   it('falls back to server strings for old rows and unknown types', () => {
     expect(notificationText(notification('exam_graded'), t, 'en')).toEqual({
       title: 'Server title',

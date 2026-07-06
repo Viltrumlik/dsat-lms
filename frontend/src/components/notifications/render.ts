@@ -79,6 +79,20 @@ export function notificationText(
     }
   }
 
+  if (
+    notification.type === 'office_hours_reminder' ||
+    notification.type === 'office_hours_canceled'
+  ) {
+    const title = str(data['title'])
+    const when = dueDate(data['startsAt'], locale)
+    if (!title || !when) return fallback
+    const key =
+      notification.type === 'office_hours_reminder'
+        ? 'notifications.templates.officeHoursReminder'
+        : 'notifications.templates.officeHoursCanceled'
+    return { title: t(key, { title, date: when }), body: '' }
+  }
+
   // A cancellation can reach either party, so it names no one — just the date.
   if (notification.type === 'booking_cancelled') {
     const when = dueDate(data['scheduledAt'], locale)

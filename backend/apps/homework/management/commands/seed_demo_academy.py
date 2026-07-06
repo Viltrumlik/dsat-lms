@@ -148,6 +148,22 @@ class Command(BaseCommand):
         sweep = run_support_sweep()
         self._note("support recommendations (sweep)", f"+{sweep.get('created', 0)}", True)
 
+        # Office hours (Phase 4 S5) — a weekly template + materialize so the browse
+        # + join flow has upcoming sessions (idempotent).
+        from apps.support.models import OfficeHour
+        from apps.support.office_hours import materialize_office_hours
+
+        for weekday in range(5):
+            OfficeHour.objects.get_or_create(
+                teacher=teacher,
+                subject="math",
+                weekday=weekday,
+                start_time=_time(15, 0),
+                defaults={"title": "Math drop-in", "end_time": _time(16, 0), "capacity": 25},
+            )
+        oh_made = materialize_office_hours()
+        self._note("office-hours sessions (materialize)", f"+{oh_made}", oh_made > 0)
+
         self.stdout.write(self.style.SUCCESS(f"TEACHER={TEACHER_EMAIL} / {TEACHER_PASSWORD}"))
         self.stdout.write(self.style.SUCCESS(f"STUDENT={STUDENT_EMAIL} / {STUDENT_PASSWORD}"))
         self.stdout.write(

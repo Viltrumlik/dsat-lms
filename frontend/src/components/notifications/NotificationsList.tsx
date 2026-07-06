@@ -40,6 +40,8 @@ const TYPE_ICON: Partial<Record<NotificationType, React.ComponentType<{ classNam
   booking_completed: LifeBuoy,
   support_reply: MessageSquare,
   support_recommendation: Sparkles,
+  office_hours_reminder: CalendarClock,
+  office_hours_canceled: CalendarClock,
 }
 
 function relativeTime(iso: string, locale: Locale) {
