@@ -27,7 +27,7 @@ from apps.support.models import (
     SupportTicket,
     TicketReply,
 )
-from apps.support.ops import build_support_ops_daily, run_support_ops_rollup
+from apps.support.ops import build_support_ops_daily, rollup_recent, run_support_ops_rollup
 
 pytestmark = pytest.mark.django_db
 
@@ -130,6 +130,40 @@ class TestBuildRollup:
     def test_run_rollup_defaults_to_today(self):
         summary = run_support_ops_rollup()
         assert summary["date"] == timezone.localdate().isoformat()
+
+
+class TestTrailingWindow:
+    """A no-show / attendance mark applied days after the session day (keyed on the
+    session day, not the marking day) is re-captured by the trailing re-roll — it
+    would be lost permanently if the beat only rolled yesterday+today."""
+
+    def test_late_no_show_recaptured(self):
+        teacher = UserFactory(role="teacher")
+        student = UserFactory(role="student")
+        scheduled = timezone.now() - timedelta(days=2)
+        b = _booking(teacher, student, BookingStatus.CONFIRMED, scheduled_at=scheduled)
+        day = timezone.localtime(scheduled).date()
+        build_support_ops_daily(day)  # still confirmed → 0
+        assert SupportOpsDaily.objects.get(date=day).bookings_no_show == 0
+
+        b.status = BookingStatus.NO_SHOW  # marked later; keyed on scheduled day
+        b.save(update_fields=["status"])
+        rollup_recent()
+        assert SupportOpsDaily.objects.get(date=day).bookings_no_show == 1
+
+    def test_late_attendance_recaptured(self):
+        teacher = UserFactory(role="teacher")
+        student = UserFactory(role="student")
+        session = _office_session(teacher, starts_at=timezone.now() - timedelta(days=2))
+        day = timezone.localtime(session.starts_at).date()
+        att = OfficeHourAttendance.objects.create(session=session, student=student, attended=False)
+        build_support_ops_daily(day)
+        assert SupportOpsDaily.objects.get(date=day).office_hours_attended == 0
+
+        att.attended = True  # teacher marks attendance after the session day
+        att.save(update_fields=["attended"])
+        rollup_recent()
+        assert SupportOpsDaily.objects.get(date=day).office_hours_attended == 1
 
 
 class TestOverviewEndpoint:

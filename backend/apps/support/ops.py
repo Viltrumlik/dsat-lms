@@ -48,6 +48,13 @@ _DAILY_INT_FIELDS = (
 # Nullable averages — coerced to float so the client gets numbers, not strings.
 _DAILY_FLOAT_FIELDS = ("ratings_avg", "tickets_avg_response_minutes")
 
+# Trailing days re-rolled on every run. A few metrics are attributed to the
+# session/scheduled day but MARKED later (a no-show flip, a teacher marking
+# attendance) — keying on the session day is the right trend semantic, but it means
+# a day must stay "open" for recomputation until those late marks land. Re-rolling a
+# trailing window (cheap + idempotent) finalizes each day only after this horizon.
+ROLLUP_TRAILING_DAYS = 7
+
 
 def _day_bounds(target_date):
     """[start, end) aware datetimes spanning target_date in settings.TIME_ZONE."""
@@ -133,6 +140,16 @@ def run_support_ops_rollup(target_date=None):
         "bookings_created": row.bookings_created,
         "tickets_created": row.tickets_created,
     }
+
+
+def rollup_recent(trailing_days=ROLLUP_TRAILING_DAYS):
+    """Re-roll today plus the trailing window so late marks (a no-show flipped days
+    after the slot, attendance marked after the session) land in the right day's
+    row. Idempotent — each day is recomputed from scratch. Returns a summary."""
+    today = timezone.localdate()
+    for offset in range(trailing_days + 1):
+        build_support_ops_daily(today - dt.timedelta(days=offset))
+    return {"through": today.isoformat(), "days": trailing_days + 1}
 
 
 def _serialize_day(date, row):

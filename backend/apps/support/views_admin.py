@@ -13,7 +13,7 @@ from rest_framework.views import APIView
 from common.permissions import IsAdmin
 from common.responses import success_response
 
-from .ops import admin_support_overview, run_support_ops_rollup
+from .ops import admin_support_overview, rollup_recent
 
 _MAX_DAYS = 90
 _DEFAULT_DAYS = 30
@@ -38,17 +38,12 @@ class AdminSupportOpsView(APIView):
 
 
 class AdminSupportOpsRebuildView(APIView):
-    """POST: regenerate today's + yesterday's rollup, then return the fresh overview
-    (so the dashboard reflects same-day activity without waiting for the beat)."""
+    """POST: re-roll the trailing window, then return the fresh overview (so the
+    dashboard reflects same-day activity — and late no-show/attendance marks —
+    without waiting for the beat)."""
 
     permission_classes = [IsAdmin]
 
     def post(self, request):
-        import datetime as dt
-
-        from django.utils import timezone
-
-        today = timezone.localdate()
-        run_support_ops_rollup(today - dt.timedelta(days=1))
-        run_support_ops_rollup(today)
+        rollup_recent()
         return success_response(admin_support_overview(days=_window_days(request)))

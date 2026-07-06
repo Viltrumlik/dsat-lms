@@ -37,14 +37,10 @@ def send_office_hour_reminders():
 
 @shared_task
 def generate_support_ops_daily():
-    """Daily: roll up yesterday's (finalized) + today's (partial) Support flow
-    metrics into SupportOpsDaily for the admin ops dashboard (S7). Idempotent."""
-    import datetime as dt
+    """Daily: re-roll the trailing window of Support flow metrics into
+    SupportOpsDaily for the admin ops dashboard (S7). The window (not just
+    yesterday+today) lets late no-show/attendance marks land in the right day.
+    Idempotent."""
+    from .ops import rollup_recent
 
-    from django.utils import timezone
-
-    from .ops import run_support_ops_rollup
-
-    today = timezone.localdate()
-    run_support_ops_rollup(today - dt.timedelta(days=1))
-    return run_support_ops_rollup(today)
+    return rollup_recent()
