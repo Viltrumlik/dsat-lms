@@ -16,12 +16,14 @@ from apps.academy.views import (
     TeacherStudentAnalyticsView,
     TeacherStudentsView,
 )
+from apps.academy.views_mentor import MyMenteesView
 
 app_name = "academy_teacher"
 
 urlpatterns = [
     path("dashboard/", TeacherDashboardView.as_view(), name="teacher-dashboard"),
     path("students/", TeacherStudentsView.as_view(), name="teacher-students"),
+    path("mentees/", MyMenteesView.as_view(), name="teacher-mentees"),
     path("grading/", TeacherGradingView.as_view(), name="teacher-grading"),
     path("classes/", TeacherClassListCreateView.as_view(), name="teacher-class-list"),
     path(

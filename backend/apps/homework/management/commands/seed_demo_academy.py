@@ -105,6 +105,101 @@ class Command(BaseCommand):
         )
         self._note("homework (plain)", hw_plain.title, created)
 
+        # Support Center (Phase 4 S1) — publish teacher availability so the
+        # "Book a Teacher" flow has bookable slots (idempotent). Mon–Fri, both
+        # subjects, 09:00–17:00 in 30-min slots.
+        from datetime import time as _time
+
+        from apps.support.models import TeacherAvailability
+
+        av_made = 0
+        for subject in ("math", "reading_writing"):
+            for weekday in range(5):
+                _, created = TeacherAvailability.objects.get_or_create(
+                    teacher=teacher,
+                    subject=subject,
+                    weekday=weekday,
+                    start_time=_time(9, 0),
+                    defaults={"end_time": _time(17, 0), "slot_minutes": 30},
+                )
+                av_made += int(created)
+        self._note("support availability", f"{teacher.email} (+{av_made} new)", av_made > 0)
+
+        # Support trigger (Phase 4 S4) — give the student a weak topic so the daily
+        # sweep raises a recommendation, then run the sweep so the dashboard banner
+        # + deep-link are demoable/e2e-able (idempotent: the sweep dedupes).
+        from apps.analytics.models import UserCategoryStat
+        from apps.question_bank.models import QuestionCategory
+        from apps.support.services import run_support_sweep
+
+        weak_cat, _ = QuestionCategory.objects.get_or_create(
+            slug="algebra-demo", defaults={"module": "math", "name": "Algebra"}
+        )
+        UserCategoryStat.objects.update_or_create(
+            user=student,
+            category=weak_cat,
+            defaults={
+                "total_answered": 12,
+                "total_correct": 4,
+                "accuracy_pct": 35,
+                "last_practiced_at": timezone.now(),
+            },
+        )
+        sweep = run_support_sweep()
+        self._note("support recommendations (sweep)", f"+{sweep.get('created', 0)}", True)
+
+        # Office hours (Phase 4 S5) — a weekly template + materialize so the browse
+        # + join flow has upcoming sessions (idempotent).
+        from apps.support.models import OfficeHour
+        from apps.support.office_hours import materialize_office_hours
+
+        for weekday in range(5):
+            OfficeHour.objects.get_or_create(
+                teacher=teacher,
+                subject="math",
+                weekday=weekday,
+                start_time=_time(15, 0),
+                defaults={"title": "Math drop-in", "end_time": _time(16, 0), "capacity": 25},
+            )
+        oh_made = materialize_office_hours()
+        self._note("office-hours sessions (materialize)", f"+{oh_made}", oh_made > 0)
+
+        # Academic mentor (Phase 4 S6) — make the teacher the student's mentor, give
+        # the student a guardian, and log one check-in so the mentee surface (list,
+        # check-ins, parent contacts) is demoable/e2e-able (idempotent).
+        from apps.academy.models import Guardian
+        from apps.academy.services import (
+            assign_mentor,
+            get_or_create_student_profile,
+            log_mentor_check_in,
+        )
+
+        profile = get_or_create_student_profile(student)
+        if profile.mentor_id != teacher.id:
+            assign_mentor(profile, teacher, by=teacher)
+            profile.refresh_from_db()
+        self._note("mentor", f"{teacher.email} → {student.email}", profile.mentor_id == teacher.id)
+
+        guardian, g_created = Guardian.objects.get_or_create(
+            profile=profile,
+            name="Nodira Karimova",
+            defaults={"relation": "mother", "phone": "+998901234567", "is_emergency": True},
+        )
+        self._note("guardian", guardian.name, g_created)
+
+        if not profile.mentor_checkins.exists():
+            log_mentor_check_in(
+                profile, teacher, "Kickoff — strong in geometry, needs algebra reps."
+            )
+            self._note("mentor check-in", student.email, True)
+
+        # Admin ops dashboard (Phase 4 S7) — roll up today's Support flow metrics so
+        # the (admin)/admin/support-ops dashboard has a populated data point.
+        from apps.support.ops import run_support_ops_rollup
+
+        rollup = run_support_ops_rollup()
+        self._note("support ops rollup", rollup["date"], True)
+
         self.stdout.write(self.style.SUCCESS(f"TEACHER={TEACHER_EMAIL} / {TEACHER_PASSWORD}"))
         self.stdout.write(self.style.SUCCESS(f"STUDENT={STUDENT_EMAIL} / {STUDENT_PASSWORD}"))
         self.stdout.write(

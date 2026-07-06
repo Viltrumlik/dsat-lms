@@ -101,10 +101,23 @@ def set_avatar(user, attachment):
 
 def can_access_attachment(user, attachment):
     """F2 READ access: the owner, or full-access staff (admin / academic_manager /
-    receptionist). Teacher own-class file access lands with the profile Files tab."""
+    receptionist). Teacher own-class file access lands with the profile Files tab.
+
+    Additionally, ANY academy staff may read an attachment linked to a support
+    ticket: the ticket queue is a staff-shared pool (see apps/support), so a
+    teacher answering a pooled ticket must be able to open its files even though a
+    teacher isn't `can_read_all_students`. Lazy import keeps files→support
+    decoupled at import time."""
     if attachment.owner_id == user.id:
         return True
-    return bool(getattr(user, "can_read_all_students", False))
+    if getattr(user, "can_read_all_students", False):
+        return True
+    if getattr(user, "is_academy_staff", False):
+        from apps.support.models import SupportTicketAttachment
+
+        if SupportTicketAttachment.objects.filter(attachment_id=attachment.id).exists():
+            return True
+    return False
 
 
 def can_manage_user_files(actor, owner):

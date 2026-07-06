@@ -58,5 +58,75 @@ export function notificationText(
     }
   }
 
+  if (notification.type === 'support_reply') {
+    // Staff-facing rows carry studentName; the student-facing one doesn't.
+    const student = str(data['studentName'])
+    return {
+      title: student
+        ? t('notifications.templates.supportReplyFromStudent', { name: student })
+        : t('notifications.templates.supportReply'),
+      body: '',
+    }
+  }
+
+  if (notification.type === 'support_recommendation') {
+    const topic = str(data['topic'])
+    return {
+      title: topic
+        ? t('notifications.templates.supportRecommendationWithTopic', { topic })
+        : t('notifications.templates.supportRecommendation'),
+      body: '',
+    }
+  }
+
+  if (
+    notification.type === 'office_hours_reminder' ||
+    notification.type === 'office_hours_canceled'
+  ) {
+    const title = str(data['title'])
+    const when = dueDate(data['startsAt'], locale)
+    if (!title || !when) return fallback
+    const key =
+      notification.type === 'office_hours_reminder'
+        ? 'notifications.templates.officeHoursReminder'
+        : 'notifications.templates.officeHoursCanceled'
+    return { title: t(key, { title, date: when }), body: '' }
+  }
+
+  // A cancellation can reach either party, so it names no one — just the date.
+  if (notification.type === 'booking_cancelled') {
+    const when = dueDate(data['scheduledAt'], locale)
+    if (!when) return fallback
+    return { title: t('notifications.templates.bookingCancelled', { date: when }), body: '' }
+  }
+
+  if (notification.type === 'mentor_assigned' || notification.type === 'mentor_checkin_due') {
+    const name = str(data['studentName'])
+    if (!name) return fallback
+    const key =
+      notification.type === 'mentor_assigned'
+        ? 'notifications.templates.mentorAssigned'
+        : 'notifications.templates.mentorCheckinDue'
+    return { title: t(key, { name }), body: '' }
+  }
+
+  const bookingKeys: Partial<Record<Notification['type'], string>> = {
+    booking_requested: 'notifications.templates.bookingRequested',
+    booking_confirmed: 'notifications.templates.bookingConfirmed',
+    booking_completed: 'notifications.templates.bookingCompleted',
+  }
+  const bookingKey = bookingKeys[notification.type]
+  if (bookingKey) {
+    const when = dueDate(data['scheduledAt'], locale)
+    // A request lands on the teacher (shows the student); the rest land on the
+    // student (show the teacher).
+    const name =
+      notification.type === 'booking_requested'
+        ? str(data['studentName'])
+        : str(data['teacherName'])
+    if (!when || !name) return fallback
+    return { title: t(bookingKey, { name, date: when }), body: '' }
+  }
+
   return fallback
 }

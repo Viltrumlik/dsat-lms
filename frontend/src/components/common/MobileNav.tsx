@@ -14,7 +14,7 @@ import { useT } from '@/lib/i18n/I18nProvider'
 import { useAuth } from '@/lib/auth/AuthProvider'
 import { Button } from '@/components/ui/button'
 import { visibleStudentNav, type NavItem } from './Sidebar'
-import { TEACHER_NAV } from './TeacherSidebar'
+import { visibleTeacherNav } from './TeacherSidebar'
 import { ADMIN_NAV } from './AdminSidebar'
 
 export function MobileNav() {
@@ -35,7 +35,7 @@ export function MobileNav() {
       ]
     : inTeacherArea
       ? [
-          ...TEACHER_NAV,
+          ...visibleTeacherNav(user?.role),
           { labelKey: 'teacher.nav.studentView', href: '/dashboard', icon: LayoutDashboard },
         ]
       : [

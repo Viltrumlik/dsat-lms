@@ -66,6 +66,123 @@ describe('notificationText', () => {
     expect(body).toBe('')
   })
 
+  it('renders booking_confirmed from the teacher name + scheduledAt', () => {
+    const { title, body } = notificationText(
+      notification('booking_confirmed', {
+        teacherName: 'Ali Valiyev',
+        scheduledAt: '2026-07-08T09:00:00Z',
+      }),
+      t,
+      'en'
+    )
+    expect(title).toContain('notifications.templates.bookingConfirmed|')
+    expect(title).toContain('"name":"Ali Valiyev"')
+    expect(body).toBe('')
+  })
+
+  it('renders booking_requested from the student name (teacher-facing)', () => {
+    const { title } = notificationText(
+      notification('booking_requested', {
+        studentName: 'Dilnoza K',
+        teacherName: 'Ali Valiyev',
+        scheduledAt: '2026-07-08T09:00:00Z',
+      }),
+      t,
+      'en'
+    )
+    expect(title).toContain('notifications.templates.bookingRequested|')
+    expect(title).toContain('"name":"Dilnoza K"')
+  })
+
+  it('falls back when a booking notification lacks scheduledAt', () => {
+    expect(notificationText(notification('booking_confirmed', { teacherName: 'Ali' }), t, 'en')).toEqual({
+      title: 'Server title',
+      body: 'Server body',
+    })
+  })
+
+  it('renders support_reply (student-facing, no name)', () => {
+    const { title } = notificationText(notification('support_reply', { ticketId: 't1' }), t, 'en')
+    expect(title).toBe('notifications.templates.supportReply|{}')
+  })
+
+  it('renders support_reply from a student name (staff-facing)', () => {
+    const { title } = notificationText(
+      notification('support_reply', { studentName: 'Dilnoza K', ticketId: 't1' }),
+      t,
+      'en'
+    )
+    expect(title).toContain('notifications.templates.supportReplyFromStudent|')
+    expect(title).toContain('"name":"Dilnoza K"')
+  })
+
+  it('renders support_recommendation with a topic', () => {
+    const { title } = notificationText(
+      notification('support_recommendation', { topic: 'Algebra', subject: 'math' }),
+      t,
+      'en'
+    )
+    expect(title).toContain('notifications.templates.supportRecommendationWithTopic|')
+    expect(title).toContain('"topic":"Algebra"')
+  })
+
+  it('renders support_recommendation without a topic', () => {
+    const { title } = notificationText(notification('support_recommendation', {}), t, 'en')
+    expect(title).toBe('notifications.templates.supportRecommendation|{}')
+  })
+
+  it('renders office_hours_reminder from title + startsAt', () => {
+    const { title } = notificationText(
+      notification('office_hours_reminder', { title: 'Math drop-in', startsAt: '2026-07-08T15:00:00Z' }),
+      t,
+      'en'
+    )
+    expect(title).toContain('notifications.templates.officeHoursReminder|')
+    expect(title).toContain('"title":"Math drop-in"')
+  })
+
+  it('renders office_hours_canceled', () => {
+    const { title } = notificationText(
+      notification('office_hours_canceled', { title: 'Math drop-in', startsAt: '2026-07-08T15:00:00Z' }),
+      t,
+      'en'
+    )
+    expect(title).toContain('notifications.templates.officeHoursCanceled|')
+  })
+
+  it('falls back for office hours without startsAt', () => {
+    expect(notificationText(notification('office_hours_reminder', { title: 'X' }), t, 'en')).toEqual({
+      title: 'Server title',
+      body: 'Server body',
+    })
+  })
+
+  it('renders mentor_assigned from studentName', () => {
+    const { title, body } = notificationText(
+      notification('mentor_assigned', { studentName: 'Aziza K.' }),
+      t,
+      'en'
+    )
+    expect(title).toBe('notifications.templates.mentorAssigned|{"name":"Aziza K."}')
+    expect(body).toBe('')
+  })
+
+  it('renders mentor_checkin_due from studentName', () => {
+    const { title } = notificationText(
+      notification('mentor_checkin_due', { studentName: 'Aziza K.' }),
+      t,
+      'en'
+    )
+    expect(title).toBe('notifications.templates.mentorCheckinDue|{"name":"Aziza K."}')
+  })
+
+  it('falls back for mentor notifications without studentName', () => {
+    expect(notificationText(notification('mentor_assigned'), t, 'en')).toEqual({
+      title: 'Server title',
+      body: 'Server body',
+    })
+  })
+
   it('falls back to server strings for old rows and unknown types', () => {
     expect(notificationText(notification('exam_graded'), t, 'en')).toEqual({
       title: 'Server title',

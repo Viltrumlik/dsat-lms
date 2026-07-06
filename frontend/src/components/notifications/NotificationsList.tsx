@@ -13,7 +13,7 @@ import {
 } from '@tanstack/react-query'
 import { formatDistanceToNow } from 'date-fns'
 import { uz as uzDate } from 'date-fns/locale'
-import { BellOff, CalendarClock, CheckCheck, ClipboardList, GraduationCap, Info, Megaphone } from 'lucide-react'
+import { BellOff, CalendarClock, CheckCheck, ClipboardList, GraduationCap, Info, LifeBuoy, Megaphone, MessageSquare, Sparkles } from 'lucide-react'
 import { notificationAPI } from '@/lib/api/notifications'
 import { cursorFromUrl } from '@/lib/api/client'
 import { useI18n } from '@/lib/i18n/I18nProvider'
@@ -25,13 +25,23 @@ import { notificationText } from './render'
 import type { Locale } from '@/lib/i18n/config'
 import type { Notification, NotificationType } from '@/types'
 
-const TYPE_ICON: Record<NotificationType, React.ComponentType<{ className?: string }>> = {
+// Partial: types without an icon fall back to Info below. Later slices (S2/S4/…)
+// add their own entries as they start emitting those notification types.
+const TYPE_ICON: Partial<Record<NotificationType, React.ComponentType<{ className?: string }>>> = {
   exam_graded: GraduationCap,
   exam_scheduled: CalendarClock,
   homework_assigned: ClipboardList,
   homework_due: ClipboardList,
   announcement: Megaphone,
   system: Info,
+  booking_requested: LifeBuoy,
+  booking_confirmed: LifeBuoy,
+  booking_cancelled: LifeBuoy,
+  booking_completed: LifeBuoy,
+  support_reply: MessageSquare,
+  support_recommendation: Sparkles,
+  office_hours_reminder: CalendarClock,
+  office_hours_canceled: CalendarClock,
 }
 
 function relativeTime(iso: string, locale: Locale) {

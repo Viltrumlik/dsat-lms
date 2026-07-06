@@ -19,6 +19,17 @@ class Notification(BaseModel):
         HOMEWORK_DUE = "homework_due", "Homework Due"
         ANNOUNCEMENT = "announcement", "Announcement"
         SYSTEM = "system", "System"
+        # Support Center (Phase 4) — all values ≤30 chars (max_length stays 30)
+        BOOKING_REQUESTED = "booking_requested", "Booking Requested"
+        BOOKING_CONFIRMED = "booking_confirmed", "Booking Confirmed"
+        BOOKING_CANCELLED = "booking_cancelled", "Booking Cancelled"
+        BOOKING_COMPLETED = "booking_completed", "Booking Completed"
+        SUPPORT_REPLY = "support_reply", "Support Reply"
+        OFFICE_HOURS_REMINDER = "office_hours_reminder", "Office Hours Reminder"
+        OFFICE_HOURS_CANCELED = "office_hours_canceled", "Office Hours Canceled"
+        SUPPORT_RECOMMENDATION = "support_recommendation", "Support Recommendation"
+        MENTOR_ASSIGNED = "mentor_assigned", "Mentor Assigned"
+        MENTOR_CHECKIN_DUE = "mentor_checkin_due", "Mentor Check-in Due"
 
     user = models.ForeignKey(
         "identity.User",

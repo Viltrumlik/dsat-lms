@@ -137,8 +137,52 @@ export interface StudentProfile {
   statusChangedAt: string | null
   statusChangedBy: StudentMini | null
   enrolledAt: string | null
+  mentor: StudentMini | null
+  mentorAssignedAt: string | null
   guardians: Guardian[]
   updatedAt: string
+}
+
+// ─────────────────────────────────────
+// Academic mentor (S6)
+// ─────────────────────────────────────
+
+export type ContactMethod = 'call' | 'message' | 'meeting' | 'other'
+
+/** A mentor's mentee row (GET /teacher/mentees/). */
+export interface Mentee {
+  id: string
+  student: StudentMini
+  status: LifecycleStatus
+  mentorAssignedAt: string | null
+  lastCheckInAt: string | null
+}
+
+/** A mentee's drilldown header (GET /students/{id}/mentee/) — mentor-scoped,
+ *  carries guardians for the parent-contact form. */
+export interface MenteeDetail {
+  id: string
+  student: StudentMini
+  status: LifecycleStatus
+  mentorAssignedAt: string | null
+  guardians: Guardian[]
+}
+
+export interface MentorCheckIn {
+  id: string
+  mentor: StudentMini | null
+  note: string
+  createdAt: string
+}
+
+export interface ParentContactLog {
+  id: string
+  guardian: string // Guardian id
+  guardianName: string
+  author: StudentMini | null
+  method: ContactMethod
+  note: string
+  createdAt: string
 }
 
 /** Demographics subset editable by the student (self-serve) or operational staff. */
@@ -739,6 +783,270 @@ export interface HomeworkSubmission {
 }
 
 // ─────────────────────────────────────
+// Support Center (Phase 4 S1 — Book a Teacher)
+// ─────────────────────────────────────
+
+export type SupportSubject = 'math' | 'reading_writing'
+export type BookingStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'no_show'
+
+export interface TeacherAvailability {
+  id: string
+  subject: SupportSubject
+  weekday: number // 0=Mon … 6=Sun
+  startTime: string // "HH:MM:SS"
+  endTime: string
+  slotMinutes: number
+  isActive: boolean
+  createdAt: string
+}
+
+export interface BookableTeacher {
+  teacher: StudentMini
+  subjects: SupportSubject[]
+}
+
+export interface SupportSlot {
+  scheduledAt: string
+  durationMinutes: number
+}
+
+/** Student-facing outcome — deliberately OMITS the staff-only `notes` field. */
+export interface SessionOutcome {
+  topicsCovered: string
+  homework: string
+  nextRecommendation: string
+}
+
+/** Staff-facing outcome — includes `notes`. */
+export interface StaffSessionOutcome extends SessionOutcome {
+  notes: string
+}
+
+export interface SessionRating {
+  score: number
+  comment: string
+  createdAt: string
+}
+
+export interface SupportBooking {
+  id: string
+  student: StudentMini
+  teacher: StudentMini
+  subject: SupportSubject
+  topic: string
+  reason: string
+  scheduledAt: string
+  durationMinutes: number
+  actualDurationMinutes: number | null
+  status: BookingStatus
+  confirmedAt: string | null
+  completedAt: string | null
+  cancelledAt: string | null
+  joinUrl: string
+  outcome: SessionOutcome | null
+  rating: SessionRating | null
+  createdAt: string
+}
+
+/** Staff read of a booking — outcome carries the staff-only `notes`. */
+export interface StaffSupportBooking extends Omit<SupportBooking, 'outcome'> {
+  outcome: StaffSessionOutcome | null
+}
+
+// Ask a Question (Phase 4 S2 — tickets)
+export type TicketStatus = 'open' | 'answered' | 'closed'
+export type TicketPriority = 'low' | 'normal' | 'high'
+
+export interface TicketAttachment {
+  id: string
+  originalName: string
+  contentType: string
+  size: number
+  downloadUrl: string
+}
+
+export interface TicketReply {
+  id: string
+  author: StudentMini
+  body: string
+  isStaffAnswer: boolean
+  createdAt: string
+}
+
+export interface SupportTicketSummary {
+  id: string
+  student: StudentMini
+  subject: SupportSubject
+  body: string
+  priority: TicketPriority
+  status: TicketStatus
+  assignedTo: StudentMini | null
+  answeredAt: string | null
+  lastReplyAt: string | null
+  replyCount: number
+  createdAt: string
+}
+
+export interface SupportTicket extends SupportTicketSummary {
+  replies: TicketReply[]
+  attachments: TicketAttachment[]
+}
+
+// Support analytics (Phase 4 S3). NOTE: the API client camelizes nested keys, so
+// the backend's by_status.no_show arrives as byStatus.noShow.
+export interface SupportBookingKpis {
+  total: number
+  byStatus: {
+    pending: number
+    confirmed: number
+    completed: number
+    cancelled: number
+    noShow: number
+  }
+  completed: number
+  noShowRate: number | null
+  avgRating: number | null
+  avgWaitMinutes: number | null
+  utilization: number | null
+}
+
+export interface SupportTicketKpis {
+  total: number
+  open: number
+  answered: number
+  closed: number
+  avgResponseMinutes: number | null
+  answeredByMe: number | null
+}
+
+export interface StaffSupportAnalytics {
+  scope: 'own' | 'all'
+  bookings: SupportBookingKpis
+  tickets: SupportTicketKpis
+}
+
+export interface StudentSupportSummary {
+  sessions: { total: number; completed: number; upcoming: number; avgRatingGiven: number | null }
+  tickets: { total: number; open: number; answered: number; closed: number }
+}
+
+// Support ops admin dashboard (Phase 4 S7). Client camelizes nested keys.
+export interface SupportOpsSummary {
+  bookings: {
+    total: number
+    byStatus: { pending: number; confirmed: number; completed: number; cancelled: number; noShow: number }
+    completed: number
+    noShowRate: number | null
+    avgRating: number | null
+    avgWaitMinutes: number | null
+  }
+  tickets: {
+    total: number
+    open: number
+    answered: number
+    closed: number
+    avgResponseMinutes: number | null
+  }
+  officeHours: { upcomingSessions: number; totalAttended: number }
+  recommendations: {
+    total: number
+    byStatus: { new: number; acted: number; dismissed: number; expired: number; superseded: number }
+  }
+}
+
+export interface SupportOpsDailyPoint {
+  date: string // yyyy-mm-dd
+  bookingsCreated: number
+  bookingsCompleted: number
+  bookingsCancelled: number
+  bookingsNoShow: number
+  ratingsCount: number
+  ratingsAvg: number | null
+  ticketsCreated: number
+  ticketsAnswered: number
+  ticketsAvgResponseMinutes: number | null
+  officeHoursSessions: number
+  officeHoursAttended: number
+  recommendationsCreated: number
+  recommendationsActed: number
+}
+
+export interface SupportOpsOverview {
+  summary: SupportOpsSummary
+  daily: SupportOpsDailyPoint[]
+}
+
+// Proactive Support Session Trigger (Phase 4 S4)
+export type RecSeverity = 'info' | 'warning' | 'critical'
+export type RecStatus = 'new' | 'acted' | 'dismissed' | 'expired' | 'superseded'
+export type RecRuleKey =
+  | 'category_accuracy_low'
+  | 'score_trend_declining'
+  | 'inactive_days'
+  | 'homework_completion_low'
+
+export interface SupportRecommendation {
+  id: string
+  ruleKey: RecRuleKey
+  severity: RecSeverity
+  status: RecStatus
+  subject: SupportSubject | ''
+  topic: string
+  evidence: Record<string, unknown>
+  createdAt: string
+  expiresAt: string | null
+}
+
+// Office Hours (Phase 4 S5)
+export type OfficeHourStatus = 'scheduled' | 'canceled' | 'completed'
+export type RSVP = 'joined' | 'left'
+
+export interface OfficeHour {
+  id: string
+  subject: SupportSubject
+  title: string
+  description: string
+  weekday: number
+  startTime: string
+  endTime: string
+  capacity: number
+  openToAll: boolean
+  location: string
+  joinUrl: string
+  isActive: boolean
+  createdAt: string
+}
+
+export interface OfficeHourSession {
+  id: string
+  title: string
+  subject: SupportSubject
+  teacher: StudentMini
+  startsAt: string
+  endsAt: string
+  capacity: number
+  location: string
+  joinUrl: string
+  status: OfficeHourStatus
+  joinedCount: number
+  seatsLeft: number
+  myRsvp: RSVP | null
+  createdAt: string
+}
+
+export interface OfficeHourAttendee {
+  id: string
+  student: StudentMini
+  rsvp: RSVP
+  attended: boolean
+  createdAt: string
+}
+
+export interface OfficeHourSessionRoster extends OfficeHourSession {
+  attendees: OfficeHourAttendee[]
+}
+
+// ─────────────────────────────────────
 // Notifications
 // ─────────────────────────────────────
 
@@ -749,6 +1057,16 @@ export type NotificationType =
   | 'homework_due'
   | 'announcement'
   | 'system'
+  | 'booking_requested'
+  | 'booking_confirmed'
+  | 'booking_cancelled'
+  | 'booking_completed'
+  | 'support_reply'
+  | 'office_hours_reminder'
+  | 'office_hours_canceled'
+  | 'support_recommendation'
+  | 'mentor_assigned'
+  | 'mentor_checkin_due'
 
 export interface Notification {
   id: string

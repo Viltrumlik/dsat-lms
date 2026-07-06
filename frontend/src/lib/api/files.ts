@@ -7,7 +7,7 @@
 //   sent snake_case (`owner_id`) to match the DRF view. Responses are camelized.
 // ═══════════════════════════════════════
 
-import { del, getPaginated, post } from './client'
+import { del, getAccessToken, getPaginated, post } from './client'
 import type { Pagination } from '@/types'
 
 export type AttachmentKind = 'avatar' | 'homework' | 'document' | 'note' | 'other'
@@ -49,4 +49,25 @@ export const filesAPI = {
     getPaginated<Attachment>('/files/', params),
   remove: (id: string) => del<void>(`/files/${id}/`),
   setAvatar: (id: string) => post<{ avatarUrl: string }>(`/files/${id}/set-avatar/`),
+
+  /** Download a private (auth-gated) attachment. A plain <a> can't send the
+   *  Bearer token, and the axios client camelizes response bodies (which mangles
+   *  a Blob), so this uses a bare fetch with the in-memory access token. */
+  download: async (downloadUrl: string, filename: string) => {
+    const token = getAccessToken()
+    const res = await fetch(downloadUrl, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      credentials: 'include',
+    })
+    if (!res.ok) throw new Error('Download failed')
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+  },
 }

@@ -58,6 +58,7 @@ LOCAL_APPS = [
     "apps.analytics",
     "apps.notifications",
     "apps.files",
+    "apps.support",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -147,6 +148,26 @@ CELERY_BEAT_SCHEDULE = {
     "purge-soft-deleted-attachments": {
         "task": "apps.files.tasks.purge_soft_deleted_attachments",
         "schedule": crontab(hour=4, minute=0),  # daily, CELERY_TIMEZONE
+    },
+    "sweep-support-triggers": {
+        "task": "apps.support.tasks.sweep_support_triggers",
+        "schedule": crontab(hour=6, minute=0),  # daily, CELERY_TIMEZONE
+    },
+    "materialize-office-hours": {
+        "task": "apps.support.tasks.materialize_office_hours",
+        "schedule": crontab(hour=5, minute=0),  # daily, CELERY_TIMEZONE
+    },
+    "send-office-hour-reminders": {
+        "task": "apps.support.tasks.send_office_hour_reminders",
+        "schedule": crontab(hour=7, minute=0),  # daily, CELERY_TIMEZONE
+    },
+    "send-mentor-checkin-reminders": {
+        "task": "apps.academy.tasks.send_mentor_checkin_reminders",
+        "schedule": crontab(hour=8, minute=0, day_of_week="mon"),  # weekly, CELERY_TIMEZONE
+    },
+    "generate-support-ops-daily": {
+        "task": "apps.support.tasks.generate_support_ops_daily",
+        "schedule": crontab(hour=1, minute=0),  # daily, CELERY_TIMEZONE
     },
 }
 

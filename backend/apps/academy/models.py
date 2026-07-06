@@ -103,11 +103,29 @@ class StudentProfile(BaseModel):
         related_name="+",
     )
     enrolled_at = models.DateTimeField(null=True, blank=True)
+    # Academic mentor (Phase 4 S6). Set via services.assign_mentor (which also
+    # writes the MentorAssignment history row); read-only on the serializer.
+    mentor = models.ForeignKey(
+        "identity.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="mentee_profiles",
+    )
+    mentor_assigned_at = models.DateTimeField(null=True, blank=True)
+    mentor_assigned_by = models.ForeignKey(
+        "identity.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
 
     class Meta:
         db_table = "student_profiles"
         verbose_name = "Student Profile"
         verbose_name_plural = "Student Profiles"
+        indexes = [models.Index(fields=["mentor"])]
 
     def __str__(self):
         return f"Profile<{self.user_id}> ({self.status})"
@@ -137,3 +155,87 @@ class Guardian(BaseModel):
 
     def __str__(self):
         return f"{self.name} ({self.relation})"
+
+
+class MentorAssignment(BaseModel):
+    """Append-only history of who mentored a student and when (S6). At most one
+    ACTIVE assignment (ended_at IS NULL) per student — enforced by a partial unique
+    constraint. StudentProfile.mentor mirrors the active one for fast reads."""
+
+    profile = models.ForeignKey(
+        StudentProfile, on_delete=models.CASCADE, related_name="mentor_assignments"
+    )
+    mentor = models.ForeignKey(
+        "identity.User", on_delete=models.PROTECT, related_name="mentor_assignments"
+    )
+    assigned_by = models.ForeignKey(
+        "identity.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    ended_at = models.DateTimeField(null=True, blank=True)
+    ended_by = models.ForeignKey(
+        "identity.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+
+    class Meta:
+        db_table = "mentor_assignments"
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["profile"],
+                condition=models.Q(ended_at__isnull=True, deleted_at__isnull=True),
+                name="uniq_active_mentor_per_student",
+            )
+        ]
+        indexes = [models.Index(fields=["mentor", "ended_at"])]
+
+    def __str__(self):
+        return f"Mentorship<{self.profile_id}> by {self.mentor_id}"
+
+
+class MentorCheckIn(BaseModel):
+    """A mentor's periodic (≈weekly) check-in note on a mentee."""
+
+    profile = models.ForeignKey(
+        StudentProfile, on_delete=models.CASCADE, related_name="mentor_checkins"
+    )
+    mentor = models.ForeignKey(
+        "identity.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    note = models.TextField()
+
+    class Meta:
+        db_table = "mentor_checkins"
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["profile", "created_at"])]
+
+    def __str__(self):
+        return f"CheckIn<{self.profile_id}>"
+
+
+class ParentContactLog(BaseModel):
+    """A logged contact with a student's guardian. The guardian must belong to the
+    student's profile (validated server-side)."""
+
+    class Method(models.TextChoices):
+        CALL = "call", "Call"
+        MESSAGE = "message", "Message"
+        MEETING = "meeting", "Meeting"
+        OTHER = "other", "Other"
+
+    profile = models.ForeignKey(
+        StudentProfile, on_delete=models.CASCADE, related_name="parent_contacts"
+    )
+    guardian = models.ForeignKey(Guardian, on_delete=models.PROTECT, related_name="contacts")
+    author = models.ForeignKey(
+        "identity.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    method = models.CharField(max_length=10, choices=Method.choices, default=Method.CALL)
+    note = models.TextField(blank=True, default="")
+
+    class Meta:
+        db_table = "parent_contact_logs"
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["profile", "created_at"])]
+
+    def __str__(self):
+        return f"ParentContact<{self.profile_id}> ({self.method})"

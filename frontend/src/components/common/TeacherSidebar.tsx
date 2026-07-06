@@ -6,15 +6,19 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
+  CalendarClock,
   ClipboardCheck,
   ClipboardList,
   Gauge,
   GraduationCap,
+  HeartHandshake,
   LayoutDashboard,
+  LifeBuoy,
   Users,
 } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
 import { useT } from '@/lib/i18n/I18nProvider'
+import { useAuth } from '@/lib/auth/AuthProvider'
 import type { NavItem } from './Sidebar'
 
 export const TEACHER_NAV: NavItem[] = [
@@ -23,11 +27,24 @@ export const TEACHER_NAV: NavItem[] = [
   { labelKey: 'teacher.nav.classes', href: '/teacher/classes', icon: Users },
   { labelKey: 'teacher.nav.homework', href: '/teacher/homework', icon: ClipboardList },
   { labelKey: 'teacher.nav.grading', href: '/teacher/grading', icon: ClipboardCheck },
+  { labelKey: 'teacher.nav.mentees', href: '/teacher/mentees', icon: HeartHandshake },
+  { labelKey: 'teacher.nav.support', href: '/teacher/support', icon: LifeBuoy },
+  // Availability + office-hours are self-service for teachers only (IsTeacher
+  // endpoints); admins who share the teacher shell would 403, so hide from them.
+  { labelKey: 'teacher.nav.availability', href: '/teacher/availability', icon: CalendarClock, teacherOnly: true },
+  { labelKey: 'teacher.nav.officeHours', href: '/teacher/office-hours', icon: Users, teacherOnly: true },
 ]
+
+/** Role-aware filter shared by the teacher sidebar and the mobile drawer. */
+export function visibleTeacherNav(role: string | undefined): NavItem[] {
+  return TEACHER_NAV.filter((item) => !item.teacherOnly || role === 'teacher')
+}
 
 export function TeacherSidebar() {
   const pathname = usePathname()
   const t = useT()
+  const { user } = useAuth()
+  const items = visibleTeacherNav(user?.role)
 
   const linkClass = (active: boolean) =>
     cn(
@@ -40,7 +57,7 @@ export function TeacherSidebar() {
   return (
     <aside className="hidden w-sidebar shrink-0 border-r border-border bg-card md:block">
       <nav className="sticky top-16 flex flex-col gap-1 p-3">
-        {TEACHER_NAV.map((item) => {
+        {items.map((item) => {
           const Icon = item.icon
           const active = pathname === item.href || pathname.startsWith(item.href + '/')
           return (

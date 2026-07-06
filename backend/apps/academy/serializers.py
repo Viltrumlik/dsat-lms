@@ -7,7 +7,14 @@ from rest_framework import serializers
 
 from apps.identity.models import User
 
-from .models import Class, ClassEnrollment, Guardian, StudentProfile
+from .models import (
+    Class,
+    ClassEnrollment,
+    Guardian,
+    MentorCheckIn,
+    ParentContactLog,
+    StudentProfile,
+)
 
 
 class ClassSerializer(serializers.ModelSerializer):
@@ -75,6 +82,7 @@ class StudentProfileSerializer(serializers.ModelSerializer):
     avatar_url = serializers.CharField(source="user.avatar_url", read_only=True)
     status_changed_by = StudentMiniSerializer(read_only=True)
     guardians = GuardianSerializer(many=True, read_only=True)
+    mentor = StudentMiniSerializer(read_only=True)
 
     class Meta:
         model = StudentProfile
@@ -92,6 +100,8 @@ class StudentProfileSerializer(serializers.ModelSerializer):
             "status_changed_at",
             "status_changed_by",
             "enrolled_at",
+            "mentor",
+            "mentor_assigned_at",
             "guardians",
             "updated_at",
         ]
@@ -103,6 +113,8 @@ class StudentProfileSerializer(serializers.ModelSerializer):
             "status_changed_at",
             "status_changed_by",
             "enrolled_at",
+            "mentor",
+            "mentor_assigned_at",
             "guardians",
             "updated_at",
         ]
@@ -118,3 +130,81 @@ class StudentProfileUpdateSerializer(serializers.ModelSerializer):
 
 class StatusChangeSerializer(serializers.Serializer):
     status = serializers.ChoiceField(choices=StudentProfile.LifecycleStatus.choices)
+
+
+# ─────────────────────────────────────
+# Academic mentor (S6)
+# ─────────────────────────────────────
+
+
+class MentorCheckInSerializer(serializers.ModelSerializer):
+    mentor = StudentMiniSerializer(read_only=True)
+
+    class Meta:
+        model = MentorCheckIn
+        fields = ["id", "mentor", "note", "created_at"]
+
+
+class ParentContactLogSerializer(serializers.ModelSerializer):
+    author = StudentMiniSerializer(read_only=True)
+    guardian_name = serializers.CharField(source="guardian.name", read_only=True)
+
+    class Meta:
+        model = ParentContactLog
+        fields = ["id", "guardian", "guardian_name", "author", "method", "note", "created_at"]
+        read_only_fields = ["id", "guardian_name", "author", "created_at"]
+
+
+class MenteeSerializer(serializers.ModelSerializer):
+    """A mentor's mentee row — the student + lifecycle status + last check-in."""
+
+    student = StudentMiniSerializer(source="user", read_only=True)
+    last_check_in_at = serializers.SerializerMethodField()
+
+    class Meta:
+        model = StudentProfile
+        fields = ["id", "student", "status", "mentor_assigned_at", "last_check_in_at"]
+
+    def get_last_check_in_at(self, obj):
+        annotated = getattr(obj, "last_check_in_annotated", "__unset__")
+        if annotated != "__unset__":
+            return annotated
+        latest = obj.mentor_checkins.order_by("-created_at").first()
+        return latest.created_at if latest else None
+
+
+class MenteeDetailSerializer(serializers.ModelSerializer):
+    """A mentee's detail header for the mentor's drilldown — student + status +
+    guardians (so the parent-contact form has its recipient list) — WITHOUT the
+    class-scoped demographics of the full profile endpoint."""
+
+    student = StudentMiniSerializer(source="user", read_only=True)
+    guardians = GuardianSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = StudentProfile
+        fields = ["id", "student", "status", "mentor_assigned_at", "guardians"]
+
+
+class AssignMentorSerializer(serializers.Serializer):
+    """Assign by `email` (friendly, mirrors enroll-by-email) or by `mentor` id;
+    omit both / mentor=null to unassign."""
+
+    mentor = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.filter(deleted_at__isnull=True), required=False, allow_null=True
+    )
+    email = serializers.EmailField(required=False, allow_blank=True)
+
+
+class CheckInCreateSerializer(serializers.Serializer):
+    note = serializers.CharField()
+
+
+class ParentContactCreateSerializer(serializers.Serializer):
+    guardian = serializers.UUIDField()
+    method = serializers.ChoiceField(
+        choices=ParentContactLog.Method.choices,
+        required=False,
+        default=ParentContactLog.Method.CALL,
+    )
+    note = serializers.CharField(required=False, allow_blank=True, default="")
