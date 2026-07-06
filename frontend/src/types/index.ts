@@ -930,6 +930,52 @@ export interface StudentSupportSummary {
   tickets: { total: number; open: number; answered: number; closed: number }
 }
 
+// Support ops admin dashboard (Phase 4 S7). Client camelizes nested keys.
+export interface SupportOpsSummary {
+  bookings: {
+    total: number
+    byStatus: { pending: number; confirmed: number; completed: number; cancelled: number; noShow: number }
+    completed: number
+    noShowRate: number | null
+    avgRating: number | null
+    avgWaitMinutes: number | null
+  }
+  tickets: {
+    total: number
+    open: number
+    answered: number
+    closed: number
+    avgResponseMinutes: number | null
+  }
+  officeHours: { upcomingSessions: number; totalAttended: number }
+  recommendations: {
+    total: number
+    byStatus: { new: number; acted: number; dismissed: number; expired: number; superseded: number }
+  }
+}
+
+export interface SupportOpsDailyPoint {
+  date: string // yyyy-mm-dd
+  bookingsCreated: number
+  bookingsCompleted: number
+  bookingsCancelled: number
+  bookingsNoShow: number
+  ratingsCount: number
+  ratingsAvg: number | null
+  ticketsCreated: number
+  ticketsAnswered: number
+  ticketsAvgResponseMinutes: number | null
+  officeHoursSessions: number
+  officeHoursAttended: number
+  recommendationsCreated: number
+  recommendationsActed: number
+}
+
+export interface SupportOpsOverview {
+  summary: SupportOpsSummary
+  daily: SupportOpsDailyPoint[]
+}
+
 // Proactive Support Session Trigger (Phase 4 S4)
 export type RecSeverity = 'info' | 'warning' | 'critical'
 export type RecStatus = 'new' | 'acted' | 'dismissed' | 'expired' | 'superseded'
