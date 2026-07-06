@@ -193,6 +193,13 @@ class Command(BaseCommand):
             )
             self._note("mentor check-in", student.email, True)
 
+        # Admin ops dashboard (Phase 4 S7) — roll up today's Support flow metrics so
+        # the (admin)/admin/support-ops dashboard has a populated data point.
+        from apps.support.ops import run_support_ops_rollup
+
+        rollup = run_support_ops_rollup()
+        self._note("support ops rollup", rollup["date"], True)
+
         self.stdout.write(self.style.SUCCESS(f"TEACHER={TEACHER_EMAIL} / {TEACHER_PASSWORD}"))
         self.stdout.write(self.style.SUCCESS(f"STUDENT={STUDENT_EMAIL} / {STUDENT_PASSWORD}"))
         self.stdout.write(

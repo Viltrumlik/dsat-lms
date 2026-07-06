@@ -33,3 +33,18 @@ def send_office_hour_reminders():
     from .office_hours import send_office_hour_reminders as _remind
 
     return _remind()
+
+
+@shared_task
+def generate_support_ops_daily():
+    """Daily: roll up yesterday's (finalized) + today's (partial) Support flow
+    metrics into SupportOpsDaily for the admin ops dashboard (S7). Idempotent."""
+    import datetime as dt
+
+    from django.utils import timezone
+
+    from .ops import run_support_ops_rollup
+
+    today = timezone.localdate()
+    run_support_ops_rollup(today - dt.timedelta(days=1))
+    return run_support_ops_rollup(today)

@@ -165,6 +165,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.academy.tasks.send_mentor_checkin_reminders",
         "schedule": crontab(hour=8, minute=0, day_of_week="mon"),  # weekly, CELERY_TIMEZONE
     },
+    "generate-support-ops-daily": {
+        "task": "apps.support.tasks.generate_support_ops_daily",
+        "schedule": crontab(hour=1, minute=0),  # daily, CELERY_TIMEZONE
+    },
 }
 
 # ─────────────────────────────────────

@@ -374,3 +374,45 @@ class OfficeHourAttendance(BaseModel):
 
     def __str__(self):
         return f"OHAttend<{self.session_id}> {self.student_id} ({self.rsvp})"
+
+
+class SupportOpsDaily(BaseModel):
+    """S7 — one row per day of Support Center flow metrics (admin ops dashboard).
+    Every field counts something that HAPPENED on `date` (reconstructable from
+    timestamps), so a rollup is deterministic and backfillable. Current-state
+    numbers (open backlog, forward utilization) are NOT stored here — they come
+    from the live overview endpoint. `date` is unique; the rollup hard-upserts in
+    place (update_or_create) and is never soft-deleted."""
+
+    date = models.DateField(unique=True, db_index=True)
+
+    # Bookings (flow)
+    bookings_created = models.PositiveIntegerField(default=0)
+    bookings_completed = models.PositiveIntegerField(default=0)
+    bookings_cancelled = models.PositiveIntegerField(default=0)
+    bookings_no_show = models.PositiveIntegerField(default=0)
+    ratings_count = models.PositiveIntegerField(default=0)
+    ratings_avg = models.DecimalField(max_digits=3, decimal_places=2, null=True, blank=True)
+
+    # Tickets (flow)
+    tickets_created = models.PositiveIntegerField(default=0)
+    tickets_answered = models.PositiveIntegerField(default=0)
+    tickets_avg_response_minutes = models.DecimalField(
+        max_digits=8, decimal_places=1, null=True, blank=True
+    )
+
+    # Office hours (flow)
+    office_hours_sessions = models.PositiveIntegerField(default=0)
+    office_hours_attended = models.PositiveIntegerField(default=0)
+
+    # Proactive trigger (flow)
+    recommendations_created = models.PositiveIntegerField(default=0)
+    recommendations_acted = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        db_table = "support_ops_daily"
+        ordering = ["-date"]
+        indexes = [models.Index(fields=["date"])]
+
+    def __str__(self):
+        return f"SupportOpsDaily<{self.date}>"

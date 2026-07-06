@@ -14,6 +14,7 @@ from .models import (
     SessionOutcome,
     SessionRating,
     SupportBooking,
+    SupportOpsDaily,
     SupportRecommendation,
     SupportTicket,
     SupportTicketAttachment,
@@ -105,3 +106,18 @@ class OfficeHourSessionAdmin(admin.ModelAdmin):
     raw_id_fields = ("office_hour", "teacher")
     date_hierarchy = "starts_at"
     inlines = [OfficeHourAttendanceInline]
+
+
+@admin.register(SupportOpsDaily)
+class SupportOpsDailyAdmin(admin.ModelAdmin):
+    list_display = (
+        "date",
+        "bookings_created",
+        "bookings_completed",
+        "tickets_created",
+        "tickets_answered",
+        "office_hours_attended",
+        "recommendations_created",
+    )
+    date_hierarchy = "date"
+    readonly_fields = ("created_at", "updated_at")
