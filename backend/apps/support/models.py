@@ -19,7 +19,16 @@ from django.db import models
 
 from common.models import BaseModel
 
-from .enums import BookingStatus, Priority, RecSeverity, RecStatus, Subject, TicketStatus
+from .enums import (
+    BookingStatus,
+    Priority,
+    RecSeverity,
+    RecStatus,
+    RSVPStatus,
+    SessionStatus,
+    Subject,
+    TicketStatus,
+)
 
 
 class TeacherAvailability(BaseModel):
@@ -275,3 +284,93 @@ class SupportRecommendation(BaseModel):
 
     def __str__(self):
         return f"Rec<{self.student_id}> {self.rule_key} ({self.status})"
+
+
+class OfficeHour(BaseModel):
+    """A teacher's recurring weekly group office-hours template (S5). The daily
+    materialize task turns each active template into dated OfficeHourSession
+    occurrences. `weekday` uses date.weekday() (0=Mon … 6=Sun)."""
+
+    teacher = models.ForeignKey(
+        "identity.User", on_delete=models.CASCADE, related_name="office_hours"
+    )
+    subject = models.CharField(max_length=20, choices=Subject.choices)
+    title = models.CharField(max_length=200)
+    description = models.TextField(blank=True, default="")
+    weekday = models.PositiveSmallIntegerField()  # 0=Mon … 6=Sun
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+    capacity = models.PositiveSmallIntegerField(default=25)
+    open_to_all = models.BooleanField(default=True)
+    location = models.CharField(max_length=200, blank=True, default="")
+    join_url = models.URLField(blank=True, default="")
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = "support_office_hours"
+        ordering = ["weekday", "start_time"]
+        indexes = [models.Index(fields=["subject", "is_active"])]
+
+    def __str__(self):
+        return f"OfficeHour<{self.teacher_id}> {self.title} wd={self.weekday}"
+
+
+class OfficeHourSession(BaseModel):
+    """A concrete dated occurrence of an OfficeHour. Snapshots the template fields
+    so later template edits never rewrite history. Status is server-managed
+    (scheduled → canceled/completed)."""
+
+    office_hour = models.ForeignKey(OfficeHour, on_delete=models.CASCADE, related_name="sessions")
+    teacher = models.ForeignKey(
+        "identity.User", on_delete=models.PROTECT, related_name="office_hour_sessions"
+    )
+    subject = models.CharField(max_length=20, choices=Subject.choices)
+    title = models.CharField(max_length=200)
+    starts_at = models.DateTimeField()
+    ends_at = models.DateTimeField()
+    capacity = models.PositiveSmallIntegerField()
+    location = models.CharField(max_length=200, blank=True, default="")
+    join_url = models.URLField(blank=True, default="")
+    status = models.CharField(
+        max_length=12, choices=SessionStatus.choices, default=SessionStatus.SCHEDULED, db_index=True
+    )
+    reminder_sent_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "support_office_hour_sessions"
+        ordering = ["starts_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["office_hour", "starts_at"], name="uniq_office_hour_occurrence"
+            )
+        ]
+        indexes = [
+            models.Index(fields=["status", "starts_at"]),
+            models.Index(fields=["subject", "status"]),
+        ]
+
+    def __str__(self):
+        return f"OHSession<{self.office_hour_id}> {self.starts_at} ({self.status})"
+
+
+class OfficeHourAttendance(BaseModel):
+    """A student's RSVP for an OfficeHourSession (capacity counts JOINED rows) plus
+    the teacher's post-session `attended` mark. One row per (session, student) —
+    leaving/re-joining flips `rsvp`."""
+
+    session = models.ForeignKey(
+        OfficeHourSession, on_delete=models.CASCADE, related_name="attendances"
+    )
+    student = models.ForeignKey(
+        "identity.User", on_delete=models.CASCADE, related_name="office_hour_attendances"
+    )
+    rsvp = models.CharField(max_length=10, choices=RSVPStatus.choices, default=RSVPStatus.JOINED)
+    attended = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = "support_office_hour_attendances"
+        unique_together = [("session", "student")]
+        indexes = [models.Index(fields=["session", "rsvp"])]
+
+    def __str__(self):
+        return f"OHAttend<{self.session_id}> {self.student_id} ({self.rsvp})"

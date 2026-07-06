@@ -12,7 +12,7 @@ from datetime import timedelta
 from zoneinfo import ZoneInfo
 
 from django.conf import settings
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.utils import timezone
 from rest_framework.exceptions import NotFound
 from rest_framework.views import APIView
@@ -24,9 +24,18 @@ from common.responses import created_response, success_response
 
 from .analytics_services import student_support_summary
 from .availability import generate_slots
-from .enums import BookingStatus, RecStatus
-from .models import SupportBooking, SupportRecommendation, SupportTicket, TeacherAvailability
+from .enums import BookingStatus, RecStatus, RSVPStatus, SessionStatus
+from .models import (
+    OfficeHourAttendance,
+    OfficeHourSession,
+    SupportBooking,
+    SupportRecommendation,
+    SupportTicket,
+    TeacherAvailability,
+)
+from .office_hours import join_office_hour, leave_office_hour
 from .serializers import (
+    OfficeHourSessionSerializer,
     SessionRatingSerializer,
     SlotSerializer,
     SupportBookingCreateSerializer,
@@ -365,3 +374,118 @@ class SupportRecommendationDismissView(APIView):
                 "This recommendation can no longer be dismissed."
             ).to_response()
         return success_response(SupportRecommendationSerializer(rec).data)
+
+
+# ─────────────────────────────────────
+# Office Hours (S5) — student browse / join / leave
+# ─────────────────────────────────────
+
+_OFFICE_HOUR_ERRORS = {
+    "not_open": ("This session isn't open for RSVP.", "status"),
+    "full": ("This session is full.", "status"),
+    "not_scheduled": ("This session can't be changed.", "status"),
+    "not_joined": ("That student hasn't joined this session.", "student"),
+}
+
+
+def office_hour_error_response(exc):
+    message, field = _OFFICE_HOUR_ERRORS.get(str(exc), ("Invalid request.", None))
+    return APIValidationError(message, field=field).to_response()
+
+
+def _joined_annotation():
+    return Count("attendances", filter=Q(attendances__rsvp=RSVPStatus.JOINED))
+
+
+def _my_rsvps(user, sessions):
+    ids = [s.id for s in sessions]
+    return dict(
+        OfficeHourAttendance.objects.filter(student=user, session_id__in=ids).values_list(
+            "session_id", "rsvp"
+        )
+    )
+
+
+def _serialize_sessions(user, sessions):
+    return OfficeHourSessionSerializer(
+        sessions, many=True, context={"my_rsvps": _my_rsvps(user, sessions)}
+    ).data
+
+
+def _serialize_session(user, pk):
+    session = (
+        OfficeHourSession.objects.filter(pk=pk)
+        .select_related("teacher")
+        .annotate(joined_count_annotated=_joined_annotation())
+        .first()
+    )
+    return OfficeHourSessionSerializer(
+        session, context={"my_rsvps": _my_rsvps(user, [session])}
+    ).data
+
+
+def _office_hour_session_or_404(pk):
+    session = OfficeHourSession.objects.filter(pk=pk).first()
+    if session is None:
+        raise NotFound("Office-hours session not found.")
+    return session
+
+
+class OfficeHourBrowseView(APIView):
+    """Upcoming open office-hours sessions any academy student may join."""
+
+    permission_classes = [IsAcademyStudent]
+
+    def get(self, request):
+        queryset = (
+            OfficeHourSession.objects.filter(
+                status=SessionStatus.SCHEDULED,
+                starts_at__gt=timezone.now(),
+                office_hour__open_to_all=True,
+                office_hour__is_active=True,
+            )
+            .select_related("teacher")
+            .annotate(joined_count_annotated=_joined_annotation())
+            .order_by("starts_at")
+        )
+        subject = request.query_params.get("subject")
+        if subject:
+            queryset = queryset.filter(subject=subject)
+        return success_response(_serialize_sessions(request.user, list(queryset)))
+
+
+class MyOfficeHoursView(APIView):
+    permission_classes = [IsAcademyStudent]
+
+    def get(self, request):
+        joined_ids = OfficeHourAttendance.objects.filter(
+            student=request.user, rsvp=RSVPStatus.JOINED
+        ).values_list("session_id", flat=True)
+        queryset = (
+            OfficeHourSession.objects.filter(id__in=joined_ids, starts_at__gt=timezone.now())
+            .select_related("teacher")
+            .annotate(joined_count_annotated=_joined_annotation())
+            .order_by("starts_at")
+        )
+        return success_response(_serialize_sessions(request.user, list(queryset)))
+
+
+class OfficeHourJoinView(APIView):
+    permission_classes = [IsAcademyStudent]
+
+    def post(self, request, pk):
+        session = _office_hour_session_or_404(pk)
+        try:
+            join_office_hour(session, request.user)
+        except ValueError as exc:
+            return office_hour_error_response(exc)
+        return success_response(_serialize_session(request.user, pk))
+
+
+class OfficeHourLeaveView(APIView):
+    permission_classes = [IsAcademyStudent]
+
+    def post(self, request, pk):
+        session = _office_hour_session_or_404(pk)
+        leave_office_hour(session, request.user)
+        return success_response(_serialize_session(request.user, pk))

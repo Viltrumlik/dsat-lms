@@ -8,6 +8,9 @@ Description: Django-admin registrations for the S1 booking models (ops visibilit
 from django.contrib import admin
 
 from .models import (
+    OfficeHour,
+    OfficeHourAttendance,
+    OfficeHourSession,
     SessionOutcome,
     SessionRating,
     SupportBooking,
@@ -80,3 +83,25 @@ class SupportRecommendationAdmin(admin.ModelAdmin):
     list_display = ("student", "rule_key", "severity", "status", "subject", "topic", "expires_at")
     list_filter = ("status", "severity", "rule_key")
     raw_id_fields = ("student", "notification", "booking")
+
+
+@admin.register(OfficeHour)
+class OfficeHourAdmin(admin.ModelAdmin):
+    list_display = ("teacher", "title", "subject", "weekday", "start_time", "capacity", "is_active")
+    list_filter = ("subject", "is_active", "weekday")
+    raw_id_fields = ("teacher",)
+
+
+class OfficeHourAttendanceInline(admin.TabularInline):
+    model = OfficeHourAttendance
+    extra = 0
+    raw_id_fields = ("student",)
+
+
+@admin.register(OfficeHourSession)
+class OfficeHourSessionAdmin(admin.ModelAdmin):
+    list_display = ("title", "teacher", "subject", "starts_at", "capacity", "status")
+    list_filter = ("status", "subject")
+    raw_id_fields = ("office_hour", "teacher")
+    date_hierarchy = "starts_at"
+    inlines = [OfficeHourAttendanceInline]

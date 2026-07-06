@@ -50,12 +50,36 @@ urlpatterns = [
         views.SupportRecommendationDismissView.as_view(),
         name="recommendation-dismiss",
     ),
+    # ─── Student: Office Hours (group) ───
+    path("office-hours/", views.OfficeHourBrowseView.as_view(), name="office-hours-browse"),
+    path("office-hours/mine/", views.MyOfficeHoursView.as_view(), name="office-hours-mine"),
+    path(
+        "office-hours/<uuid:pk>/join/",
+        views.OfficeHourJoinView.as_view(),
+        name="office-hours-join",
+    ),
+    path(
+        "office-hours/<uuid:pk>/leave/",
+        views.OfficeHourLeaveView.as_view(),
+        name="office-hours-leave",
+    ),
     # ─── Teacher: own availability (self-service) ───
     path("availability/", views_staff.MyAvailabilityView.as_view(), name="availability"),
     path(
         "availability/<uuid:pk>/",
         views_staff.MyAvailabilityDetailView.as_view(),
         name="availability-detail",
+    ),
+    # ─── Teacher: office-hours templates (self-service) ───
+    path(
+        "office-hour-templates/",
+        views_staff.TeacherOfficeHourListCreateView.as_view(),
+        name="office-hour-templates",
+    ),
+    path(
+        "office-hour-templates/<uuid:pk>/",
+        views_staff.TeacherOfficeHourDetailView.as_view(),
+        name="office-hour-template-detail",
     ),
     # ─── Staff: manage bookings (row-scoped by teacher FK) ───
     path("staff/bookings/", views_staff.StaffBookingListView.as_view(), name="staff-booking-list"),
@@ -99,5 +123,26 @@ urlpatterns = [
     # ─── Staff: support analytics (own vs. all) ───
     path(
         "staff/analytics/", views_staff.StaffSupportAnalyticsView.as_view(), name="staff-analytics"
+    ),
+    # ─── Staff: office-hours session management (row-scoped by teacher FK) ───
+    path(
+        "staff/office-hours/",
+        views_staff.StaffOfficeHourSessionsView.as_view(),
+        name="staff-office-hours",
+    ),
+    path(
+        "staff/office-hours/<uuid:pk>/roster/",
+        views_staff.StaffOfficeHourRosterView.as_view(),
+        name="staff-office-hours-roster",
+    ),
+    path(
+        "staff/office-hours/<uuid:pk>/cancel/",
+        views_staff.StaffOfficeHourCancelView.as_view(),
+        name="staff-office-hours-cancel",
+    ),
+    path(
+        "staff/office-hours/<uuid:pk>/attendance/",
+        views_staff.StaffOfficeHourAttendanceView.as_view(),
+        name="staff-office-hours-attendance",
     ),
 ]

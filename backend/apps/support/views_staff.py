@@ -10,7 +10,8 @@ Permissions: IsTeacher (availability — only teachers publish hours); IsAnyStaf
     (read bookings); IsOperationsStaff (write: status + outcome).
 """
 
-from django.db.models import Count
+from django.db.models import Count, Q
+from django.utils import timezone
 from rest_framework.exceptions import NotFound
 from rest_framework.views import APIView
 
@@ -19,10 +20,23 @@ from common.permissions import IsAnyStaff, IsOperationsStaff, IsTeacher
 from common.responses import created_response, no_content_response, success_response
 
 from .analytics_services import staff_support_analytics
-from .models import SessionOutcome, SupportBooking, SupportTicket, TeacherAvailability
+from .enums import RSVPStatus
+from .models import (
+    OfficeHour,
+    OfficeHourSession,
+    SessionOutcome,
+    SupportBooking,
+    SupportTicket,
+    TeacherAvailability,
+)
+from .office_hours import cancel_office_hour_session, mark_attendance
 from .scoping import scope_teacher_rows
 from .serializers import (
+    AttendanceMarkSerializer,
     BookingStatusChangeSerializer,
+    OfficeHourRosterSerializer,
+    OfficeHourSerializer,
+    OfficeHourSessionSerializer,
     OutcomeWriteSerializer,
     StaffBookingSerializer,
     StaffOutcomeSerializer,
@@ -39,7 +53,7 @@ from .services import (
     change_booking_status,
     change_ticket_status,
 )
-from .views import booking_error_response, ticket_error_response
+from .views import booking_error_response, office_hour_error_response, ticket_error_response
 
 
 class MyAvailabilityView(APIView):
@@ -254,3 +268,121 @@ class StaffSupportAnalyticsView(APIView):
 
     def get(self, request):
         return success_response(staff_support_analytics(request))
+
+
+# ─────────────────────────────────────
+# Office Hours (S5) — teacher templates + session management
+# ─────────────────────────────────────
+
+
+def _joined_annotation():
+    return Count("attendances", filter=Q(attendances__rsvp=RSVPStatus.JOINED))
+
+
+class TeacherOfficeHourListCreateView(APIView):
+    """A teacher's own recurring office-hours templates."""
+
+    permission_classes = [IsTeacher]
+
+    def get(self, request):
+        queryset = OfficeHour.objects.filter(teacher=request.user)
+        return success_response(OfficeHourSerializer(queryset, many=True).data)
+
+    def post(self, request):
+        serializer = OfficeHourSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        office_hour = serializer.save(teacher=request.user)
+        return created_response(OfficeHourSerializer(office_hour).data)
+
+
+class TeacherOfficeHourDetailView(APIView):
+    permission_classes = [IsTeacher]
+
+    def _get_or_404(self, request, pk):
+        office_hour = OfficeHour.objects.filter(pk=pk, teacher=request.user).first()
+        if office_hour is None:
+            raise NotFound("Office hours not found.")
+        return office_hour
+
+    def patch(self, request, pk):
+        office_hour = self._get_or_404(request, pk)
+        serializer = OfficeHourSerializer(office_hour, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return success_response(OfficeHourSerializer(office_hour).data)
+
+    def delete(self, request, pk):
+        self._get_or_404(request, pk).soft_delete()
+        return no_content_response()
+
+
+def _scoped_session_or_404(request, pk):
+    """A session the requester may manage — teacher owns it (teacher FK), or
+    full-access staff. Out-of-scope → 404."""
+    session = (
+        scope_teacher_rows(request, OfficeHourSession.objects.filter(pk=pk))
+        .select_related("teacher")
+        .annotate(joined_count_annotated=_joined_annotation())
+        .first()
+    )
+    if session is None:
+        raise NotFound("Office-hours session not found.")
+    return session
+
+
+class StaffOfficeHourSessionsView(APIView):
+    permission_classes = [IsAnyStaff]
+
+    def get(self, request):
+        queryset = (
+            scope_teacher_rows(request, OfficeHourSession.objects.all())
+            .filter(starts_at__gt=timezone.now())
+            .select_related("teacher")
+            .annotate(joined_count_annotated=_joined_annotation())
+            .order_by("starts_at")
+        )
+        return success_response(OfficeHourSessionSerializer(queryset, many=True).data)
+
+
+class StaffOfficeHourRosterView(APIView):
+    permission_classes = [IsAnyStaff]
+
+    def get(self, request, pk):
+        return success_response(
+            OfficeHourRosterSerializer(_scoped_session_or_404(request, pk)).data
+        )
+
+
+class StaffOfficeHourCancelView(APIView):
+    permission_classes = [IsOperationsStaff]
+
+    def post(self, request, pk):
+        session = _scoped_session_or_404(request, pk)
+        try:
+            cancel_office_hour_session(session)
+        except ValueError as exc:
+            return office_hour_error_response(exc)
+        return success_response(
+            OfficeHourRosterSerializer(_scoped_session_or_404(request, pk)).data
+        )
+
+
+class StaffOfficeHourAttendanceView(APIView):
+    permission_classes = [IsOperationsStaff]
+
+    def post(self, request, pk):
+        session = _scoped_session_or_404(request, pk)
+        serializer = AttendanceMarkSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        from apps.identity.models import User
+
+        student = User.objects.filter(pk=serializer.validated_data["student"]).first()
+        if student is None:
+            return office_hour_error_response(ValueError("not_joined"))
+        try:
+            mark_attendance(session, student, serializer.validated_data["attended"])
+        except ValueError as exc:
+            return office_hour_error_response(exc)
+        return success_response(
+            OfficeHourRosterSerializer(_scoped_session_or_404(request, pk)).data
+        )

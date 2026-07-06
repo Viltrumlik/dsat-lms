@@ -153,6 +153,14 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.support.tasks.sweep_support_triggers",
         "schedule": crontab(hour=6, minute=0),  # daily, CELERY_TIMEZONE
     },
+    "materialize-office-hours": {
+        "task": "apps.support.tasks.materialize_office_hours",
+        "schedule": crontab(hour=5, minute=0),  # daily, CELERY_TIMEZONE
+    },
+    "send-office-hour-reminders": {
+        "task": "apps.support.tasks.send_office_hour_reminders",
+        "schedule": crontab(hour=7, minute=0),  # daily, CELERY_TIMEZONE
+    },
 }
 
 # ─────────────────────────────────────

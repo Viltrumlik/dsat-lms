@@ -12,6 +12,9 @@ from apps.identity.models import User
 
 from .enums import Priority, Subject, TicketStatus
 from .models import (
+    OfficeHour,
+    OfficeHourAttendance,
+    OfficeHourSession,
     SessionOutcome,
     SessionRating,
     SupportBooking,
@@ -306,3 +309,111 @@ class SupportRecommendationSerializer(serializers.ModelSerializer):
             "expires_at",
         ]
         read_only_fields = fields
+
+
+# ─────────────────────────────────────
+# Office Hours (S5)
+# ─────────────────────────────────────
+
+
+class OfficeHourSerializer(serializers.ModelSerializer):
+    """A teacher's recurring office-hours template (read + write)."""
+
+    class Meta:
+        model = OfficeHour
+        fields = [
+            "id",
+            "subject",
+            "title",
+            "description",
+            "weekday",
+            "start_time",
+            "end_time",
+            "capacity",
+            "open_to_all",
+            "location",
+            "join_url",
+            "is_active",
+            "created_at",
+        ]
+        read_only_fields = ["id", "created_at"]
+
+    def validate_weekday(self, value):
+        if not 0 <= value <= 6:
+            raise serializers.ValidationError("weekday must be 0 (Mon) … 6 (Sun).")
+        return value
+
+    def validate(self, attrs):
+        start = attrs.get("start_time", getattr(self.instance, "start_time", None))
+        end = attrs.get("end_time", getattr(self.instance, "end_time", None))
+        if start and end and end <= start:
+            raise serializers.ValidationError({"end_time": "end_time must be after start_time."})
+        return attrs
+
+
+class OfficeHourSessionSerializer(serializers.ModelSerializer):
+    """A dated occurrence for student browsing. `joined_count`/`seats_left` prefer
+    an annotation to avoid N+1; `my_rsvp` comes from serializer context."""
+
+    teacher = UserMiniSerializer(read_only=True)
+    joined_count = serializers.SerializerMethodField()
+    seats_left = serializers.SerializerMethodField()
+    my_rsvp = serializers.SerializerMethodField()
+
+    class Meta:
+        model = OfficeHourSession
+        fields = [
+            "id",
+            "title",
+            "subject",
+            "teacher",
+            "starts_at",
+            "ends_at",
+            "capacity",
+            "location",
+            "join_url",
+            "status",
+            "joined_count",
+            "seats_left",
+            "my_rsvp",
+            "created_at",
+        ]
+
+    def _joined(self, obj):
+        annotated = getattr(obj, "joined_count_annotated", None)
+        return annotated if annotated is not None else obj.attendances.filter(rsvp="joined").count()
+
+    def get_joined_count(self, obj):
+        return self._joined(obj)
+
+    def get_seats_left(self, obj):
+        return max(obj.capacity - self._joined(obj), 0)
+
+    def get_my_rsvp(self, obj):
+        return (self.context.get("my_rsvps") or {}).get(obj.id)
+
+
+class OfficeHourAttendeeSerializer(serializers.ModelSerializer):
+    student = UserMiniSerializer(read_only=True)
+
+    class Meta:
+        model = OfficeHourAttendance
+        fields = ["id", "student", "rsvp", "attended", "created_at"]
+
+
+class OfficeHourRosterSerializer(OfficeHourSessionSerializer):
+    """Teacher session view — adds the joined-student roster."""
+
+    attendees = serializers.SerializerMethodField()
+
+    class Meta(OfficeHourSessionSerializer.Meta):
+        fields = OfficeHourSessionSerializer.Meta.fields + ["attendees"]
+
+    def get_attendees(self, obj):
+        joined = obj.attendances.filter(rsvp="joined").select_related("student")
+        return OfficeHourAttendeeSerializer(joined, many=True).data
+
+
+class AttendanceMarkSerializer(serializers.Serializer):
+    student = serializers.UUIDField()
+    attended = serializers.BooleanField()

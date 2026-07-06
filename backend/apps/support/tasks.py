@@ -17,3 +17,19 @@ def sweep_support_triggers():
     from .services import run_support_sweep
 
     return run_support_sweep()
+
+
+@shared_task
+def materialize_office_hours():
+    """Daily: create OfficeHourSession occurrences for the next fortnight (S5)."""
+    from .office_hours import materialize_office_hours as _materialize
+
+    return _materialize()
+
+
+@shared_task
+def send_office_hour_reminders():
+    """Daily: remind joined students of office-hours sessions within 24h (S5)."""
+    from .office_hours import send_office_hour_reminders as _remind
+
+    return _remind()
