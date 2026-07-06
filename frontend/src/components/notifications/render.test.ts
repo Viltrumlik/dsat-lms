@@ -157,6 +157,32 @@ describe('notificationText', () => {
     })
   })
 
+  it('renders mentor_assigned from studentName', () => {
+    const { title, body } = notificationText(
+      notification('mentor_assigned', { studentName: 'Aziza K.' }),
+      t,
+      'en'
+    )
+    expect(title).toBe('notifications.templates.mentorAssigned|{"name":"Aziza K."}')
+    expect(body).toBe('')
+  })
+
+  it('renders mentor_checkin_due from studentName', () => {
+    const { title } = notificationText(
+      notification('mentor_checkin_due', { studentName: 'Aziza K.' }),
+      t,
+      'en'
+    )
+    expect(title).toBe('notifications.templates.mentorCheckinDue|{"name":"Aziza K."}')
+  })
+
+  it('falls back for mentor notifications without studentName', () => {
+    expect(notificationText(notification('mentor_assigned'), t, 'en')).toEqual({
+      title: 'Server title',
+      body: 'Server body',
+    })
+  })
+
   it('falls back to server strings for old rows and unknown types', () => {
     expect(notificationText(notification('exam_graded'), t, 'en')).toEqual({
       title: 'Server title',

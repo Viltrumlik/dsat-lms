@@ -100,6 +100,16 @@ export function notificationText(
     return { title: t('notifications.templates.bookingCancelled', { date: when }), body: '' }
   }
 
+  if (notification.type === 'mentor_assigned' || notification.type === 'mentor_checkin_due') {
+    const name = str(data['studentName'])
+    if (!name) return fallback
+    const key =
+      notification.type === 'mentor_assigned'
+        ? 'notifications.templates.mentorAssigned'
+        : 'notifications.templates.mentorCheckinDue'
+    return { title: t(key, { name }), body: '' }
+  }
+
   const bookingKeys: Partial<Record<Notification['type'], string>> = {
     booking_requested: 'notifications.templates.bookingRequested',
     booking_confirmed: 'notifications.templates.bookingConfirmed',

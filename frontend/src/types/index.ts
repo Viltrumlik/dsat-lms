@@ -137,8 +137,52 @@ export interface StudentProfile {
   statusChangedAt: string | null
   statusChangedBy: StudentMini | null
   enrolledAt: string | null
+  mentor: StudentMini | null
+  mentorAssignedAt: string | null
   guardians: Guardian[]
   updatedAt: string
+}
+
+// ─────────────────────────────────────
+// Academic mentor (S6)
+// ─────────────────────────────────────
+
+export type ContactMethod = 'call' | 'message' | 'meeting' | 'other'
+
+/** A mentor's mentee row (GET /teacher/mentees/). */
+export interface Mentee {
+  id: string
+  student: StudentMini
+  status: LifecycleStatus
+  mentorAssignedAt: string | null
+  lastCheckInAt: string | null
+}
+
+/** A mentee's drilldown header (GET /students/{id}/mentee/) — mentor-scoped,
+ *  carries guardians for the parent-contact form. */
+export interface MenteeDetail {
+  id: string
+  student: StudentMini
+  status: LifecycleStatus
+  mentorAssignedAt: string | null
+  guardians: Guardian[]
+}
+
+export interface MentorCheckIn {
+  id: string
+  mentor: StudentMini | null
+  note: string
+  createdAt: string
+}
+
+export interface ParentContactLog {
+  id: string
+  guardian: string // Guardian id
+  guardianName: string
+  author: StudentMini | null
+  method: ContactMethod
+  note: string
+  createdAt: string
 }
 
 /** Demographics subset editable by the student (self-serve) or operational staff. */

@@ -11,6 +11,7 @@ import {
   ClipboardList,
   Gauge,
   GraduationCap,
+  HeartHandshake,
   LayoutDashboard,
   LifeBuoy,
   Users,
@@ -26,6 +27,7 @@ export const TEACHER_NAV: NavItem[] = [
   { labelKey: 'teacher.nav.classes', href: '/teacher/classes', icon: Users },
   { labelKey: 'teacher.nav.homework', href: '/teacher/homework', icon: ClipboardList },
   { labelKey: 'teacher.nav.grading', href: '/teacher/grading', icon: ClipboardCheck },
+  { labelKey: 'teacher.nav.mentees', href: '/teacher/mentees', icon: HeartHandshake },
   { labelKey: 'teacher.nav.support', href: '/teacher/support', icon: LifeBuoy },
   // Availability + office-hours are self-service for teachers only (IsTeacher
   // endpoints); admins who share the teacher shell would 403, so hide from them.
