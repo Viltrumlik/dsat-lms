@@ -15,7 +15,7 @@ def send_mentor_checkin_reminders(stale_days=7):
     `stale_days` (or ever). Returns the count of reminders sent."""
     import datetime as dt
 
-    from django.db.models import Max, Q
+    from django.db.models import F, Max, Q
     from django.utils import timezone
 
     from apps.notifications.models import Notification
@@ -26,10 +26,20 @@ def send_mentor_checkin_reminders(stale_days=7):
     cutoff = timezone.now() - dt.timedelta(days=stale_days)
     profiles = (
         StudentProfile.objects.filter(
-            mentor__isnull=False, status=StudentProfile.LifecycleStatus.ACTIVE
+            mentor__isnull=False,
+            status=StudentProfile.LifecycleStatus.ACTIVE,
+            user__deleted_at__isnull=True,
         )
         .select_related("mentor", "user")
-        .annotate(last_check_in=Max("mentor_checkins__created_at"))
+        # Staleness is per the CURRENT mentor: a reassigned student's new mentor
+        # must be nudged based on THEIR own last check-in, not a prior mentor's
+        # (MentorAssignment is append-only, so old check-in rows survive reassign).
+        .annotate(
+            last_check_in=Max(
+                "mentor_checkins__created_at",
+                filter=Q(mentor_checkins__mentor=F("mentor")),
+            )
+        )
         .filter(Q(last_check_in__isnull=True) | Q(last_check_in__lt=cutoff))
     )
     sent = 0

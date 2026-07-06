@@ -43,10 +43,15 @@ from .services import (
 
 def _mentee_profile_or_404(request, user_id):
     """The profile of a student the requester may mentor: full-access staff see any
-    live student; anyone else sees only their own mentees (mentor = self)."""
-    queryset = StudentProfile.objects.select_related("user", "mentor")
+    live student; anyone else sees only their own mentees (mentor = self). The
+    user__deleted_at guard is explicit on BOTH branches — User uses a plain manager
+    (not ActiveManager), and account soft-delete leaves the mentor mirror intact
+    (CLAUDE.md §15.5)."""
+    queryset = StudentProfile.objects.select_related("user", "mentor").filter(
+        user__deleted_at__isnull=True
+    )
     if request.user.can_read_all_students:
-        profile = queryset.filter(user_id=user_id, user__deleted_at__isnull=True).first()
+        profile = queryset.filter(user_id=user_id).first()
     else:
         profile = queryset.filter(user_id=user_id, mentor=request.user).first()
     if profile is None:
@@ -95,7 +100,7 @@ class MyMenteesView(APIView):
 
     def get(self, request):
         queryset = (
-            StudentProfile.objects.filter(mentor=request.user)
+            StudentProfile.objects.filter(mentor=request.user, user__deleted_at__isnull=True)
             .select_related("user")
             .annotate(last_check_in_annotated=Max("mentor_checkins__created_at"))
             .order_by("user__first_name")

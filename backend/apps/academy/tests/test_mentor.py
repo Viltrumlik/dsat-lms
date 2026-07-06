@@ -256,6 +256,24 @@ class TestEndpoints:
         )
         assert r.status_code == 400
 
+    def test_soft_deleted_mentee_is_404_and_hidden_from_list(self):
+        # A mentor keeps no access to a mentee whose account was soft-deleted
+        # (account soft-delete doesn't close mentorship, so the mirror survives).
+        student = UserFactory(role="student")
+        mentor = UserFactory(role="teacher")
+        assign_mentor(profile_for(student), mentor)
+        student.soft_delete()
+        client = authed(role="teacher", user=mentor)
+        assert client.get(STUDENTS + f"{student.id}/mentee/").status_code == 404
+        assert client.get(STUDENTS + f"{student.id}/checkins/").status_code == 404
+        assert client.get(TEACHER + "mentees/").json()["data"] == []
+
+    def test_soft_deleted_mentee_404_for_full_access(self):
+        student = UserFactory(role="student")
+        assign_mentor(profile_for(student), UserFactory(role="teacher"))
+        student.soft_delete()
+        assert authed(role="admin").get(STUDENTS + f"{student.id}/mentee/").status_code == 404
+
     def test_profile_serializer_exposes_mentor(self):
         student = UserFactory(role="student")
         mentor = UserFactory(role="teacher")
@@ -283,4 +301,27 @@ class TestReminder:
         profile = profile_for()
         assign_mentor(profile, mentor)
         log_mentor_check_in(profile, mentor, "recent")
+        assert send_mentor_checkin_reminders() == 0
+
+    def test_reassigned_mentor_reminded_despite_prior_checkin(self):
+        # A checks in (recent); the student is reassigned to B. B has never checked
+        # in, so B must still be reminded — staleness is per the current mentor.
+        first, second = UserFactory(role="teacher"), UserFactory(role="teacher")
+        profile = profile_for()
+        assign_mentor(profile, first)
+        log_mentor_check_in(profile, first, "recent")
+        assign_mentor(profile, second)
+        assert send_mentor_checkin_reminders() == 1
+        assert Notification.objects.filter(
+            user=second, type=Notification.Type.MENTOR_CHECKIN_DUE
+        ).exists()
+        assert not Notification.objects.filter(
+            user=first, type=Notification.Type.MENTOR_CHECKIN_DUE
+        ).exists()
+
+    def test_skips_soft_deleted_mentee(self):
+        mentor = UserFactory(role="teacher")
+        student = UserFactory(role="student")
+        assign_mentor(profile_for(student), mentor)  # never checked in → overdue
+        student.soft_delete()
         assert send_mentor_checkin_reminders() == 0
