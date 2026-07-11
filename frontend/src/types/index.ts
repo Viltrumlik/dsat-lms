@@ -107,6 +107,23 @@ export interface OrgSetting {
   updatedAt: string
 }
 
+/** One append-only audit row (admin viewer + dashboard activity feed). */
+export interface ActivityLog {
+  id: string
+  actor: string | null
+  actorEmail: string | null
+  actorName: string | null
+  actorRole: string
+  action: string
+  targetType: string
+  targetId: string | null
+  targetLabel: string
+  summary: string
+  metadata: Record<string, unknown>
+  ip: string | null
+  createdAt: string
+}
+
 /** Compact user as nested in rosters and homework submissions. */
 export interface StudentMini {
   id: string

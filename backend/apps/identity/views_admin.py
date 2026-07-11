@@ -13,6 +13,7 @@ from django.utils.crypto import get_random_string
 from rest_framework.exceptions import NotFound
 from rest_framework.views import APIView
 
+from apps.audit.services import record_activity
 from common.exceptions import ValidationError
 from common.pagination import CursorPagination
 from common.permissions import IsAdmin
@@ -123,6 +124,14 @@ class AdminUserListCreateView(APIView):
         serializer = AdminUserCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
+        record_activity(
+            actor=request.user,
+            action="user.created",
+            target=user,
+            summary=f"Created {user.email}",
+            request=request,
+            role=user.role,
+        )
         return created_response(AdminUserSerializer(user).data)
 
 
@@ -149,6 +158,13 @@ class AdminUserDetailView(APIView):
         if _would_orphan_admins(user):
             return ValidationError(_LAST_ADMIN_MSG).to_response()
         user.soft_delete()  # sets deleted_at + is_active=False
+        record_activity(
+            actor=request.user,
+            action="user.deleted",
+            target=user,
+            summary=f"Soft-deleted {user.email}",
+            request=request,
+        )
         return no_content_response()
 
 
@@ -167,8 +183,18 @@ class AdminUserRoleView(APIView):
         new_role = serializer.validated_data["role"]
         if new_role != User.Role.ADMIN and _would_orphan_admins(user):
             return ValidationError(_LAST_ADMIN_MSG, field="role").to_response()
+        old_role = user.role
         user.role = new_role
         user.save(update_fields=["role", "updated_at"])
+        record_activity(
+            actor=request.user,
+            action="user.role_changed",
+            target=user,
+            summary=f"{user.email}: {old_role} → {new_role}",
+            request=request,
+            from_role=old_role,
+            to_role=new_role,
+        )
         return success_response(AdminUserSerializer(user).data)
 
 
@@ -187,6 +213,13 @@ class AdminUserDeactivateView(APIView):
         if user.is_active:
             user.is_active = False
             user.save(update_fields=["is_active", "updated_at"])
+            record_activity(
+                actor=request.user,
+                action="user.deactivated",
+                target=user,
+                summary=f"Deactivated {user.email}",
+                request=request,
+            )
         return success_response(AdminUserSerializer(user).data)
 
 
@@ -206,6 +239,13 @@ class AdminUserReactivateView(APIView):
             changed.append("deleted_at")
         if changed:
             user.save(update_fields=changed + ["updated_at"])
+            record_activity(
+                actor=request.user,
+                action="user.reactivated",
+                target=user,
+                summary=f"Reactivated {user.email}",
+                request=request,
+            )
         return success_response(AdminUserSerializer(user).data)
 
 
@@ -227,6 +267,13 @@ class AdminUserSetPasswordView(APIView):
         user.set_password(serializer.validated_data["new_password"])
         user.save(update_fields=["password"])
         _blacklist_user_tokens(user)  # log out every existing session
+        record_activity(
+            actor=request.user,
+            action="user.password_set",
+            target=user,
+            summary=f"Set password for {user.email}",
+            request=request,
+        )
         return success_response({"detail": "Password updated."})
 
 
@@ -300,4 +347,13 @@ class AdminOrgSettingView(APIView):
         serializer = OrgSettingSerializer(obj, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
+        record_activity(
+            actor=request.user,
+            action="org_settings.updated",
+            target=obj,
+            target_label="Organization settings",
+            summary="Updated organization settings",
+            request=request,
+            fields=sorted(request.data.keys()),
+        )
         return success_response(serializer.data)
