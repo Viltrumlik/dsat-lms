@@ -8,6 +8,7 @@ Permissions: IsAdmin on every view (see views_admin.py).
 from django.urls import path
 
 from .views_admin import (
+    AdminOrgSettingView,
     AdminUserDeactivateView,
     AdminUserDetailView,
     AdminUserImportView,
@@ -20,6 +21,7 @@ from .views_admin import (
 app_name = "identity_admin"
 
 urlpatterns = [
+    path("org-settings/", AdminOrgSettingView.as_view(), name="org-setting"),
     path("users/", AdminUserListCreateView.as_view(), name="user-list"),
     path("users/import/", AdminUserImportView.as_view(), name="user-import"),
     path("users/<uuid:pk>/", AdminUserDetailView.as_view(), name="user-detail"),

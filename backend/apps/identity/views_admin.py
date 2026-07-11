@@ -18,13 +18,14 @@ from common.pagination import CursorPagination
 from common.permissions import IsAdmin
 from common.responses import created_response, no_content_response, success_response
 
-from .models import User
+from .models import OrgSetting, User
 from .serializers_admin import (
     AdminSetPasswordSerializer,
     AdminUserCreateSerializer,
     AdminUserRoleSerializer,
     AdminUserSerializer,
     AdminUserUpdateSerializer,
+    OrgSettingSerializer,
 )
 from .views import _blacklist_user_tokens
 
@@ -283,3 +284,20 @@ class AdminUserImportView(APIView):
                 "errors": errors,
             }
         )
+
+
+class AdminOrgSettingView(APIView):
+    """GET / PATCH the org-settings singleton (branding, academic year, grading
+    scheme, feature flags)."""
+
+    permission_classes = [IsAdmin]
+
+    def get(self, request):
+        return success_response(OrgSettingSerializer(OrgSetting.load()).data)
+
+    def patch(self, request):
+        obj = OrgSetting.load()
+        serializer = OrgSettingSerializer(obj, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return success_response(serializer.data)

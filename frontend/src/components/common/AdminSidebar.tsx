@@ -11,6 +11,7 @@ import {
   FileText,
   LayoutDashboard,
   LifeBuoy,
+  Settings,
   Users,
 } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
@@ -23,6 +24,7 @@ export const ADMIN_NAV: NavItem[] = [
   { labelKey: 'admin.nav.exams', href: '/admin/exams', icon: ClipboardList },
   { labelKey: 'admin.nav.assignments', href: '/admin/assignments', icon: CalendarClock },
   { labelKey: 'admin.nav.supportOps', href: '/admin/support-ops', icon: LifeBuoy },
+  { labelKey: 'admin.nav.settings', href: '/admin/settings', icon: Settings },
 ]
 
 export function AdminSidebar() {

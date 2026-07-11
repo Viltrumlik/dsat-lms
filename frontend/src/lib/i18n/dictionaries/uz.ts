@@ -672,10 +672,36 @@ export const uz: Dictionary = {
       exams: 'Imtihonlar',
       assignments: 'Topshiriqlar',
       supportOps: 'Yordam operatsiyalari',
+      settings: 'Sozlamalar',
       studentView: 'Talaba koʻrinishi',
     },
     common: {
       cancel: 'Bekor qilish',
+    },
+    settings: {
+      title: 'Tashkilot sozlamalari',
+      subtitle: 'Brending, oʻquv yili, baholash tizimi va funksiya bayroqlari.',
+      saved: 'Sozlamalar saqlandi',
+      save: 'Sozlamalarni saqlash',
+      loadFailed: 'Sozlamalarni yuklab boʻlmadi.',
+      branding: {
+        title: 'Brending va umumiy',
+        subtitle: 'Akademiya platforma boʻylab oʻzini qanday tanitadi.',
+        academyName: 'Akademiya nomi',
+        academicYear: 'Oʻquv yili',
+        displayTimezone: 'Koʻrsatiladigan vaqt mintaqasi',
+        defaultEmailSender: 'Standart email joʻnatuvchi',
+        logoUrl: 'Logotip URL',
+      },
+      grading: {
+        title: 'Baholash tizimi',
+        subtitle: 'Har bir harf bahosi uchun minimal foiz.',
+      },
+      flags: {
+        title: 'Funksiya bayroqlari',
+        subtitle: 'Ixtiyoriy platforma funksiyalarini yoqing.',
+        empty: 'Hali funksiya bayroqlari sozlanmagan.',
+      },
     },
     supportOps: {
       title: 'Yordam operatsiyalari',

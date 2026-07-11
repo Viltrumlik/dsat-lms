@@ -8,7 +8,7 @@
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
-from .models import User
+from .models import OrgSetting, User
 
 
 class AdminUserSerializer(serializers.ModelSerializer):
@@ -122,4 +122,37 @@ class AdminSetPasswordSerializer(serializers.Serializer):
 
     def validate_new_password(self, value):
         validate_password(value)
+        return value
+
+
+class OrgSettingSerializer(serializers.ModelSerializer):
+    """Read/update the org-settings singleton. Admin-only."""
+
+    class Meta:
+        model = OrgSetting
+        fields = [
+            "academy_name",
+            "academic_year",
+            "display_timezone",
+            "grading_thresholds",
+            "logo_url",
+            "default_email_sender",
+            "feature_flags",
+            "updated_at",
+        ]
+        read_only_fields = ["updated_at"]
+
+    def validate_grading_thresholds(self, value):
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("Must be an object of band → minimum percent.")
+        for band, minpct in value.items():
+            if isinstance(minpct, bool) or not isinstance(minpct, int | float):
+                raise serializers.ValidationError(f"{band}: minimum percent must be a number.")
+            if not 0 <= minpct <= 100:
+                raise serializers.ValidationError(f"{band}: minimum percent must be 0–100.")
+        return value
+
+    def validate_feature_flags(self, value):
+        if not isinstance(value, dict) or any(not isinstance(v, bool) for v in value.values()):
+            raise serializers.ValidationError("Must be an object of flag → boolean.")
         return value

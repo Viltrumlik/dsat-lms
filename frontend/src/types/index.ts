@@ -95,6 +95,18 @@ export interface AdminUser {
   deletedAt: string | null
 }
 
+/** Org-settings singleton (admin). Presentation-level config only. */
+export interface OrgSetting {
+  academyName: string
+  academicYear: string
+  displayTimezone: string
+  gradingThresholds: Record<string, number>
+  logoUrl: string
+  defaultEmailSender: string
+  featureFlags: Record<string, boolean>
+  updatedAt: string
+}
+
 /** Compact user as nested in rosters and homework submissions. */
 export interface StudentMini {
   id: string

@@ -669,10 +669,36 @@ export const en = {
       exams: 'Exams',
       assignments: 'Assignments',
       supportOps: 'Support ops',
+      settings: 'Settings',
       studentView: 'Student view',
     },
     common: {
       cancel: 'Cancel',
+    },
+    settings: {
+      title: 'Organization settings',
+      subtitle: 'Branding, academic year, grading scheme, and feature flags.',
+      saved: 'Settings saved',
+      save: 'Save settings',
+      loadFailed: "Couldn't load settings.",
+      branding: {
+        title: 'Branding & general',
+        subtitle: 'How the academy identifies itself across the platform.',
+        academyName: 'Academy name',
+        academicYear: 'Academic year',
+        displayTimezone: 'Display timezone',
+        defaultEmailSender: 'Default email sender',
+        logoUrl: 'Logo URL',
+      },
+      grading: {
+        title: 'Grading scheme',
+        subtitle: 'Minimum percentage for each letter grade.',
+      },
+      flags: {
+        title: 'Feature flags',
+        subtitle: 'Toggle optional platform features.',
+        empty: 'No feature flags configured yet.',
+      },
     },
     supportOps: {
       title: 'Support operations',
