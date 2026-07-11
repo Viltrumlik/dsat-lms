@@ -124,6 +124,29 @@ export interface ActivityLog {
   createdAt: string
 }
 
+/** Attendance (5.2a). */
+export type AttendanceStatus = 'present' | 'absent' | 'late' | 'excused'
+export interface ClassSession {
+  id: string
+  klass: string
+  klassName: string
+  title: string
+  startsAt: string
+  endsAt: string | null
+  location: string
+  status: 'scheduled' | 'completed' | 'canceled'
+  markedCount: number
+  createdAt: string
+}
+export interface AttendanceRow {
+  student: StudentMini
+  status: AttendanceStatus | null
+  note: string
+}
+export interface ClassSessionDetail extends ClassSession {
+  roster: AttendanceRow[]
+}
+
 /** Admin global search (⌘K). */
 export interface SearchHit {
   id: string

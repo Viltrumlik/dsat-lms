@@ -6,6 +6,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
+  CalendarCheck,
   CalendarClock,
   ClipboardCheck,
   ClipboardList,
@@ -25,6 +26,7 @@ export const TEACHER_NAV: NavItem[] = [
   { labelKey: 'teacher.nav.dashboard', href: '/teacher/dashboard', icon: Gauge },
   { labelKey: 'teacher.nav.students', href: '/teacher/students', icon: GraduationCap },
   { labelKey: 'teacher.nav.classes', href: '/teacher/classes', icon: Users },
+  { labelKey: 'teacher.nav.attendance', href: '/teacher/attendance', icon: CalendarCheck },
   { labelKey: 'teacher.nav.homework', href: '/teacher/homework', icon: ClipboardList },
   { labelKey: 'teacher.nav.grading', href: '/teacher/grading', icon: ClipboardCheck },
   { labelKey: 'teacher.nav.mentees', href: '/teacher/mentees', icon: HeartHandshake },
