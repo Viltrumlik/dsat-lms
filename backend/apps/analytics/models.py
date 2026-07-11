@@ -35,3 +35,25 @@ class UserCategoryStat(BaseModel):
 
     def __str__(self):
         return f"{self.user_id} · {self.category_id}: {self.total_correct}/{self.total_answered}"
+
+
+class PlatformOpsDaily(BaseModel):
+    """One row per day of platform-wide FLOW counters. Everything counts what
+    HAPPENED that day (reconstructable from timestamps), so the rollup is
+    deterministic + backfillable. Powers the admin dashboard's trend chart;
+    current-state KPIs stay live in admin_ops.admin_dashboard_overview. Never
+    soft-deleted (hard upsert on the unique date)."""
+
+    date = models.DateField(unique=True)
+    new_registrations = models.PositiveIntegerField(default=0)
+    exams_taken = models.PositiveIntegerField(default=0)
+    homework_submitted = models.PositiveIntegerField(default=0)
+    bookings_created = models.PositiveIntegerField(default=0)
+    tickets_created = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        db_table = "platform_ops_daily"
+        ordering = ["-date"]
+
+    def __str__(self):
+        return f"PlatformOpsDaily {self.date}"

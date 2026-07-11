@@ -667,6 +667,7 @@ export const uz: Dictionary = {
   },
   admin: {
     nav: {
+      dashboard: 'Boshqaruv paneli',
       users: 'Foydalanuvchilar',
       questions: 'Savollar',
       exams: 'Imtihonlar',
@@ -678,6 +679,48 @@ export const uz: Dictionary = {
     },
     common: {
       cancel: 'Bekor qilish',
+    },
+    dashboard: {
+      title: 'Boshqaruv markazi',
+      subtitle: 'Hozir eʼtiboringizni talab qiladigan narsalar.',
+      window: 'Vaqt oraligʻi',
+      days: 'Oxirgi {n} kun',
+      rebuild: 'Qayta qurish',
+      rebuilt: 'Tendensiyalar qayta qurildi',
+      loadFailed: 'Boshqaruv panelini yuklab boʻlmadi.',
+      today: 'Bugun',
+      activityTrend: 'Kunlik faoliyat',
+      recentActivity: 'Soʻnggi faoliyat',
+      viewAll: 'Barchasini koʻrish',
+      noActivity: 'Soʻnggi faoliyat yoʻq.',
+      trend: {
+        registrations: 'Roʻyxatdan oʻtishlar',
+        exams: 'Topshirilgan imtihonlar',
+        homework: 'Topshirilgan uy vazifalari',
+      },
+      kpi: {
+        students: 'Faol talabalar',
+        teachers: 'Oʻqituvchilar',
+        classes: 'Faol sinflar',
+        upcomingExams: 'Yaqin imtihonlar',
+        completionRate: 'Bajarilish darajasi',
+        satisfaction: 'Qoniqish',
+      },
+      todayKpi: {
+        newRegistrations: 'Yangi roʻyxatdan oʻtishlar',
+        homeworkDue: 'Muddati bugun',
+        homeworkSubmitted: 'Topshirilgan uy vazifalari',
+        bookings: 'Oʻqituvchi band qilishlari',
+        upcomingExamsWeek: 'Shu haftadagi imtihonlar',
+      },
+      alerts: {
+        allClear: 'Hammasi joyida — eʼtibor talab qiladigan narsa yoʻq.',
+        view: 'Koʻrish',
+        at_risk_students: '{count} xavf ostidagi talaba eʼtibor talab qiladi',
+        inactive_students: '{count} talaba 14+ kundan beri faol emas',
+        ungraded_submissions: '{count} topshiriq baholanishni kutmoqda',
+        open_tickets: '{count} ochiq yordam savoli',
+      },
     },
     audit: {
       title: 'Faoliyat jurnali',

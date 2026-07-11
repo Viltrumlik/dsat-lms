@@ -20,6 +20,7 @@ import { useT } from '@/lib/i18n/I18nProvider'
 import type { NavItem } from './Sidebar'
 
 export const ADMIN_NAV: NavItem[] = [
+  { labelKey: 'admin.nav.dashboard', href: '/admin', icon: LayoutDashboard },
   { labelKey: 'admin.nav.users', href: '/admin/users', icon: Users },
   { labelKey: 'admin.nav.questions', href: '/admin/questions', icon: FileText },
   { labelKey: 'admin.nav.exams', href: '/admin/exams', icon: ClipboardList },
@@ -46,7 +47,11 @@ export function AdminSidebar() {
       <nav className="sticky top-16 flex flex-col gap-1 p-3">
         {ADMIN_NAV.map((item) => {
           const Icon = item.icon
-          const active = pathname === item.href || pathname.startsWith(item.href + '/')
+          // '/admin' is the index route — match it exactly so it doesn't stay
+          // active on every /admin/* sub-page.
+          const active =
+            pathname === item.href ||
+            (item.href !== '/admin' && pathname.startsWith(item.href + '/'))
           return (
             <Link key={item.href} href={item.href} className={linkClass(active)}>
               <Icon className="h-5 w-5" />

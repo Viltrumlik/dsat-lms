@@ -170,6 +170,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.support.tasks.generate_support_ops_daily",
         "schedule": crontab(hour=1, minute=0),  # daily, CELERY_TIMEZONE
     },
+    "generate-platform-ops-daily": {
+        "task": "apps.analytics.tasks.generate_platform_ops_daily",
+        "schedule": crontab(hour=1, minute=15),  # daily, CELERY_TIMEZONE
+    },
 }
 
 # ─────────────────────────────────────

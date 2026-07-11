@@ -664,6 +664,7 @@ export const en = {
   },
   admin: {
     nav: {
+      dashboard: 'Dashboard',
       users: 'Users',
       questions: 'Questions',
       exams: 'Exams',
@@ -675,6 +676,48 @@ export const en = {
     },
     common: {
       cancel: 'Cancel',
+    },
+    dashboard: {
+      title: 'Control center',
+      subtitle: 'What needs your attention right now.',
+      window: 'Time window',
+      days: 'Last {n} days',
+      rebuild: 'Rebuild',
+      rebuilt: 'Trends rebuilt',
+      loadFailed: "Couldn't load the dashboard.",
+      today: "Today",
+      activityTrend: 'Daily activity',
+      recentActivity: 'Recent activity',
+      viewAll: 'View all',
+      noActivity: 'No recent activity.',
+      trend: {
+        registrations: 'Registrations',
+        exams: 'Exams taken',
+        homework: 'Homework submitted',
+      },
+      kpi: {
+        students: 'Active students',
+        teachers: 'Teachers',
+        classes: 'Active classes',
+        upcomingExams: 'Upcoming exams',
+        completionRate: 'Completion rate',
+        satisfaction: 'Satisfaction',
+      },
+      todayKpi: {
+        newRegistrations: 'New registrations',
+        homeworkDue: 'Homework due',
+        homeworkSubmitted: 'Homework submitted',
+        bookings: 'Teacher bookings',
+        upcomingExamsWeek: 'Exams this week',
+      },
+      alerts: {
+        allClear: 'All clear — nothing needs attention.',
+        view: 'View',
+        at_risk_students: '{count} at-risk students need attention',
+        inactive_students: '{count} students inactive 14+ days',
+        ungraded_submissions: '{count} submissions awaiting grading',
+        open_tickets: '{count} open support questions',
+      },
     },
     audit: {
       title: 'Activity log',

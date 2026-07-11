@@ -71,3 +71,12 @@ def update_category_stats(user_id):
         )
         touched += 1
     return touched
+
+
+@shared_task
+def generate_platform_ops_daily():
+    """Daily: re-roll the trailing window of platform flow metrics into
+    PlatformOpsDaily for the admin dashboard trend chart (5.1). Idempotent."""
+    from .admin_ops import rollup_recent
+
+    return rollup_recent()

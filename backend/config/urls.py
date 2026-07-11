@@ -29,6 +29,7 @@ urlpatterns = [
     path(API_V1 + "admin/", include("apps.assessments.urls_admin")),
     path(API_V1 + "admin/", include("apps.support.urls_admin")),
     path(API_V1 + "admin/", include("apps.audit.urls_admin")),
+    path(API_V1 + "admin/", include("apps.analytics.urls_admin")),
     path(API_V1 + "notifications/", include("apps.notifications.urls")),
     path(API_V1 + "homework/", include("apps.homework.urls")),
     path(API_V1 + "files/", include("apps.files.urls")),

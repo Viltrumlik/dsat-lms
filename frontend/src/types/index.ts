@@ -124,6 +124,44 @@ export interface ActivityLog {
   createdAt: string
 }
 
+/** Admin executive dashboard (5.1). */
+export interface DashboardKpis {
+  totalStudents: number
+  totalTeachers: number
+  activeClasses: number
+  upcomingExams: number
+  completionRate: number | null
+  satisfaction: number | null
+}
+export interface DashboardToday {
+  newRegistrations: number
+  homeworkDue: number
+  homeworkSubmitted: number
+  bookings: number
+  upcomingExamsWeek: number
+}
+export interface DashboardAlert {
+  kind: string
+  severity: 'red' | 'yellow'
+  count: number
+  url: string | null
+}
+export interface DashboardTrendPoint {
+  date: string
+  newRegistrations: number
+  examsTaken: number
+  homeworkSubmitted: number
+  bookingsCreated: number
+  ticketsCreated: number
+}
+export interface DashboardOverview {
+  kpis: DashboardKpis
+  today: DashboardToday
+  alerts: DashboardAlert[]
+  trends: DashboardTrendPoint[]
+  recentActivity: ActivityLog[]
+}
+
 /** Compact user as nested in rosters and homework submissions. */
 export interface StudentMini {
   id: string
