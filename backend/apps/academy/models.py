@@ -239,3 +239,64 @@ class ParentContactLog(BaseModel):
 
     def __str__(self):
         return f"ParentContact<{self.profile_id}> ({self.method})"
+
+
+class ClassSession(BaseModel):
+    """A dated occurrence of a class — the unit attendance is marked against.
+    `teacher` and `title` are SNAPSHOTTED so later Class edits don't rewrite the
+    history (mirrors support.OfficeHourSession). Sessions are created ad hoc; a
+    recurring weekly schedule (5.2b) will materialize them."""
+
+    class Status(models.TextChoices):
+        SCHEDULED = "scheduled", "Scheduled"
+        COMPLETED = "completed", "Completed"
+        CANCELED = "canceled", "Canceled"
+
+    klass = models.ForeignKey(Class, on_delete=models.CASCADE, related_name="sessions")
+    teacher = models.ForeignKey(
+        "identity.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    title = models.CharField(max_length=200, blank=True, default="")
+    starts_at = models.DateTimeField()
+    ends_at = models.DateTimeField(null=True, blank=True)
+    location = models.CharField(max_length=200, blank=True, default="")
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.SCHEDULED, db_index=True
+    )
+
+    class Meta:
+        db_table = "class_sessions"
+        ordering = ["-starts_at"]
+        unique_together = [("klass", "starts_at")]
+        indexes = [models.Index(fields=["klass", "starts_at"])]
+
+    def __str__(self):
+        return f"{self.klass_id} @ {self.starts_at:%Y-%m-%d %H:%M}"
+
+
+class Attendance(BaseModel):
+    """One student's attendance mark for a class session."""
+
+    class Status(models.TextChoices):
+        PRESENT = "present", "Present"
+        ABSENT = "absent", "Absent"
+        LATE = "late", "Late"
+        EXCUSED = "excused", "Excused"
+
+    session = models.ForeignKey(ClassSession, on_delete=models.CASCADE, related_name="attendances")
+    student = models.ForeignKey(
+        "identity.User", on_delete=models.CASCADE, related_name="attendances"
+    )
+    status = models.CharField(max_length=20, choices=Status.choices)
+    marked_by = models.ForeignKey(
+        "identity.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    note = models.CharField(max_length=255, blank=True, default="")
+
+    class Meta:
+        db_table = "attendances"
+        unique_together = [("session", "student")]
+        indexes = [models.Index(fields=["session", "status"])]
+
+    def __str__(self):
+        return f"{self.student_id} @ {self.session_id}: {self.status}"
