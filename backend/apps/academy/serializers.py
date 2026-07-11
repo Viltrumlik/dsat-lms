@@ -8,8 +8,10 @@ from rest_framework import serializers
 from apps.identity.models import User
 
 from .models import (
+    Attendance,
     Class,
     ClassEnrollment,
+    ClassSession,
     Guardian,
     MentorCheckIn,
     ParentContactLog,
@@ -208,3 +210,66 @@ class ParentContactCreateSerializer(serializers.Serializer):
         default=ParentContactLog.Method.CALL,
     )
     note = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+# ─────────────────────────────────────
+# Attendance (5.2a)
+# ─────────────────────────────────────
+
+
+class ClassSessionSerializer(serializers.ModelSerializer):
+    klass_name = serializers.CharField(source="klass.name", read_only=True)
+    marked_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ClassSession
+        fields = [
+            "id",
+            "klass",
+            "klass_name",
+            "title",
+            "starts_at",
+            "ends_at",
+            "location",
+            "status",
+            "marked_count",
+            "created_at",
+        ]
+        read_only_fields = ["id", "klass_name", "marked_count", "created_at"]
+
+    def get_marked_count(self, obj):
+        annotated = getattr(obj, "marked_count_annotated", None)
+        if annotated is not None:
+            return annotated
+        return obj.attendances.count()
+
+
+class ClassSessionCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ClassSession
+        fields = ["klass", "title", "starts_at", "ends_at", "location"]
+
+
+class ClassSessionUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ClassSession
+        fields = ["title", "starts_at", "ends_at", "location", "status"]
+
+
+class AttendanceRowSerializer(serializers.Serializer):
+    """One roster row: the student + their current mark (null = unmarked)."""
+
+    student = StudentMiniSerializer(read_only=True)
+    status = serializers.CharField(allow_null=True)
+    note = serializers.CharField(allow_blank=True)
+
+
+class AttendanceMarkSerializer(serializers.Serializer):
+    """Bulk-mark payload: a list of {student, status, note?}."""
+
+    class _Mark(serializers.Serializer):
+        student = serializers.UUIDField()
+        status = serializers.ChoiceField(choices=Attendance.Status.choices)
+        note = serializers.CharField(required=False, allow_blank=True, default="")
+
+    marks = _Mark(many=True)

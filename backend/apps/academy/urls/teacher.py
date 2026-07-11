@@ -16,6 +16,11 @@ from apps.academy.views import (
     TeacherStudentAnalyticsView,
     TeacherStudentsView,
 )
+from apps.academy.views_attendance import (
+    TeacherClassSessionAttendanceView,
+    TeacherClassSessionDetailView,
+    TeacherClassSessionListCreateView,
+)
 from apps.academy.views_mentor import MyMenteesView
 
 app_name = "academy_teacher"
@@ -41,5 +46,21 @@ urlpatterns = [
         "students/<uuid:pk>/analytics/",
         TeacherStudentAnalyticsView.as_view(),
         name="teacher-student-analytics",
+    ),
+    # Attendance (5.2a)
+    path(
+        "class-sessions/",
+        TeacherClassSessionListCreateView.as_view(),
+        name="class-session-list",
+    ),
+    path(
+        "class-sessions/<uuid:pk>/",
+        TeacherClassSessionDetailView.as_view(),
+        name="class-session-detail",
+    ),
+    path(
+        "class-sessions/<uuid:pk>/attendance/",
+        TeacherClassSessionAttendanceView.as_view(),
+        name="class-session-attendance",
     ),
 ]
