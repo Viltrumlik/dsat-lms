@@ -763,6 +763,8 @@ export const uz: Dictionary = {
       },
       todayKpi: {
         newRegistrations: 'Yangi roʻyxatdan oʻtishlar',
+        classesToday: 'Bugungi darslar',
+        absentToday: 'Kelmagan talabalar',
         homeworkDue: 'Muddati bugun',
         homeworkSubmitted: 'Topshirilgan uy vazifalari',
         bookings: 'Oʻqituvchi band qilishlari',

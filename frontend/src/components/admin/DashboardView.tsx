@@ -20,6 +20,7 @@ import {
   Star,
   UserPlus,
   Users,
+  UserX,
 } from 'lucide-react'
 import { adminDashboardAPI } from '@/lib/api/admin/dashboard'
 import { parseApiError } from '@/lib/api/errors'
@@ -161,11 +162,21 @@ export function DashboardView() {
           {/* Today */}
           <div className="space-y-3">
             <h2 className="text-lg font-semibold">{t('admin.dashboard.today')}</h2>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               <StatCard
                 label={t('admin.dashboard.todayKpi.newRegistrations')}
                 value={String(query.data.today.newRegistrations)}
                 icon={UserPlus}
+              />
+              <StatCard
+                label={t('admin.dashboard.todayKpi.classesToday')}
+                value={String(query.data.today.classesToday)}
+                icon={School}
+              />
+              <StatCard
+                label={t('admin.dashboard.todayKpi.absentToday')}
+                value={String(query.data.today.absentToday)}
+                icon={UserX}
               />
               <StatCard
                 label={t('admin.dashboard.todayKpi.homeworkDue')}

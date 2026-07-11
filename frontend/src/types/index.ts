@@ -173,6 +173,8 @@ export interface DashboardKpis {
 }
 export interface DashboardToday {
   newRegistrations: number
+  classesToday: number
+  absentToday: number
   homeworkDue: number
   homeworkSubmitted: number
   bookings: number

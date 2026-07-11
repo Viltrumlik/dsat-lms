@@ -760,6 +760,8 @@ export const en = {
       },
       todayKpi: {
         newRegistrations: 'New registrations',
+        classesToday: 'Classes today',
+        absentToday: 'Students absent',
         homeworkDue: 'Homework due',
         homeworkSubmitted: 'Homework submitted',
         bookings: 'Teacher bookings',

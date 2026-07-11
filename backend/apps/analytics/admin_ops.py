@@ -124,6 +124,7 @@ def _kpis():
 
 
 def _today():
+    from apps.academy.models import Attendance, ClassSession
     from apps.assessments.models import ExamAssignment
     from apps.homework.models import Homework, HomeworkSubmission
     from apps.identity.models import User
@@ -135,6 +136,14 @@ def _today():
 
     return {
         "new_registrations": User.objects.filter(created_at__gte=start, created_at__lt=end).count(),
+        "classes_today": ClassSession.objects.filter(starts_at__gte=start, starts_at__lt=end)
+        .exclude(status=ClassSession.Status.CANCELED)
+        .count(),
+        "absent_today": Attendance.objects.filter(
+            status=Attendance.Status.ABSENT,
+            session__starts_at__gte=start,
+            session__starts_at__lt=end,
+        ).count(),
         "homework_due": Homework.objects.filter(
             is_published=True, due_at__gte=start, due_at__lt=end
         ).count(),
