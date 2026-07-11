@@ -24,6 +24,7 @@ import { useT } from '@/lib/i18n/I18nProvider'
 import { useToast } from '@/components/ui/toast'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { StatCard } from '@/components/ui/stat-card'
 import {
   Select,
   SelectContent,
@@ -44,33 +45,6 @@ const TrendChart = dynamic(() => import('./SupportOpsTrendChart'), {
 const ratioPct = (v: number | null) => (v === null ? '—' : `${Math.round(v * 100)}%`)
 const minutes = (v: number | null) => (v === null ? '—' : `${Math.round(v)}m`)
 const rating = (v: number | null) => (v === null ? '—' : v.toFixed(1))
-
-function StatCard({
-  label,
-  value,
-  icon: Icon,
-  hint,
-}: {
-  label: string
-  value: string
-  icon: React.ComponentType<{ className?: string }>
-  hint?: string
-}) {
-  return (
-    <Card>
-      <CardContent className="flex items-center gap-4 p-5">
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary-50 text-primary-700 dark:bg-primary-800/40 dark:text-primary-100">
-          <Icon className="h-5 w-5" />
-        </span>
-        <div className="min-w-0">
-          <p className="text-2xl font-bold leading-tight tabular-nums">{value}</p>
-          <p className="truncate text-sm text-muted-foreground">{label}</p>
-          {hint && <p className="truncate text-xs text-muted-foreground">{hint}</p>}
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
 
 export function SupportOpsView() {
   const t = useT()
