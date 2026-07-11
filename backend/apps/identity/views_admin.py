@@ -333,6 +333,102 @@ class AdminUserImportView(APIView):
         )
 
 
+class AdminSearchView(APIView):
+    """Global admin search — grouped hits across users, questions, exams, classes.
+    `icontains` (FTS is the documented long-term plan); capped per group. IsAdmin.
+    Powers the ⌘K command palette."""
+
+    permission_classes = [IsAdmin]
+    _CAP = 6
+
+    def get(self, request):
+        q = (request.query_params.get("q") or "").strip()
+        groups = []
+        if len(q) < 2:
+            return success_response({"groups": groups})
+
+        users = (
+            User.objects.filter(deleted_at__isnull=True)
+            .filter(Q(email__icontains=q) | Q(first_name__icontains=q) | Q(last_name__icontains=q))
+            .order_by("-created_at")[: self._CAP]
+        )
+        if users:
+            groups.append(
+                {
+                    "type": "users",
+                    "items": [
+                        {
+                            "id": str(u.id),
+                            "title": u.get_full_name() or u.email,
+                            "subtitle": u.email,
+                            "url": "/admin/users",
+                        }
+                        for u in users
+                    ],
+                }
+            )
+
+        # Cross-app models are lazy-imported (keeps identity's import graph one-way).
+        from apps.question_bank.models import Question
+
+        questions = Question.objects.filter(stem__icontains=q).order_by("-created_at")[: self._CAP]
+        if questions:
+            groups.append(
+                {
+                    "type": "questions",
+                    "items": [
+                        {
+                            "id": str(qq.id),
+                            "title": qq.stem[:80],
+                            "subtitle": qq.status,
+                            "url": f"/admin/questions/{qq.id}",
+                        }
+                        for qq in questions
+                    ],
+                }
+            )
+
+        from apps.assessments.models import ExamTemplate
+
+        exams = ExamTemplate.objects.filter(title__icontains=q).order_by("-created_at")[: self._CAP]
+        if exams:
+            groups.append(
+                {
+                    "type": "exams",
+                    "items": [
+                        {
+                            "id": str(e.id),
+                            "title": e.title,
+                            "subtitle": getattr(e, "type", ""),
+                            "url": f"/admin/exams/{e.id}",
+                        }
+                        for e in exams
+                    ],
+                }
+            )
+
+        from apps.academy.models import Class
+
+        classes = Class.objects.filter(name__icontains=q).order_by("-created_at")[: self._CAP]
+        if classes:
+            groups.append(
+                {
+                    "type": "classes",
+                    "items": [
+                        {
+                            "id": str(c.id),
+                            "title": c.name,
+                            "subtitle": None,
+                            "url": f"/teacher/classes/{c.id}",
+                        }
+                        for c in classes
+                    ],
+                }
+            )
+
+        return success_response({"groups": groups})
+
+
 class AdminOrgSettingView(APIView):
     """GET / PATCH the org-settings singleton (branding, academic year, grading
     scheme, feature flags)."""

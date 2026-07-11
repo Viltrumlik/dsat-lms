@@ -676,9 +676,35 @@ export const uz: Dictionary = {
       audit: 'Faoliyat jurnali',
       settings: 'Sozlamalar',
       studentView: 'Talaba koʻrinishi',
+      sections: {
+        overview: 'Umumiy koʻrinish',
+        people: 'Odamlar',
+        content: 'Kontent',
+        support: 'Yordam',
+        system: 'Tizim',
+      },
     },
     common: {
       cancel: 'Bekor qilish',
+    },
+    search: {
+      title: 'Qidiruv',
+      placeholder: 'Foydalanuvchi, savol, imtihon qidiring…',
+      quickActions: 'Tezkor amallar',
+      noResults: 'Natija yoʻq.',
+      actions: {
+        newQuestion: 'Yangi savol',
+        users: 'Foydalanuvchilarni boshqarish',
+        exams: 'Imtihonlarni boshqarish',
+        dashboard: 'Boshqaruv paneliga oʻtish',
+        settings: 'Sozlamalarni ochish',
+      },
+      groups: {
+        users: 'Foydalanuvchilar',
+        questions: 'Savollar',
+        exams: 'Imtihonlar',
+        classes: 'Sinflar',
+      },
     },
     dashboard: {
       title: 'Boshqaruv markazi',

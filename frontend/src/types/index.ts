@@ -124,6 +124,21 @@ export interface ActivityLog {
   createdAt: string
 }
 
+/** Admin global search (⌘K). */
+export interface SearchHit {
+  id: string
+  title: string
+  subtitle: string | null
+  url: string
+}
+export interface SearchGroup {
+  type: string
+  items: SearchHit[]
+}
+export interface SearchResults {
+  groups: SearchGroup[]
+}
+
 /** Admin executive dashboard (5.1). */
 export interface DashboardKpis {
   totalStudents: number

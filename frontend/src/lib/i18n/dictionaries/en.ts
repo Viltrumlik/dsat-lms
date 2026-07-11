@@ -673,9 +673,35 @@ export const en = {
       audit: 'Activity log',
       settings: 'Settings',
       studentView: 'Student view',
+      sections: {
+        overview: 'Overview',
+        people: 'People',
+        content: 'Content',
+        support: 'Support',
+        system: 'System',
+      },
     },
     common: {
       cancel: 'Cancel',
+    },
+    search: {
+      title: 'Search',
+      placeholder: 'Search users, questions, exams…',
+      quickActions: 'Quick actions',
+      noResults: 'No results.',
+      actions: {
+        newQuestion: 'New question',
+        users: 'Manage users',
+        exams: 'Manage exams',
+        dashboard: 'Go to dashboard',
+        settings: 'Open settings',
+      },
+      groups: {
+        users: 'Users',
+        questions: 'Questions',
+        exams: 'Exams',
+        classes: 'Classes',
+      },
     },
     dashboard: {
       title: 'Control center',

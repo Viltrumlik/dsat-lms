@@ -19,6 +19,8 @@ export interface NavItem {
   academyOnly?: boolean
   /** Teacher-shell items backed by IsTeacher-only endpoints (hidden from admins). */
   teacherOnly?: boolean
+  /** Optional presentational section key (i18n `<nav>.sections.<key>`) for grouping. */
+  section?: string
 }
 
 export const STUDENT_NAV: NavItem[] = [
