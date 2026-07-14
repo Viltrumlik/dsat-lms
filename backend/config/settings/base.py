@@ -174,6 +174,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.analytics.tasks.generate_platform_ops_daily",
         "schedule": crontab(hour=1, minute=15),  # daily, CELERY_TIMEZONE
     },
+    "materialize-class-sessions": {
+        "task": "apps.academy.tasks.materialize_class_sessions",
+        "schedule": crontab(hour=2, minute=0),  # daily, CELERY_TIMEZONE
+    },
 }
 
 # ─────────────────────────────────────
