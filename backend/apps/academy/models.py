@@ -300,3 +300,26 @@ class Attendance(BaseModel):
 
     def __str__(self):
         return f"{self.student_id} @ {self.session_id}: {self.status}"
+
+
+class ClassScheduleRule(BaseModel):
+    """A recurring weekly slot for a class — the template a daily task materializes
+    into dated ClassSessions (mirrors support.OfficeHour → OfficeHourSession).
+    `weekday` uses Python's convention (0=Mon … 6=Sun, matching date.weekday());
+    slots are materialized in settings.TIME_ZONE."""
+
+    klass = models.ForeignKey(Class, on_delete=models.CASCADE, related_name="schedule_rules")
+    weekday = models.PositiveSmallIntegerField()  # 0=Mon … 6=Sun (date.weekday())
+    start_time = models.TimeField()
+    end_time = models.TimeField(null=True, blank=True)
+    title = models.CharField(max_length=200, blank=True, default="")
+    location = models.CharField(max_length=200, blank=True, default="")
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = "class_schedule_rules"
+        ordering = ["weekday", "start_time"]
+        indexes = [models.Index(fields=["klass", "is_active"])]
+
+    def __str__(self):
+        return f"{self.klass_id} wd={self.weekday} {self.start_time}"
