@@ -61,6 +61,7 @@ LOCAL_APPS = [
     "apps.support",
     "apps.audit",
     "apps.courses",
+    "apps.crm",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -178,6 +179,10 @@ CELERY_BEAT_SCHEDULE = {
     "materialize-class-sessions": {
         "task": "apps.academy.tasks.materialize_class_sessions",
         "schedule": crontab(hour=2, minute=0),  # daily, CELERY_TIMEZONE
+    },
+    "send-follow-up-reminders": {
+        "task": "apps.crm.tasks.send_follow_up_reminders",
+        "schedule": crontab(hour=8, minute=30),  # daily, CELERY_TIMEZONE
     },
 }
 

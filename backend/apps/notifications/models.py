@@ -32,6 +32,9 @@ class Notification(BaseModel):
         MENTOR_CHECKIN_DUE = "mentor_checkin_due", "Mentor Check-in Due"
         # Courses (Phase 5.4)
         COURSE_ASSIGNED = "course_assigned", "Course Assigned"
+        # CRM (Phase 5.5)
+        LEAD_ASSIGNED = "lead_assigned", "Lead Assigned"
+        FOLLOW_UP_DUE = "follow_up_due", "Follow-up Due"
 
     user = models.ForeignKey(
         "identity.User",

@@ -23,6 +23,7 @@ urlpatterns = [
     path(API_V1 + "analytics/", include("apps.analytics.urls")),
     path(API_V1 + "teacher/", include("apps.academy.urls.teacher")),
     path(API_V1 + "staff/", include("apps.identity.urls_staff")),
+    path(API_V1 + "staff/", include("apps.crm.urls_staff")),
     path(API_V1 + "students/", include("apps.academy.urls.students")),
     path(API_V1 + "admin/", include("apps.identity.urls_admin")),
     path(API_V1 + "admin/", include("apps.question_bank.urls_admin")),

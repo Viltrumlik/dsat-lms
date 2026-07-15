@@ -148,6 +148,19 @@ class IsOperationsStaff(BasePermission):
         )
 
 
+class IsFrontOffice(BasePermission):
+    """Front-office staff who run the pre-enrollment CRM (leads pipeline): admin,
+    academic_manager, receptionist — NOT teachers. Coarse gate only; per-row
+    visibility (a receptionist sees only own leads) lives in apps/crm/scoping.py."""
+
+    def has_permission(self, request, view):
+        return bool(
+            request.user
+            and request.user.is_authenticated
+            and request.user.role in ("admin", "academic_manager", "receptionist")
+        )
+
+
 class IsAdminOrOwner(BasePermission):
     """Admin yoki object egasi."""
 
