@@ -19,6 +19,7 @@ import {
   ScrollText,
   Settings,
   Table2,
+  UserSquare,
   Users,
 } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
@@ -38,6 +39,7 @@ export const ADMIN_NAV: NavItem[] = [
   },
   { labelKey: 'admin.nav.gradebook', href: '/admin/gradebook', icon: Table2, section: 'content' },
   { labelKey: 'admin.nav.courses', href: '/admin/courses', icon: GraduationCap, section: 'content' },
+  { labelKey: 'admin.nav.students', href: '/admin/students', icon: UserSquare, section: 'crm' },
   { labelKey: 'admin.nav.leads', href: '/admin/leads', icon: Contact, section: 'crm' },
   {
     labelKey: 'admin.nav.announcements',

@@ -670,6 +670,32 @@ export interface StudentCourse {
 }
 
 // ─────────────────────────────────────
+// CRM — Student directory (Phase 5.5c)
+// ─────────────────────────────────────
+
+export interface AdminStudentRow {
+  id: string
+  email: string
+  fullName: string
+  status: string | null
+  mentor: { id: string; fullName: string } | null
+  tags: { id: string; name: string }[]
+}
+
+export interface AdminSavedFilter {
+  id: string
+  kind: 'students' | 'leads'
+  name: string
+  params: Record<string, string>
+  createdAt: string
+}
+
+export interface BulkStudentResult {
+  applied: number
+  skipped: number
+}
+
+// ─────────────────────────────────────
 // CRM — Tags / Notes / Timeline (Phase 5.5b)
 // ─────────────────────────────────────
 
