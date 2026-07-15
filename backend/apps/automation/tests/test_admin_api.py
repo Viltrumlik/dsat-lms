@@ -78,6 +78,13 @@ class TestCrud:
         r = client_for(AdminUserFactory()).post(f"{BASE}rules/", payload, format="json")
         assert r.status_code == 400
 
+    def test_create_requires_conditions(self):
+        # Review finding: omitting conditions must not silently store {} (a
+        # match-all that never passed clean_tree).
+        payload = {k: v for k, v in VALID_RULE.items() if k != "conditions"}
+        r = client_for(AdminUserFactory()).post(f"{BASE}rules/", payload, format="json")
+        assert r.status_code == 400
+
     def test_event_rule_requires_valid_event_key(self):
         payload = {**VALID_RULE, "trigger_type": "event", "event_key": "nonexistent"}
         r = client_for(AdminUserFactory()).post(f"{BASE}rules/", payload, format="json")

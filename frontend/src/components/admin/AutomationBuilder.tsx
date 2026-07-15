@@ -97,6 +97,13 @@ export function AutomationBuilder({
     }
   }, [open, rule, catalog])
 
+  // Test dry-runs the SAVED rule; if the draft has unsaved edits the preview would
+  // be misleading, so gate Test until the draft matches what's persisted.
+  const dirty = React.useMemo(
+    () => !rule || JSON.stringify(draft) !== JSON.stringify(toDraft(catalog, rule)),
+    [draft, rule, catalog]
+  )
+
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['admin', 'automation-rules'] })
     queryClient.invalidateQueries({ queryKey: ['admin', 'automation-logs'] })
@@ -237,10 +244,16 @@ export function AutomationBuilder({
           <Button
             type="button"
             variant="outline"
-            disabled={!rule || test.isPending}
+            disabled={dirty || test.isPending}
             loading={test.isPending}
             onClick={() => test.mutate()}
-            title={!rule ? t('admin.automation.saveFirst') : undefined}
+            title={
+              !rule
+                ? t('admin.automation.saveFirst')
+                : dirty
+                  ? t('admin.automation.saveToTest')
+                  : undefined
+            }
           >
             <FlaskConical className="h-4 w-4" /> {t('admin.automation.test')}
           </Button>

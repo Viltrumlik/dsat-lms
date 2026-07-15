@@ -125,8 +125,10 @@ function LeafEditor({
         <Input
           type="number"
           value={String(node.value ?? '')}
+          // Coerce an empty field to 0 — the DSL value must always be a number, or
+          // the backend rejects the whole rule with an opaque 400 on save.
           onChange={(e) =>
-            onChange({ ...node, value: e.target.value === '' ? '' : Number(e.target.value) })
+            onChange({ ...node, value: e.target.value === '' ? 0 : Number(e.target.value) })
           }
           className="w-28"
         />
@@ -173,7 +175,12 @@ export function ConditionGroup({
   onRemove?: () => void
 }) {
   const t = useT()
-  const canNest = depth < catalog.limits.maxDepth
+  // Backend counts a leaf's depth as its group's depth + 1 and rejects depth >
+  // maxDepth. So a condition is only allowed while depth < maxDepth, and a nested
+  // group (which must still be able to hold a condition) only while depth <
+  // maxDepth - 1. Match those exactly so the UI never builds a rejected tree.
+  const canAddCondition = depth < catalog.limits.maxDepth
+  const canNest = depth < catalog.limits.maxDepth - 1
   const canAdd = node.children.length < catalog.limits.maxChildren
 
   const setChild = (i: number, child: ConditionNode) => {
@@ -245,7 +252,7 @@ export function ConditionGroup({
           type="button"
           variant="outline"
           size="sm"
-          disabled={!canAdd}
+          disabled={!canAdd || !canAddCondition}
           onClick={() => add(newCondition(catalog))}
         >
           <Plus className="h-4 w-4" /> {t('admin.automation.addCondition')}

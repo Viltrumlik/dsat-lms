@@ -93,12 +93,25 @@ def _apply_rule(rule, subject, ctx, run_date, *, budget):
 
 
 def _active_student_ids():
+    """Live, active, student-role users with an ACTIVE class enrollment. A plain
+    ACTIVE-enrollment query leaks soft-deleted / deactivated accounts (soft-deleting
+    a user does NOT close their enrollments, and User uses a plain manager), so we
+    intersect with live student users — matching run_event_dispatch's filter."""
     from apps.academy.models import ClassEnrollment
+    from apps.identity.models import User
 
-    return list(
+    enrolled = (
         ClassEnrollment.objects.filter(status=ClassEnrollment.Status.ACTIVE)
         .values_list("student_id", flat=True)
         .distinct()
+    )
+    return list(
+        User.objects.filter(
+            id__in=enrolled,
+            role=User.Role.STUDENT,
+            is_active=True,
+            deleted_at__isnull=True,
+        ).values_list("id", flat=True)
     )
 
 

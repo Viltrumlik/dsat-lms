@@ -114,6 +114,27 @@ class TestSweep:
         rule.save(update_fields=["enabled"])
         assert run_automation_sweep(run_date=D1)["rules"] == 0
 
+    def test_no_homework_does_not_match_completion_rule(self):
+        # Review finding: a student with NO assigned homework has completion_pct=0.0
+        # (missing-data sentinel) — a 'homework_completion < 50' rule must NOT match.
+        matching_student()  # active enrolled, but no homework assigned
+        make_rule(
+            [{"type": "add_tag", "params": {"tag": "behind"}}],
+            conditions=group("and", leaf("homework_completion", "lt", 50)),
+        )
+        assert run_automation_sweep(run_date=D1)["acted"] == 0
+
+    def test_soft_deleted_student_excluded_from_sweep(self):
+        # Review finding: soft-deleting a user does not close their ACTIVE
+        # enrollment, so the cohort query must exclude dead accounts (as the event
+        # path does) — no actions on a removed student.
+        student = matching_student()
+        make_rule([{"type": "add_tag", "params": {"tag": "x"}}])
+        student.soft_delete()
+        summary = run_automation_sweep(run_date=D1)
+        assert summary["students"] == 0 and summary["acted"] == 0
+        assert AutomationLog.objects.count() == 0
+
 
 class TestEventDispatch:
     def test_event_rule_acts_once_per_day(self):

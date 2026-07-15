@@ -43,7 +43,13 @@ FIELDS = {
         "label": "Homework completion %",
         "type": TYPE_NUMBER,
         "ops": NUMERIC_OPS,
-        "resolve": lambda ctx: ctx["signals"].get("completion_pct"),
+        # Gate on has_homework: a student with NO assigned homework has an analytics
+        # completion_pct of 0.0 (missing-data sentinel) — treating that as "0% done"
+        # would false-positive-match "completion < 50". None → non-match (mirrors
+        # overall_accuracy's has_accuracy gate).
+        "resolve": lambda ctx: (
+            ctx["signals"].get("completion_pct") if ctx["signals"].get("has_homework") else None
+        ),
     },
     "overall_accuracy": {
         "label": "Overall accuracy %",

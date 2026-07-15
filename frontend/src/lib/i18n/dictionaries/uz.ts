@@ -855,6 +855,7 @@ export const uz: Dictionary = {
       actions: 'Harakatlar',
       dryRunResult: '{total} faol talabadan {matched} tasiga mos keladi',
       saveFirst: 'Sinash uchun avval qoidani saqlang.',
+      saveToTest: 'Sinash uchun oʻzgarishlarni saqlang.',
       test: 'Sinash',
       save: 'Qoidani saqlash',
       saved: 'Qoida saqlandi',

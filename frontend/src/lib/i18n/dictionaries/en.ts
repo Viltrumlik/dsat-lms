@@ -850,6 +850,7 @@ export const en = {
       actions: 'Actions',
       dryRunResult: 'Would match {matched} of {total} active students',
       saveFirst: 'Save the rule first to test it.',
+      saveToTest: 'Save your changes to test them.',
       test: 'Test',
       save: 'Save rule',
       saved: 'Rule saved',

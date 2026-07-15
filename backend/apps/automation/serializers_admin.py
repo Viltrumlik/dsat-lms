@@ -51,6 +51,11 @@ class AutomationRuleSerializer(serializers.ModelSerializer):
 
 
 class AutomationRuleWriteSerializer(serializers.ModelSerializer):
+    # Explicitly required so an omitted body can't skip validate_conditions and
+    # persist the model default {} — which is not a cleaned tree yet evaluates as a
+    # silent match-all. (partial=True on PATCH still allows omitting it.)
+    conditions = serializers.JSONField()
+
     class Meta:
         model = AutomationRule
         fields = [

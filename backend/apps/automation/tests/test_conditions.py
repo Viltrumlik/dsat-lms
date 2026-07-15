@@ -82,15 +82,24 @@ class TestEvaluation:
         tree = clean_tree(
             group("and", leaf("homework_completion", "lt", 50), leaf("risk_level", "eq", "red"))
         )
-        assert evaluate(tree, {"signals": {"completion_pct": 30}, "risk_level": "red"}) is True
-        assert evaluate(tree, {"signals": {"completion_pct": 30}, "risk_level": "green"}) is False
+        # homework_completion resolves only when has_homework is set.
+        hw = {"completion_pct": 30, "has_homework": True}
+        assert evaluate(tree, {"signals": hw, "risk_level": "red"}) is True
+        assert evaluate(tree, {"signals": hw, "risk_level": "green"}) is False
 
     def test_or(self):
         tree = clean_tree(
             group("or", leaf("homework_completion", "lt", 50), leaf("risk_level", "eq", "red"))
         )
-        assert evaluate(tree, {"signals": {"completion_pct": 90}, "risk_level": "red"}) is True
-        assert evaluate(tree, {"signals": {"completion_pct": 90}, "risk_level": "green"}) is False
+        hw = {"completion_pct": 90, "has_homework": True}
+        assert evaluate(tree, {"signals": hw, "risk_level": "red"}) is True
+        assert evaluate(tree, {"signals": hw, "risk_level": "green"}) is False
+
+    def test_homework_completion_needs_has_homework(self):
+        # A student with no assigned homework must not match a completion threshold.
+        tree = clean_tree(group("and", leaf("homework_completion", "lt", 50)))
+        assert evaluate(tree, {"signals": {"completion_pct": 0.0, "has_homework": False}}) is False
+        assert evaluate(tree, {"signals": {"completion_pct": 30, "has_homework": True}}) is True
 
     def test_empty_group_matches(self):
         # AND of nothing = True → an empty rule targets everyone.

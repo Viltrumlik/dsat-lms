@@ -88,6 +88,8 @@ def _do_notify(subject, params, *, rule):
 
 
 def _do_add_tag(subject, params, *, rule):
+    from django.db import IntegrityError, transaction
+
     from apps.crm.services import assign_tag
     from apps.crm.tags import Tag
 
@@ -98,7 +100,14 @@ def _do_add_tag(subject, params, *, rule):
     if tag is not None and tag.deleted_at is not None:
         tag.restore()
     elif tag is None:
-        tag = Tag.objects.create(name=name)
+        try:
+            with transaction.atomic():
+                tag = Tag.objects.create(name=name)
+        except IntegrityError:
+            # A concurrent run won the partial-unique name race — reuse its row.
+            tag = Tag.all_objects.filter(name__iexact=name).first()
+            if tag is not None and tag.deleted_at is not None:
+                tag.restore()
     assign_tag(tag, "student", subject.id)
     return {"status": "ok", "detail": name}
 

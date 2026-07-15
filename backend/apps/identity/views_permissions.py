@@ -7,7 +7,7 @@
 #             advertised access matrix. Per-endpoint enforcement stays role-based
 #             (common/permissions.py) — deliberately not a per-user ACL.
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from rest_framework.views import APIView
 
 from apps.audit.services import record_activity
@@ -114,7 +114,16 @@ class AdminPermissionMatrixView(APIView):
                         changed += 1
                     continue
                 if existing is None:
-                    RolePermission.objects.create(role=role, capability=capability, allowed=allowed)
+                    try:
+                        with transaction.atomic():
+                            RolePermission.objects.create(
+                                role=role, capability=capability, allowed=allowed
+                            )
+                    except IntegrityError:
+                        # A concurrent PUT created this cell first — update it instead.
+                        RolePermission.all_objects.filter(role=role, capability=capability).update(
+                            allowed=allowed, deleted_at=None
+                        )
                     changed += 1
                 elif existing.deleted_at is not None or existing.allowed != allowed:
                     existing.allowed = allowed
