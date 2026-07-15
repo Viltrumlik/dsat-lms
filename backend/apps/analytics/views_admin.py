@@ -13,9 +13,20 @@ from common.permissions import IsAdmin
 from common.responses import success_response
 
 from .admin_ops import admin_dashboard_overview, rollup_recent
+from .platform import admin_analytics
 
 _MAX_DAYS = 90
 _DEFAULT_DAYS = 30
+
+
+class AdminAnalyticsView(APIView):
+    """Platform insights: weakest students, most-active teachers, exam difficulty,
+    attendance by class."""
+
+    permission_classes = [IsAdmin]
+
+    def get(self, request):
+        return success_response(admin_analytics())
 
 
 def _window_days(request):
