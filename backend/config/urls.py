@@ -35,6 +35,7 @@ urlpatterns = [
     path(API_V1 + "admin/", include("apps.academy.urls_admin")),
     path(API_V1 + "admin/", include("apps.courses.urls_admin")),
     path(API_V1 + "admin/", include("apps.crm.urls_admin")),
+    path(API_V1 + "admin/", include("apps.automation.urls_admin")),
     path(API_V1 + "notifications/", include("apps.notifications.urls")),
     path(API_V1 + "courses/", include("apps.courses.urls")),
     path(API_V1 + "homework/", include("apps.homework.urls")),
