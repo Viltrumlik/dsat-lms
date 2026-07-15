@@ -146,6 +146,17 @@ export interface AttendanceRow {
 export interface ClassSessionDetail extends ClassSession {
   roster: AttendanceRow[]
 }
+export interface ClassScheduleRule {
+  id: string
+  klass: string
+  weekday: number
+  startTime: string
+  endTime: string | null
+  title: string
+  location: string
+  isActive: boolean
+  createdAt: string
+}
 
 /** Admin global search (⌘K). */
 export interface SearchHit {

@@ -5,8 +5,22 @@
 //   under /api/v1/teacher/ (teachers own classes; admin/manager/reception all).
 // ═══════════════════════════════════════
 
-import { get, getPaginated, patch, post, put } from './client'
-import type { AttendanceRow, ClassSession, ClassSessionDetail } from '@/types'
+import { del, get, getPaginated, patch, post, put } from './client'
+import type {
+  AttendanceRow,
+  ClassScheduleRule,
+  ClassSession,
+  ClassSessionDetail,
+} from '@/types'
+
+export interface ScheduleRulePayload {
+  weekday: number
+  startTime: string
+  endTime?: string | null
+  title?: string
+  location?: string
+  isActive?: boolean
+}
 
 export interface SessionListParams {
   classId?: string
@@ -43,4 +57,16 @@ export const attendanceAPI = {
 
   mark: (id: string, marks: AttendanceMark[]) =>
     put<AttendanceRow[]>(`/teacher/class-sessions/${id}/attendance/`, { marks }),
+
+  // Recurring schedule rules (5.2b)
+  listRules: (classId: string) =>
+    get<ClassScheduleRule[]>(`/teacher/classes/${classId}/schedule-rules/`),
+
+  createRule: (classId: string, payload: ScheduleRulePayload) =>
+    post<ClassScheduleRule>(`/teacher/classes/${classId}/schedule-rules/`, payload),
+
+  updateRule: (id: string, payload: Partial<ScheduleRulePayload>) =>
+    patch<ClassScheduleRule>(`/teacher/schedule-rules/${id}/`, payload),
+
+  deleteRule: (id: string) => del<void>(`/teacher/schedule-rules/${id}/`),
 }

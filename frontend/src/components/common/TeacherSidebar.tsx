@@ -27,6 +27,7 @@ export const TEACHER_NAV: NavItem[] = [
   { labelKey: 'teacher.nav.students', href: '/teacher/students', icon: GraduationCap },
   { labelKey: 'teacher.nav.classes', href: '/teacher/classes', icon: Users },
   { labelKey: 'teacher.nav.attendance', href: '/teacher/attendance', icon: CalendarCheck },
+  { labelKey: 'teacher.nav.schedule', href: '/teacher/schedule', icon: CalendarClock },
   { labelKey: 'teacher.nav.homework', href: '/teacher/homework', icon: ClipboardList },
   { labelKey: 'teacher.nav.grading', href: '/teacher/grading', icon: ClipboardCheck },
   { labelKey: 'teacher.nav.mentees', href: '/teacher/mentees', icon: HeartHandshake },
