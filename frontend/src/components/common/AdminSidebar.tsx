@@ -8,6 +8,7 @@ import { usePathname } from 'next/navigation'
 import {
   CalendarClock,
   ClipboardList,
+  FileSpreadsheet,
   FileText,
   LayoutDashboard,
   LifeBuoy,
@@ -45,6 +46,7 @@ export const ADMIN_NAV: NavItem[] = [
     icon: LifeBuoy,
     section: 'support',
   },
+  { labelKey: 'admin.nav.reports', href: '/admin/reports', icon: FileSpreadsheet, section: 'insights' },
   { labelKey: 'admin.nav.audit', href: '/admin/audit', icon: ScrollText, section: 'system' },
   { labelKey: 'admin.nav.settings', href: '/admin/settings', icon: Settings, section: 'system' },
 ]
