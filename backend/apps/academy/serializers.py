@@ -18,6 +18,7 @@ from .models import (
     Guardian,
     MentorCheckIn,
     ParentContactLog,
+    StudentNote,
     StudentProfile,
 )
 
@@ -304,6 +305,20 @@ class ClassScheduleRuleWriteSerializer(serializers.ModelSerializer):
         if not 0 <= value <= 6:
             raise serializers.ValidationError("weekday must be 0–6 (0=Mon … 6=Sun).")
         return value
+
+
+class StudentNoteSerializer(serializers.ModelSerializer):
+    author = StudentMiniSerializer(read_only=True)
+
+    class Meta:
+        model = StudentNote
+        fields = ["id", "body", "pinned", "author", "created_at", "updated_at"]
+
+
+class StudentNoteWriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = StudentNote
+        fields = ["body", "pinned"]
 
 
 class GradeWriteSerializer(serializers.Serializer):

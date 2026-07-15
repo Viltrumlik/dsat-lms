@@ -8,6 +8,65 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from .models import Lead, LeadActivity
+from .tags import TaggedItem
+
+# Entity types that may be tagged → (app_label, model) for the ContentType lookup.
+TAGGABLE = {"student": ("identity", "user"), "lead": ("crm", "lead")}
+
+
+class EntityError(Exception):
+    """Raised when an entity_type / entity_id can't be resolved (→ 404)."""
+
+
+def resolve_entity(entity_type, entity_id):
+    """(content_type, object) for a taggable entity, or EntityError. A student must
+    be a live student-role user; a lead must be a live lead."""
+    from django.contrib.contenttypes.models import ContentType
+
+    from apps.identity.models import User
+
+    if entity_type not in TAGGABLE:
+        raise EntityError("unknown_entity")
+    app_label, model = TAGGABLE[entity_type]
+    if entity_type == "student":
+        obj = User.objects.filter(
+            pk=entity_id, role=User.Role.STUDENT, deleted_at__isnull=True
+        ).first()
+    else:  # lead
+        obj = Lead.objects.filter(pk=entity_id).first()
+    if obj is None:
+        raise EntityError("not_found")
+    ct = ContentType.objects.get_by_natural_key(app_label, model)
+    return ct, obj
+
+
+def tags_for(entity_type, entity_id):
+    """Active Tags assigned to the entity."""
+    from .tags import Tag
+
+    ct, obj = resolve_entity(entity_type, entity_id)
+    tag_ids = TaggedItem.objects.filter(content_type=ct, object_id=obj.pk).values_list(
+        "tag_id", flat=True
+    )
+    return Tag.objects.filter(id__in=tag_ids)
+
+
+def assign_tag(tag, entity_type, entity_id):
+    """Idempotently tag an entity; reactivates a soft-deleted link if present."""
+    ct, obj = resolve_entity(entity_type, entity_id)
+    existing = TaggedItem.all_objects.filter(tag=tag, content_type=ct, object_id=obj.pk).first()
+    if existing is not None:
+        if existing.deleted_at is not None:
+            existing.restore()
+        return existing
+    return TaggedItem.objects.create(tag=tag, content_type=ct, object_id=obj.pk)
+
+
+def unassign_tag(tag, entity_type, entity_id):
+    ct, obj = resolve_entity(entity_type, entity_id)
+    link = TaggedItem.objects.filter(tag=tag, content_type=ct, object_id=obj.pk).first()
+    if link is not None:
+        link.soft_delete()
 
 
 class ConversionError(Exception):

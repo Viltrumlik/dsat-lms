@@ -323,3 +323,24 @@ class ClassScheduleRule(BaseModel):
 
     def __str__(self):
         return f"{self.klass_id} wd={self.weekday} {self.start_time}"
+
+
+class StudentNote(BaseModel):
+    """A free-form, pinnable staff note on a student — distinct from mentor
+    check-ins (MentorCheckIn) and parent-contact logs (ParentContactLog); a
+    general CRM annotation surfaced on the Student-360 timeline (Phase 5.5b)."""
+
+    student = models.ForeignKey("identity.User", on_delete=models.CASCADE, related_name="notes")
+    author = models.ForeignKey(
+        "identity.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    body = models.TextField()
+    pinned = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = "student_notes"
+        ordering = ["-pinned", "-created_at"]
+        indexes = [models.Index(fields=["student", "-created_at"])]
+
+    def __str__(self):
+        return f"note on {self.student_id}"

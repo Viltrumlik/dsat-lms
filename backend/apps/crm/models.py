@@ -128,3 +128,7 @@ class FollowUpTask(BaseModel):
 
     def __str__(self):
         return f"{self.title} → {self.due_at:%Y-%m-%d}"
+
+
+# Tag / TaggedItem live in tags.py; import so Django discovers them as crm models.
+from .tags import Tag, TaggedItem  # noqa: E402,F401
