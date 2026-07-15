@@ -9,6 +9,11 @@ Description: The role capability matrix — a single source of truth for what ea
 Capabilities are COARSE, UI-facing gates. They do not replace per-endpoint
 permission classes (common/permissions.py) or row scoping (academy/scoping.py) —
 they mirror them so the UI can hide what the API would reject.
+
+Phase 5 §5.6a: admins may override individual (role, capability) cells via
+`RolePermission` rows. `capabilities_for_role()` merges those sparse overrides on
+top of the hardcoded defaults, so the advertised matrix reflects the DB. Endpoint
+ENFORCEMENT stays role-based (deliberately not a per-user ACL).
 """
 
 from apps.identity.models import User
@@ -21,9 +26,21 @@ STAFF_ROLES = (
     User.Role.ADMIN,
 )
 
+# The coarse capability vocabulary, in display order. The single source of truth
+# for which keys may be overridden (the matrix endpoint validates against this).
+CAPABILITIES = (
+    "read_all_students",
+    "read_academic",
+    "write_operational",
+    "write_academic",
+    "grade",
+    "manage_users",
+)
 
-def capabilities_for_role(role: str) -> dict:
-    """Coarse capability flags for a role. Locked Phase 4 decisions:
+
+def _default_caps(role: str) -> dict:
+    """Hardcoded capability defaults for a role (before any admin override). Locked
+    Phase 4 decisions:
     - receptionist READS academic data (scores/risk) but writes only operational
       data (enrollment/attendance/guardians/schedule);
     - academic_manager has full academic authority (author + grade) over all
@@ -46,6 +63,34 @@ def capabilities_for_role(role: str) -> dict:
     }
 
 
+def role_capability_overrides() -> dict:
+    """{role: {capability: allowed}} — active admin overrides only (one query)."""
+    from apps.identity.models import RolePermission
+
+    out: dict = {}
+    for role, capability, allowed in RolePermission.objects.values_list(
+        "role", "capability", "allowed"
+    ):
+        out.setdefault(role, {})[capability] = allowed
+    return out
+
+
+def capabilities_for_role(role: str, overrides: dict = None) -> dict:
+    """Effective capability flags for a role = hardcoded defaults with any admin
+    overrides applied. Pass a pre-fetched `overrides` map (from
+    role_capability_overrides()) to avoid a per-role query when building the whole
+    matrix; omit it for a single-role lookup."""
+    caps = _default_caps(role)
+    if overrides is None:
+        overrides = role_capability_overrides()
+    for capability, allowed in overrides.get(role, {}).items():
+        if capability in caps:  # ignore stale keys no longer in the vocabulary
+            caps[capability] = bool(allowed)
+    return caps
+
+
 def access_matrix() -> dict:
-    """Full role → capabilities map for every staff role (frontend gating + tests)."""
-    return {role.value: capabilities_for_role(role.value) for role in STAFF_ROLES}
+    """Full role → effective-capabilities map for every staff role (frontend gating
+    + tests). Reads overrides once."""
+    overrides = role_capability_overrides()
+    return {role.value: capabilities_for_role(role.value, overrides) for role in STAFF_ROLES}

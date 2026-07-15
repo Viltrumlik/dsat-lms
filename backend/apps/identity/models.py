@@ -196,3 +196,31 @@ class OrgSetting(BaseModel):
         """Return the singleton row, creating it (with defaults) on first access."""
         obj, _ = cls.objects.get_or_create(key="org")
         return obj
+
+
+class RolePermission(BaseModel):
+    """A sparse, admin-configurable override on the coarse role→capability matrix.
+
+    A row exists ONLY where an admin has flipped a capability away from its
+    hardcoded default (identity/services.py::_default_caps). Absent → the default
+    applies. This layer drives UI capability gating and the advertised
+    ``/staff/access-matrix/`` map; per-endpoint ENFORCEMENT stays role-based in
+    common/permissions.py — deliberately NOT a per-user ACL (Phase 5 §5.6a).
+    """
+
+    role = models.CharField(max_length=32)
+    capability = models.CharField(max_length=64)
+    allowed = models.BooleanField()
+
+    class Meta:
+        db_table = "role_permissions"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["role", "capability"],
+                condition=models.Q(deleted_at__isnull=True),
+                name="uniq_active_role_capability",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.role}.{self.capability}={self.allowed}"
