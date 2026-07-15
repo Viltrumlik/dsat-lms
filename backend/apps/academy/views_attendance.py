@@ -15,13 +15,15 @@ from rest_framework.views import APIView
 from common.exceptions import ValidationError
 from common.pagination import CursorPagination
 from common.permissions import IsOperationsStaff
-from common.responses import created_response, success_response
+from common.responses import created_response, no_content_response, success_response
 
-from .models import Attendance, ClassEnrollment, ClassSession
+from .models import Attendance, ClassEnrollment, ClassScheduleRule, ClassSession
 from .scoping import scoped_classes
 from .serializers import (
     AttendanceMarkSerializer,
     AttendanceRowSerializer,
+    ClassScheduleRuleSerializer,
+    ClassScheduleRuleWriteSerializer,
     ClassSessionCreateSerializer,
     ClassSessionSerializer,
     ClassSessionUpdateSerializer,
@@ -43,6 +45,20 @@ def _scoped_session_or_404(request, pk):
     if session is None:
         raise NotFound("Session not found.")
     return session
+
+
+def _scoped_class_or_404(request, pk):
+    klass = scoped_classes(request).filter(pk=pk).first()
+    if klass is None:
+        raise NotFound("Class not found.")
+    return klass
+
+
+def _scoped_rule_or_404(request, pk):
+    rule = ClassScheduleRule.objects.filter(klass__in=scoped_classes(request), pk=pk).first()
+    if rule is None:
+        raise NotFound("Schedule rule not found.")
+    return rule
 
 
 def _roster_rows(session):
@@ -145,3 +161,39 @@ class TeacherClassSessionAttendanceView(APIView):
                 },
             )
         return success_response(AttendanceRowSerializer(_roster_rows(session), many=True).data)
+
+
+class TeacherClassScheduleRulesView(APIView):
+    """List / create recurring schedule rules for one class."""
+
+    permission_classes = [IsOperationsStaff]
+
+    def get(self, request, pk):
+        klass = _scoped_class_or_404(request, pk)
+        rules = klass.schedule_rules.all()
+        return success_response(ClassScheduleRuleSerializer(rules, many=True).data)
+
+    def post(self, request, pk):
+        klass = _scoped_class_or_404(request, pk)
+        serializer = ClassScheduleRuleWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        rule = serializer.save(klass=klass)
+        return created_response(ClassScheduleRuleSerializer(rule).data)
+
+
+class TeacherScheduleRuleDetailView(APIView):
+    """Update / delete a single schedule rule (soft-delete)."""
+
+    permission_classes = [IsOperationsStaff]
+
+    def patch(self, request, pk):
+        rule = _scoped_rule_or_404(request, pk)
+        serializer = ClassScheduleRuleWriteSerializer(rule, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return success_response(ClassScheduleRuleSerializer(rule).data)
+
+    def delete(self, request, pk):
+        rule = _scoped_rule_or_404(request, pk)
+        rule.soft_delete()
+        return no_content_response()

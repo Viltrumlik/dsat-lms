@@ -11,6 +11,7 @@ from .models import (
     Attendance,
     Class,
     ClassEnrollment,
+    ClassScheduleRule,
     ClassSession,
     Guardian,
     MentorCheckIn,
@@ -273,3 +274,31 @@ class AttendanceMarkSerializer(serializers.Serializer):
         note = serializers.CharField(required=False, allow_blank=True, default="")
 
     marks = _Mark(many=True)
+
+
+class ClassScheduleRuleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ClassScheduleRule
+        fields = [
+            "id",
+            "klass",
+            "weekday",
+            "start_time",
+            "end_time",
+            "title",
+            "location",
+            "is_active",
+            "created_at",
+        ]
+        read_only_fields = ["id", "klass", "created_at"]
+
+
+class ClassScheduleRuleWriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ClassScheduleRule
+        fields = ["weekday", "start_time", "end_time", "title", "location", "is_active"]
+
+    def validate_weekday(self, value):
+        if not 0 <= value <= 6:
+            raise serializers.ValidationError("weekday must be 0–6 (0=Mon … 6=Sun).")
+        return value
