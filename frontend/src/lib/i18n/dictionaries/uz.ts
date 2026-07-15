@@ -918,6 +918,32 @@ export const uz: Dictionary = {
         stage_change: 'Bosqich oʻzgarishi',
       },
     },
+    tags: {
+      tag: 'Teg',
+      remove: 'Tegni olib tashlash',
+      searchOrCreate: 'Qidirish yoki yaratish…',
+      noTags: 'Teglar yoʻq.',
+      create: '"{name}" yaratish',
+      actionFailed: 'Teglarni yangilab boʻlmadi.',
+    },
+    notes: {
+      add: 'Eslatma qoʻshish',
+      placeholder: 'Eslatma yozing…',
+      empty: 'Hali eslatmalar yoʻq.',
+      pin: 'Mahkamlash',
+      unpin: 'Mahkamlashni olish',
+      delete: 'Oʻchirish',
+      actionFailed: 'Eslatmani yangilab boʻlmadi.',
+    },
+    timeline: {
+      empty: 'Hali faoliyat yoʻq.',
+      type: {
+        note: 'Eslatma',
+        parent_contact: 'Ota-ona bilan aloqa',
+        mentor_checkin: 'Mentor suhbati',
+        audit: 'Faoliyat',
+      },
+    },
     analytics: {
       title: 'Platforma tahlili',
       subtitle: 'Nimaga eʼtibor berish kerak — xavf ostidagi talabalar, oʻqituvchi yuki, qiyin imtihonlar.',

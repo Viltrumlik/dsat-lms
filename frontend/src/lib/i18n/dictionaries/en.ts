@@ -915,6 +915,32 @@ export const en = {
         stage_change: 'Stage change',
       },
     },
+    tags: {
+      tag: 'Tag',
+      remove: 'Remove tag',
+      searchOrCreate: 'Search or create…',
+      noTags: 'No tags.',
+      create: 'Create "{name}"',
+      actionFailed: "Couldn't update tags.",
+    },
+    notes: {
+      add: 'Add note',
+      placeholder: 'Write a note…',
+      empty: 'No notes yet.',
+      pin: 'Pin',
+      unpin: 'Unpin',
+      delete: 'Delete',
+      actionFailed: "Couldn't update the note.",
+    },
+    timeline: {
+      empty: 'No activity yet.',
+      type: {
+        note: 'Note',
+        parent_contact: 'Parent contact',
+        mentor_checkin: 'Mentor check-in',
+        audit: 'Activity',
+      },
+    },
     analytics: {
       title: 'Platform analytics',
       subtitle: 'Where to focus — at-risk students, teacher load, and hard exams.',

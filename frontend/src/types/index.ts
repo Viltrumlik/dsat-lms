@@ -670,6 +670,40 @@ export interface StudentCourse {
 }
 
 // ─────────────────────────────────────
+// CRM — Tags / Notes / Timeline (Phase 5.5b)
+// ─────────────────────────────────────
+
+export interface CrmTag {
+  id: string
+  name: string
+  color: string
+  createdAt: string
+}
+
+/** A taggable entity kind (matches backend TAGGABLE). */
+export type TaggableEntity = 'student' | 'lead'
+
+export interface StudentNote {
+  id: string
+  body: string
+  pinned: boolean
+  author: StaffMini | null
+  createdAt: string
+  updatedAt: string
+}
+
+export type TimelineEventType = 'note' | 'parent_contact' | 'mentor_checkin' | 'audit'
+
+export interface TimelineEvent {
+  type: TimelineEventType
+  id: string
+  timestamp: string
+  actor: StaffMini | null
+  summary: string
+  meta: Record<string, unknown>
+}
+
+// ─────────────────────────────────────
 // CRM — Leads pipeline (Phase 5.5)
 // ─────────────────────────────────────
 
