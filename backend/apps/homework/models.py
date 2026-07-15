@@ -66,6 +66,19 @@ class HomeworkSubmission(BaseModel):
         blank=True,
         related_name="homework_submissions",
     )
+    # Manual grading (5.3a). A manual grade lets non-exam homework be graded; when
+    # null the gradebook falls back to the linked session's ExamResult score.
+    grade = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    grade_scale = models.PositiveSmallIntegerField(default=100)
+    feedback = models.TextField(blank=True, default="")
+    graded_by = models.ForeignKey(
+        "identity.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="graded_submissions",
+    )
+    graded_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = "homework_submissions"
