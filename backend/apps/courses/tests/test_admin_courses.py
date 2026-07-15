@@ -65,6 +65,30 @@ class TestCourseCrud:
         item = r.data["data"][0]
         assert item["unit_count"] == 1 and item["lesson_count"] == 2
 
+    def test_list_counts_exclude_soft_deleted(self):
+        course = CourseFactory()
+        unit = UnitFactory(course=course)
+        LessonFactory(unit=unit)
+        LessonFactory(unit=unit).soft_delete()  # one lesson gone
+        UnitFactory(course=course).soft_delete()  # one unit gone
+        r = client_for(AdminUserFactory()).get(BASE)
+        item = r.data["data"][0]
+        assert item["unit_count"] == 1 and item["lesson_count"] == 1
+
+    def test_detail_tree_constant_queries(self, django_assert_max_num_queries):
+        """The detail tree must not fire a per-lesson attachment COUNT (N+1)."""
+        from apps.courses.serializers_admin import CourseDetailSerializer
+        from apps.courses.views_admin import _get_course
+
+        course = CourseFactory()
+        for _ in range(2):
+            unit = UnitFactory(course=course)
+            for _ in range(5):  # 10 lessons total
+                LessonFactory(unit=unit)
+        with django_assert_max_num_queries(4):  # course + units + lessons + attachments
+            data = CourseDetailSerializer(_get_course(course.id)).data
+        assert sum(len(u["lessons"]) for u in data["units"]) == 10
+
 
 class TestPublishLifecycle:
     def test_publish_requires_a_lesson(self):
@@ -83,6 +107,18 @@ class TestPublishLifecycle:
         assert course.published_at is not None
         r2 = c.post(f"{BASE}{course.id}/publish/", {"action": "archive"}, format="json")
         assert r2.data["data"]["status"] == "archived"
+
+    def test_publish_gate_ignores_soft_deleted_unit_lessons(self):
+        """Lessons under a soft-deleted unit are invisible, so they don't satisfy
+        the publish gate (would otherwise publish a course with no visible content)."""
+        course = CourseFactory()
+        unit = UnitFactory(course=course)
+        LessonFactory(unit=unit)
+        unit.soft_delete()  # lesson is still active, but its unit is gone
+        r = client_for(AdminUserFactory()).post(
+            f"{BASE}{course.id}/publish/", {"action": "publish"}, format="json"
+        )
+        assert r.status_code == 400
 
 
 class TestUnitsLessons:

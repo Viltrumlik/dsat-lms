@@ -159,7 +159,12 @@ class CourseListSerializer(serializers.ModelSerializer):
         ]
 
     def get_unit_count(self, obj):
-        return getattr(obj, "unit_count_annotated", None) or obj.units.count()
+        # Guard on `is not None` — an annotated 0 (zero-unit course) is falsy and
+        # would otherwise fall through to a per-row COUNT query.
+        annotated = getattr(obj, "unit_count_annotated", None)
+        if annotated is not None:
+            return annotated
+        return obj.units.count()
 
     def get_lesson_count(self, obj):
         annotated = getattr(obj, "lesson_count_annotated", None)

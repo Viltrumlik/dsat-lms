@@ -43,7 +43,9 @@ logger = logging.getLogger(__name__)
 # Lookups (404 on miss)
 # ─────────────────────────────────────
 def _get_course(pk):
-    course = Course.objects.prefetch_related("units__lessons").filter(pk=pk).first()
+    # Prefetch lesson attachments too — the detail tree's get_attachment_count
+    # falls back to .count() per lesson otherwise (one query each).
+    course = Course.objects.prefetch_related("units__lessons__attachments").filter(pk=pk).first()
     if course is None:
         raise NotFound("Course not found.")
     return course
@@ -75,9 +77,18 @@ class AdminCourseListCreateView(APIView):
     permission_classes = [IsAdmin]
 
     def get(self, request):
+        # Count only ACTIVE units/lessons — annotation joins bypass the soft-delete
+        # ActiveManager, so filter deleted_at explicitly (else counts inflate).
         qs = Course.objects.annotate(
-            unit_count_annotated=Count("units", distinct=True),
-            lesson_count_annotated=Count("units__lessons", distinct=True),
+            unit_count_annotated=Count(
+                "units", filter=Q(units__deleted_at__isnull=True), distinct=True
+            ),
+            lesson_count_annotated=Count(
+                "units__lessons",
+                filter=Q(units__deleted_at__isnull=True)
+                & Q(units__lessons__deleted_at__isnull=True),
+                distinct=True,
+            ),
         )
         status_f = (request.query_params.get("status") or "").strip()
         if status_f:
@@ -132,7 +143,11 @@ class AdminCoursePublishView(APIView):
         course = _get_course(pk)
         action = (request.data.get("action") or "publish").strip()
         if action == "publish":
-            if not Lesson.objects.filter(unit__course=course).exists():
+            # A lesson under a soft-deleted unit is invisible to students, so it
+            # must not satisfy the "has content" gate (mirrors course_lesson_ids).
+            if not Lesson.objects.filter(
+                unit__course=course, unit__deleted_at__isnull=True
+            ).exists():
                 return ValidationError(
                     "Add at least one lesson before publishing.", field="status"
                 ).to_response()
@@ -313,13 +328,25 @@ def _get_assignment(pk):
 
 def _notify_course_assigned(assignment):
     """Best-effort in-app notification to every targeted student. English strings
-    are fallbacks; the client renders localized templates from the structured data."""
+    are fallbacks; the client renders localized templates from the structured data.
+
+    Only fire when the course is actually visible to the student now (published +
+    open) — assigning a draft or not-yet-open course must not deep-link to a course
+    the student can't yet open."""
     try:
+        from django.utils import timezone
+
         from apps.identity.models import User
         from apps.notifications.services import notify
 
-        student_ids = services.assignment_cohort_ids(assignment)
+        from .models import Course
+
         course = assignment.course
+        opens = assignment.opens_at
+        if course.status != Course.Status.PUBLISHED or (opens and opens > timezone.now()):
+            return
+
+        student_ids = services.assignment_cohort_ids(assignment)
         for user in User.objects.filter(id__in=student_ids):
             notify(
                 user,

@@ -10,7 +10,7 @@ from rest_framework.test import APIClient
 
 from apps.academy.models import ClassEnrollment
 from apps.academy.tests.factories import ClassFactory
-from apps.courses.models import CourseAssignment, LessonProgress
+from apps.courses.models import Course, CourseAssignment, LessonProgress
 from apps.courses.tests.factories import CourseFactory, LessonFactory, UnitFactory
 from apps.identity.tests.factories import AdminUserFactory, UserFactory
 from apps.notifications.models import Notification
@@ -26,8 +26,8 @@ def client_for(user):
     return c
 
 
-def _course_with_lessons(n_lessons=2):
-    course = CourseFactory()
+def _course_with_lessons(n_lessons=2, status=Course.Status.PUBLISHED):
+    course = CourseFactory(status=status)
     unit = UnitFactory(course=course)
     lessons = [LessonFactory(unit=unit) for _ in range(n_lessons)]
     return course, lessons
@@ -101,6 +101,17 @@ class TestCreate:
         )
         assert r.status_code == 201
         assert Notification.objects.filter(type="course_assigned", user=student).count() == 1
+
+    def test_draft_course_does_not_notify(self):
+        # Assigning a not-yet-published course is allowed, but must NOT notify —
+        # the student can't open it yet.
+        course, _ = _course_with_lessons(status=Course.Status.DRAFT)
+        student = UserFactory(role="student")
+        r = client_for(AdminUserFactory()).post(
+            BASE, {"course": str(course.id), "assigned_student": str(student.id)}, format="json"
+        )
+        assert r.status_code == 201
+        assert Notification.objects.filter(type="course_assigned", user=student).count() == 0
 
 
 class TestProgress:
