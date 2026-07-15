@@ -18,6 +18,7 @@ import {
   Megaphone,
   ScrollText,
   Settings,
+  Shield,
   Table2,
   UserSquare,
   Users,
@@ -55,6 +56,12 @@ export const ADMIN_NAV: NavItem[] = [
   },
   { labelKey: 'admin.nav.analytics', href: '/admin/analytics', icon: BarChart3, section: 'insights' },
   { labelKey: 'admin.nav.reports', href: '/admin/reports', icon: FileSpreadsheet, section: 'insights' },
+  {
+    labelKey: 'admin.nav.permissions',
+    href: '/admin/permissions',
+    icon: Shield,
+    section: 'system',
+  },
   { labelKey: 'admin.nav.audit', href: '/admin/audit', icon: ScrollText, section: 'system' },
   { labelKey: 'admin.nav.settings', href: '/admin/settings', icon: Settings, section: 'system' },
 ]

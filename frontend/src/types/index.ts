@@ -1578,3 +1578,34 @@ export interface Notification {
   readAt: string | null
   createdAt: string
 }
+
+// ─────────────────────────────────────
+// Permissions matrix (Phase 5.6a)
+// ─────────────────────────────────────
+
+/** One (role, capability) cell of the effective matrix. `capability` is a stable
+ *  snake_case value (not camelized — the backend returns cells as a list). */
+export interface PermissionCell {
+  capability: string
+  allowed: boolean
+  default: boolean
+  overridden: boolean
+}
+
+export interface PermissionRow {
+  role: string
+  cells: PermissionCell[]
+}
+
+export interface PermissionMatrix {
+  capabilities: string[]
+  roles: string[]
+  editableRoles: string[]
+  matrix: PermissionRow[]
+}
+
+export interface PermissionOverride {
+  role: string
+  capability: string
+  allowed: boolean
+}
