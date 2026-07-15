@@ -157,6 +157,11 @@ class HomeworkSubmitView(APIView):
                 "submitted_at": timezone.now(),
             },
         )
+        # Event seam: fire any enabled automation rules listening for this event.
+        # Best-effort + lazy import (one-way dep) — never breaks the submission.
+        from apps.automation.dispatch import dispatch
+
+        dispatch("homework_submitted", request.user.id)
         return success_response(HomeworkSubmissionSerializer(submission).data)
 
 

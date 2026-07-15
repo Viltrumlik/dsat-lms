@@ -79,3 +79,16 @@ def send_homework_due_reminders():
     if sent:
         logger.info("Sent %s homework due reminder(s)", sent)
     return sent
+
+
+@shared_task
+def deliver_announcement(announcement_id):
+    """Fan out an announcement to its audience over the selected channels (5.2c).
+    Idempotent — safe to retry."""
+    from .announcements import send_announcement
+    from .models import Announcement
+
+    announcement = Announcement.objects.filter(pk=announcement_id).first()
+    if announcement is None:
+        return None
+    return send_announcement(announcement)

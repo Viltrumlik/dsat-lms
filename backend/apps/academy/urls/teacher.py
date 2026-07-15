@@ -16,6 +16,18 @@ from apps.academy.views import (
     TeacherStudentAnalyticsView,
     TeacherStudentsView,
 )
+from apps.academy.views_attendance import (
+    TeacherClassScheduleRulesView,
+    TeacherClassSessionAttendanceView,
+    TeacherClassSessionDetailView,
+    TeacherClassSessionListCreateView,
+    TeacherScheduleRuleDetailView,
+)
+from apps.academy.views_gradebook import (
+    GradebookBulkGradeView,
+    GradebookSubmissionView,
+    TeacherGradebookView,
+)
 from apps.academy.views_mentor import MyMenteesView
 
 app_name = "academy_teacher"
@@ -42,4 +54,39 @@ urlpatterns = [
         TeacherStudentAnalyticsView.as_view(),
         name="teacher-student-analytics",
     ),
+    # Attendance (5.2a)
+    path(
+        "class-sessions/",
+        TeacherClassSessionListCreateView.as_view(),
+        name="class-session-list",
+    ),
+    path(
+        "class-sessions/<uuid:pk>/",
+        TeacherClassSessionDetailView.as_view(),
+        name="class-session-detail",
+    ),
+    path(
+        "class-sessions/<uuid:pk>/attendance/",
+        TeacherClassSessionAttendanceView.as_view(),
+        name="class-session-attendance",
+    ),
+    # Schedule rules (5.2b)
+    path(
+        "classes/<uuid:pk>/schedule-rules/",
+        TeacherClassScheduleRulesView.as_view(),
+        name="class-schedule-rules",
+    ),
+    path(
+        "schedule-rules/<uuid:pk>/",
+        TeacherScheduleRuleDetailView.as_view(),
+        name="schedule-rule-detail",
+    ),
+    # Gradebook (5.3a)
+    path("gradebook/", TeacherGradebookView.as_view(), name="gradebook"),
+    path(
+        "gradebook/submissions/<uuid:pk>/",
+        GradebookSubmissionView.as_view(),
+        name="gradebook-submission",
+    ),
+    path("gradebook/bulk-grade/", GradebookBulkGradeView.as_view(), name="gradebook-bulk-grade"),
 ]

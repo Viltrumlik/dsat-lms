@@ -6,7 +6,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { BarChart3, BookOpen, ClipboardList, LayoutDashboard, LifeBuoy, ListChecks, Presentation, Settings, Shield } from 'lucide-react'
+import { BarChart3, BookOpen, ClipboardList, GraduationCap, LayoutDashboard, LifeBuoy, ListChecks, Presentation, Settings, Shield } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
 import { useT } from '@/lib/i18n/I18nProvider'
 import { useAuth } from '@/lib/auth/AuthProvider'
@@ -19,6 +19,8 @@ export interface NavItem {
   academyOnly?: boolean
   /** Teacher-shell items backed by IsTeacher-only endpoints (hidden from admins). */
   teacherOnly?: boolean
+  /** Optional presentational section key (i18n `<nav>.sections.<key>`) for grouping. */
+  section?: string
 }
 
 export const STUDENT_NAV: NavItem[] = [
@@ -26,6 +28,7 @@ export const STUDENT_NAV: NavItem[] = [
   { labelKey: 'nav.practiceTests', href: '/dashboard#tests', icon: ListChecks },
   { labelKey: 'nav.questionBank', href: '/questions', icon: BookOpen },
   { labelKey: 'nav.homework', href: '/homework', icon: ClipboardList, academyOnly: true },
+  { labelKey: 'nav.courses', href: '/courses', icon: GraduationCap, academyOnly: true },
   { labelKey: 'nav.support', href: '/support', icon: LifeBuoy, academyOnly: true },
   { labelKey: 'nav.analytics', href: '/analytics', icon: BarChart3 },
   { labelKey: 'nav.settings', href: '/settings', icon: Settings },

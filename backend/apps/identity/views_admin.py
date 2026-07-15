@@ -13,18 +13,20 @@ from django.utils.crypto import get_random_string
 from rest_framework.exceptions import NotFound
 from rest_framework.views import APIView
 
+from apps.audit.services import record_activity
 from common.exceptions import ValidationError
 from common.pagination import CursorPagination
 from common.permissions import IsAdmin
 from common.responses import created_response, no_content_response, success_response
 
-from .models import User
+from .models import OrgSetting, User
 from .serializers_admin import (
     AdminSetPasswordSerializer,
     AdminUserCreateSerializer,
     AdminUserRoleSerializer,
     AdminUserSerializer,
     AdminUserUpdateSerializer,
+    OrgSettingSerializer,
 )
 from .views import _blacklist_user_tokens
 
@@ -122,6 +124,14 @@ class AdminUserListCreateView(APIView):
         serializer = AdminUserCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
+        record_activity(
+            actor=request.user,
+            action="user.created",
+            target=user,
+            summary=f"Created {user.email}",
+            request=request,
+            role=user.role,
+        )
         return created_response(AdminUserSerializer(user).data)
 
 
@@ -148,6 +158,13 @@ class AdminUserDetailView(APIView):
         if _would_orphan_admins(user):
             return ValidationError(_LAST_ADMIN_MSG).to_response()
         user.soft_delete()  # sets deleted_at + is_active=False
+        record_activity(
+            actor=request.user,
+            action="user.deleted",
+            target=user,
+            summary=f"Soft-deleted {user.email}",
+            request=request,
+        )
         return no_content_response()
 
 
@@ -166,8 +183,18 @@ class AdminUserRoleView(APIView):
         new_role = serializer.validated_data["role"]
         if new_role != User.Role.ADMIN and _would_orphan_admins(user):
             return ValidationError(_LAST_ADMIN_MSG, field="role").to_response()
+        old_role = user.role
         user.role = new_role
         user.save(update_fields=["role", "updated_at"])
+        record_activity(
+            actor=request.user,
+            action="user.role_changed",
+            target=user,
+            summary=f"{user.email}: {old_role} → {new_role}",
+            request=request,
+            from_role=old_role,
+            to_role=new_role,
+        )
         return success_response(AdminUserSerializer(user).data)
 
 
@@ -186,6 +213,13 @@ class AdminUserDeactivateView(APIView):
         if user.is_active:
             user.is_active = False
             user.save(update_fields=["is_active", "updated_at"])
+            record_activity(
+                actor=request.user,
+                action="user.deactivated",
+                target=user,
+                summary=f"Deactivated {user.email}",
+                request=request,
+            )
         return success_response(AdminUserSerializer(user).data)
 
 
@@ -205,6 +239,13 @@ class AdminUserReactivateView(APIView):
             changed.append("deleted_at")
         if changed:
             user.save(update_fields=changed + ["updated_at"])
+            record_activity(
+                actor=request.user,
+                action="user.reactivated",
+                target=user,
+                summary=f"Reactivated {user.email}",
+                request=request,
+            )
         return success_response(AdminUserSerializer(user).data)
 
 
@@ -226,6 +267,13 @@ class AdminUserSetPasswordView(APIView):
         user.set_password(serializer.validated_data["new_password"])
         user.save(update_fields=["password"])
         _blacklist_user_tokens(user)  # log out every existing session
+        record_activity(
+            actor=request.user,
+            action="user.password_set",
+            target=user,
+            summary=f"Set password for {user.email}",
+            request=request,
+        )
         return success_response({"detail": "Password updated."})
 
 
@@ -283,3 +331,125 @@ class AdminUserImportView(APIView):
                 "errors": errors,
             }
         )
+
+
+class AdminSearchView(APIView):
+    """Global admin search — grouped hits across users, questions, exams, classes.
+    `icontains` (FTS is the documented long-term plan); capped per group. IsAdmin.
+    Powers the ⌘K command palette."""
+
+    permission_classes = [IsAdmin]
+    _CAP = 6
+
+    def get(self, request):
+        q = (request.query_params.get("q") or "").strip()
+        groups = []
+        if len(q) < 2:
+            return success_response({"groups": groups})
+
+        users = (
+            User.objects.filter(deleted_at__isnull=True)
+            .filter(Q(email__icontains=q) | Q(first_name__icontains=q) | Q(last_name__icontains=q))
+            .order_by("-created_at")[: self._CAP]
+        )
+        if users:
+            groups.append(
+                {
+                    "type": "users",
+                    "items": [
+                        {
+                            "id": str(u.id),
+                            "title": u.get_full_name() or u.email,
+                            "subtitle": u.email,
+                            "url": "/admin/users",
+                        }
+                        for u in users
+                    ],
+                }
+            )
+
+        # Cross-app models are lazy-imported (keeps identity's import graph one-way).
+        from apps.question_bank.models import Question
+
+        questions = Question.objects.filter(stem__icontains=q).order_by("-created_at")[: self._CAP]
+        if questions:
+            groups.append(
+                {
+                    "type": "questions",
+                    "items": [
+                        {
+                            "id": str(qq.id),
+                            "title": qq.stem[:80],
+                            "subtitle": qq.status,
+                            "url": f"/admin/questions/{qq.id}",
+                        }
+                        for qq in questions
+                    ],
+                }
+            )
+
+        from apps.assessments.models import ExamTemplate
+
+        exams = ExamTemplate.objects.filter(title__icontains=q).order_by("-created_at")[: self._CAP]
+        if exams:
+            groups.append(
+                {
+                    "type": "exams",
+                    "items": [
+                        {
+                            "id": str(e.id),
+                            "title": e.title,
+                            "subtitle": getattr(e, "type", ""),
+                            "url": f"/admin/exams/{e.id}",
+                        }
+                        for e in exams
+                    ],
+                }
+            )
+
+        from apps.academy.models import Class
+
+        classes = Class.objects.filter(name__icontains=q).order_by("-created_at")[: self._CAP]
+        if classes:
+            groups.append(
+                {
+                    "type": "classes",
+                    "items": [
+                        {
+                            "id": str(c.id),
+                            "title": c.name,
+                            "subtitle": None,
+                            "url": f"/teacher/classes/{c.id}",
+                        }
+                        for c in classes
+                    ],
+                }
+            )
+
+        return success_response({"groups": groups})
+
+
+class AdminOrgSettingView(APIView):
+    """GET / PATCH the org-settings singleton (branding, academic year, grading
+    scheme, feature flags)."""
+
+    permission_classes = [IsAdmin]
+
+    def get(self, request):
+        return success_response(OrgSettingSerializer(OrgSetting.load()).data)
+
+    def patch(self, request):
+        obj = OrgSetting.load()
+        serializer = OrgSettingSerializer(obj, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        record_activity(
+            actor=request.user,
+            action="org_settings.updated",
+            target=obj,
+            target_label="Organization settings",
+            summary="Updated organization settings",
+            request=request,
+            fields=sorted(request.data.keys()),
+        )
+        return success_response(serializer.data)

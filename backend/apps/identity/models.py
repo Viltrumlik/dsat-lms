@@ -10,6 +10,8 @@ from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, Permis
 from django.db import models
 from django.utils import timezone
 
+from common.models import BaseModel
+
 
 class UserManager(BaseUserManager):
     def create_user(self, email, password=None, **extra_fields):
@@ -157,3 +159,68 @@ class User(AbstractBaseUser, PermissionsMixin):
         self.deleted_at = timezone.now()
         self.is_active = False
         self.save(update_fields=["deleted_at", "is_active"])
+
+
+def default_grading_thresholds():
+    """Default letter-grade bands (minimum percentage for each letter)."""
+    return {"A": 90, "B": 80, "C": 70, "D": 60}
+
+
+class OrgSetting(BaseModel):
+    """Single-row organization configuration — academy branding, academic year,
+    grading scheme, and feature flags. Access via ``OrgSetting.load()``; never
+    soft-deleted. Only presentation-level config lives here — secrets, the broker
+    URL, and the server-canonical TIME_ZONE stay in settings/.env.
+    """
+
+    # Sentinel that pins the table to a single row (DB-enforced via the unique key).
+    key = models.CharField(max_length=16, unique=True, default="org", editable=False)
+
+    academy_name = models.CharField(max_length=200, blank=True, default="")
+    academic_year = models.CharField(max_length=20, blank=True, default="")
+    # Presentation-only display timezone; server-canonical TIME_ZONE stays in settings.
+    display_timezone = models.CharField(max_length=64, default="Asia/Tashkent")
+    grading_thresholds = models.JSONField(default=default_grading_thresholds)
+    logo_url = models.URLField(max_length=500, blank=True, default="")
+    default_email_sender = models.EmailField(blank=True, default="")
+    feature_flags = models.JSONField(default=dict)
+
+    class Meta:
+        db_table = "org_settings"
+
+    def __str__(self):
+        return self.academy_name or "Org settings"
+
+    @classmethod
+    def load(cls):
+        """Return the singleton row, creating it (with defaults) on first access."""
+        obj, _ = cls.objects.get_or_create(key="org")
+        return obj
+
+
+class RolePermission(BaseModel):
+    """A sparse, admin-configurable override on the coarse role→capability matrix.
+
+    A row exists ONLY where an admin has flipped a capability away from its
+    hardcoded default (identity/services.py::_default_caps). Absent → the default
+    applies. This layer drives UI capability gating and the advertised
+    ``/staff/access-matrix/`` map; per-endpoint ENFORCEMENT stays role-based in
+    common/permissions.py — deliberately NOT a per-user ACL (Phase 5 §5.6a).
+    """
+
+    role = models.CharField(max_length=32)
+    capability = models.CharField(max_length=64)
+    allowed = models.BooleanField()
+
+    class Meta:
+        db_table = "role_permissions"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["role", "capability"],
+                condition=models.Q(deleted_at__isnull=True),
+                name="uniq_active_role_capability",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.role}.{self.capability}={self.allowed}"

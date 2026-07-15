@@ -7,31 +7,8 @@ import { Activity, CheckCircle2, Target, Trophy } from 'lucide-react'
 import { analyticsAPI } from '@/lib/api/analytics'
 import { useT } from '@/lib/i18n/I18nProvider'
 import { Card, CardContent } from '@/components/ui/card'
+import { StatCard } from '@/components/ui/stat-card'
 import { pct } from '@/lib/utils/num'
-
-function StatCard({
-  label,
-  value,
-  icon: Icon,
-}: {
-  label: string
-  value: string
-  icon: React.ComponentType<{ className?: string }>
-}) {
-  return (
-    <Card>
-      <CardContent className="flex items-center gap-4 p-5">
-        <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-primary-50 text-primary-700 dark:bg-primary-800/40 dark:text-primary-100">
-          <Icon className="h-5 w-5" />
-        </span>
-        <div>
-          <p className="text-2xl font-bold leading-tight">{value}</p>
-          <p className="text-sm text-muted-foreground">{label}</p>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
 
 export function SummaryCards() {
   const t = useT()

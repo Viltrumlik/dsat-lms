@@ -56,3 +56,12 @@ def send_mentor_checkin_reminders(stale_days=7):
         )
         sent += 1
     return sent
+
+
+@shared_task
+def materialize_class_sessions():
+    """Daily: create ClassSession occurrences for the next fortnight from active
+    recurring schedule rules (5.2b). Idempotent."""
+    from .schedule import materialize_class_sessions as _materialize
+
+    return _materialize()

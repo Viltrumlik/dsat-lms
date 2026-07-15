@@ -95,6 +95,201 @@ export interface AdminUser {
   deletedAt: string | null
 }
 
+/** Org-settings singleton (admin). Presentation-level config only. */
+export interface OrgSetting {
+  academyName: string
+  academicYear: string
+  displayTimezone: string
+  gradingThresholds: Record<string, number>
+  logoUrl: string
+  defaultEmailSender: string
+  featureFlags: Record<string, boolean>
+  updatedAt: string
+}
+
+/** One append-only audit row (admin viewer + dashboard activity feed). */
+export interface ActivityLog {
+  id: string
+  actor: string | null
+  actorEmail: string | null
+  actorName: string | null
+  actorRole: string
+  action: string
+  targetType: string
+  targetId: string | null
+  targetLabel: string
+  summary: string
+  metadata: Record<string, unknown>
+  ip: string | null
+  createdAt: string
+}
+
+/** Attendance (5.2a). */
+export type AttendanceStatus = 'present' | 'absent' | 'late' | 'excused'
+export interface ClassSession {
+  id: string
+  klass: string
+  klassName: string
+  title: string
+  startsAt: string
+  endsAt: string | null
+  location: string
+  status: 'scheduled' | 'completed' | 'canceled'
+  markedCount: number
+  createdAt: string
+}
+export interface AttendanceRow {
+  student: StudentMini
+  status: AttendanceStatus | null
+  note: string
+}
+export interface ClassSessionDetail extends ClassSession {
+  roster: AttendanceRow[]
+}
+export interface ClassScheduleRule {
+  id: string
+  klass: string
+  weekday: number
+  startTime: string
+  endTime: string | null
+  title: string
+  location: string
+  isActive: boolean
+  createdAt: string
+}
+
+/** Announcements (5.2c). */
+export type AnnouncementAudience = 'all_students' | 'all_staff' | 'role' | 'class'
+export interface Announcement {
+  id: string
+  authorName: string | null
+  title: string
+  body: string
+  audienceType: AnnouncementAudience
+  audienceRef: string
+  channels: string[]
+  status: 'draft' | 'sent'
+  sentAt: string | null
+  deliveryCount: number
+  createdAt: string
+}
+export interface MessageTemplate {
+  id: string
+  name: string
+  subject: string
+  body: string
+  createdAt: string
+}
+
+/** Gradebook (5.3a). */
+export interface GradebookItem {
+  id: string
+  title: string
+  dueAt: string
+  isExam: boolean
+}
+export type GradeSource = 'manual' | 'session' | 'none'
+export interface GradebookCell {
+  submissionId: string | null
+  status: string | null
+  grade: number | null
+  gradeSource: GradeSource
+}
+export interface GradebookRow {
+  student: { id: string; email: string; fullName: string }
+  cells: GradebookCell[]
+}
+export interface Gradebook {
+  items: GradebookItem[]
+  rows: GradebookRow[]
+}
+
+/** Platform analytics (5.3c). */
+export interface WeakStudentRow {
+  student: { id: string; fullName: string; email: string }
+  accuracy: number | null
+  homework: number | null
+  attendance: number | null
+  daysInactive: number | null
+  risk: 'red' | 'yellow' | 'green'
+}
+export interface ActiveTeacherRow {
+  teacher: { id: string; fullName: string; email: string }
+  classes: number
+  students: number
+}
+export interface ExamDifficultyRow {
+  exam: string
+  avgAccuracy: number | null
+  attempts: number
+}
+export interface AttendanceClassRow {
+  class: string
+  rate: number
+  marked: number
+}
+export interface PlatformAnalytics {
+  weakStudents: WeakStudentRow[]
+  activeTeachers: ActiveTeacherRow[]
+  examDifficulty: ExamDifficultyRow[]
+  attendanceByClass: AttendanceClassRow[]
+}
+
+/** Admin global search (⌘K). */
+export interface SearchHit {
+  id: string
+  title: string
+  subtitle: string | null
+  url: string
+}
+export interface SearchGroup {
+  type: string
+  items: SearchHit[]
+}
+export interface SearchResults {
+  groups: SearchGroup[]
+}
+
+/** Admin executive dashboard (5.1). */
+export interface DashboardKpis {
+  totalStudents: number
+  totalTeachers: number
+  activeClasses: number
+  upcomingExams: number
+  completionRate: number | null
+  satisfaction: number | null
+}
+export interface DashboardToday {
+  newRegistrations: number
+  classesToday: number
+  absentToday: number
+  homeworkDue: number
+  homeworkSubmitted: number
+  bookings: number
+  upcomingExamsWeek: number
+}
+export interface DashboardAlert {
+  kind: string
+  severity: 'red' | 'yellow'
+  count: number
+  url: string | null
+}
+export interface DashboardTrendPoint {
+  date: string
+  newRegistrations: number
+  examsTaken: number
+  homeworkSubmitted: number
+  bookingsCreated: number
+  ticketsCreated: number
+}
+export interface DashboardOverview {
+  kpis: DashboardKpis
+  today: DashboardToday
+  alerts: DashboardAlert[]
+  trends: DashboardTrendPoint[]
+  recentActivity: ActivityLog[]
+}
+
 /** Compact user as nested in rosters and homework submissions. */
 export interface StudentMini {
   id: string
@@ -379,6 +574,308 @@ export interface AdminExam {
   accessLevel: AccessLevel
   sections: AdminSection[]
   createdBy: Author
+  createdAt: string
+  updatedAt: string
+}
+
+// ─────────────────────────────────────
+// Courses (admin authoring — Phase 5.4)
+// ─────────────────────────────────────
+
+export type CourseStatus = 'draft' | 'published' | 'archived'
+export type CourseSubject = 'math' | 'reading_writing' | 'general'
+
+/** GET /admin/courses/ — a course row with rolled-up counts. */
+export interface AdminCourseListItem {
+  id: string
+  title: string
+  slug: string
+  subject: CourseSubject
+  status: CourseStatus
+  coverImageUrl: string | null
+  unitCount: number
+  lessonCount: number
+  publishedAt: string | null
+  createdAt: string
+}
+
+/** A lesson node inside the course tree (no full body). */
+export interface AdminCourseLessonNode {
+  id: string
+  title: string
+  position: number
+  videoUrl: string | null
+  linkedExam: string | null
+  linkedHomework: string | null
+  hasContent: boolean
+  attachmentCount: number
+}
+
+/** A unit node inside the course tree. */
+export interface AdminCourseUnit {
+  id: string
+  title: string
+  position: number
+  lessons: AdminCourseLessonNode[]
+}
+
+// ─────────────────────────────────────
+// Courses (student player — Phase 5.4d)
+// ─────────────────────────────────────
+
+export type StudentLessonProgressStatus = 'in_progress' | 'completed'
+
+/** GET /courses/ — an assigned course card for the student, with completion. */
+export interface StudentCourseListItem {
+  id: string
+  title: string
+  slug: string
+  subject: CourseSubject
+  description: string
+  coverImageUrl: string | null
+  completed: number
+  total: number
+  completionPct: number
+}
+
+/** A lesson inside the student player. */
+export interface StudentLesson {
+  id: string
+  title: string
+  position: number
+  contentMd: string
+  videoUrl: string | null
+  linkedExam: LinkedExamMini | null
+  linkedHomework: LinkedHomeworkMini | null
+  attachments: AdminLessonAttachment[]
+  progressStatus: StudentLessonProgressStatus | null
+}
+
+export interface StudentCourseUnit {
+  id: string
+  title: string
+  position: number
+  lessons: StudentLesson[]
+}
+
+/** GET /courses/{id}/ — the full course tree for the player. */
+export interface StudentCourse {
+  id: string
+  title: string
+  slug: string
+  description: string
+  subject: CourseSubject
+  coverImageUrl: string | null
+  units: StudentCourseUnit[]
+}
+
+// ─────────────────────────────────────
+// CRM — Student directory (Phase 5.5c)
+// ─────────────────────────────────────
+
+export interface AdminStudentRow {
+  id: string
+  email: string
+  fullName: string
+  status: string | null
+  mentor: { id: string; fullName: string } | null
+  tags: { id: string; name: string }[]
+}
+
+export interface AdminSavedFilter {
+  id: string
+  kind: 'students' | 'leads'
+  name: string
+  params: Record<string, string>
+  createdAt: string
+}
+
+export interface BulkStudentResult {
+  applied: number
+  skipped: number
+}
+
+// ─────────────────────────────────────
+// CRM — Tags / Notes / Timeline (Phase 5.5b)
+// ─────────────────────────────────────
+
+export interface CrmTag {
+  id: string
+  name: string
+  color: string
+  createdAt: string
+}
+
+/** A taggable entity kind (matches backend TAGGABLE). */
+export type TaggableEntity = 'student' | 'lead'
+
+export interface StudentNote {
+  id: string
+  body: string
+  pinned: boolean
+  author: StaffMini | null
+  createdAt: string
+  updatedAt: string
+}
+
+export type TimelineEventType = 'note' | 'parent_contact' | 'mentor_checkin' | 'audit'
+
+export interface TimelineEvent {
+  type: TimelineEventType
+  id: string
+  timestamp: string
+  actor: StaffMini | null
+  summary: string
+  meta: Record<string, unknown>
+}
+
+// ─────────────────────────────────────
+// CRM — Leads pipeline (Phase 5.5)
+// ─────────────────────────────────────
+
+export type LeadStage = 'new' | 'contacted' | 'trial' | 'registered' | 'lost'
+export type LeadSource = 'walk_in' | 'referral' | 'social' | 'web' | 'phone' | 'other' | ''
+export type LeadSubject = 'math' | 'reading_writing' | 'full' | 'other' | ''
+export type LeadActivityKind = 'note' | 'call' | 'meeting' | 'email' | 'stage_change'
+
+export interface StaffMini {
+  id: string
+  email: string
+  fullName: string
+}
+
+/** GET /staff/leads/ — a lead card. */
+export interface LeadListItem {
+  id: string
+  name: string
+  email: string
+  phone: string
+  stage: LeadStage
+  source: LeadSource
+  subjectInterest: LeadSubject
+  owner: StaffMini | null
+  convertedUser: string | null
+  convertedAt: string | null
+  openTasks: number
+  createdAt: string
+}
+
+export interface LeadActivity {
+  id: string
+  kind: LeadActivityKind
+  body: string
+  author: StaffMini | null
+  createdAt: string
+}
+
+export interface FollowUpTask {
+  id: string
+  lead: string
+  title: string
+  dueAt: string
+  done: boolean
+  doneAt: string | null
+  assignee: StaffMini | null
+  createdAt: string
+}
+
+/** GET /staff/leads/{id}/ — full lead with timeline + tasks. */
+export interface LeadDetail {
+  id: string
+  name: string
+  email: string
+  phone: string
+  stage: LeadStage
+  source: LeadSource
+  subjectInterest: LeadSubject
+  note: string
+  owner: StaffMini | null
+  convertedUser: StaffMini | null
+  convertedAt: string | null
+  activities: LeadActivity[]
+  followUps: FollowUpTask[]
+  createdAt: string
+  updatedAt: string
+}
+
+/** GET /staff/leads/board/ — leads grouped by stage. */
+export interface LeadBoard {
+  columns: Record<LeadStage, LeadListItem[]>
+}
+
+/** GET /admin/course-assignments/ — a course assigned to a class or student. */
+export interface AdminCourseAssignment {
+  id: string
+  course: { id: string; title: string; status: CourseStatus; subject: CourseSubject }
+  assignedBy: { id: string; email: string; fullName: string }
+  assignedClass: { id: string; name: string } | null
+  assignedStudent: { id: string; email: string; fullName: string } | null
+  opensAt: string | null
+  closesAt: string | null
+  note: string
+  createdAt: string
+}
+
+/** GET /admin/course-assignments/{id}/progress/ — a student's completion row. */
+export interface CourseProgressRow {
+  student: { id: string; fullName: string; email: string }
+  completed: number
+  total: number
+  pct: number
+}
+
+/** A file linked to a lesson. */
+export interface AdminLessonAttachment {
+  id: string
+  attachmentId: string
+  originalName: string
+  contentType: string
+  size: number
+  caption: string
+  downloadUrl: string
+  createdAt: string
+}
+
+export interface LinkedExamMini {
+  id: string
+  title: string
+  type: ExamType
+}
+
+export interface LinkedHomeworkMini {
+  id: string
+  title: string
+}
+
+/** GET /admin/lessons/{id}/ — full lesson for the editor. */
+export interface AdminLessonDetail {
+  id: string
+  unit: string
+  course: string
+  title: string
+  position: number
+  contentMd: string
+  videoUrl: string | null
+  linkedExam: string | null
+  linkedExamDetail: LinkedExamMini | null
+  linkedHomework: string | null
+  linkedHomeworkDetail: LinkedHomeworkMini | null
+  attachments: AdminLessonAttachment[]
+  createdAt: string
+  updatedAt: string
+}
+
+/** GET /admin/courses/{id}/ — full course with nested units + lessons. */
+export interface AdminCourse {
+  id: string
+  title: string
+  slug: string
+  description: string
+  subject: CourseSubject
+  status: CourseStatus
+  coverImageUrl: string | null
+  publishedAt: string | null
+  units: AdminCourseUnit[]
   createdAt: string
   updatedAt: string
 }
@@ -1067,6 +1564,9 @@ export type NotificationType =
   | 'support_recommendation'
   | 'mentor_assigned'
   | 'mentor_checkin_due'
+  | 'course_assigned'
+  | 'lead_assigned'
+  | 'follow_up_due'
 
 export interface Notification {
   id: string
@@ -1077,4 +1577,132 @@ export interface Notification {
   isRead: boolean
   readAt: string | null
   createdAt: string
+}
+
+// ─────────────────────────────────────
+// Permissions matrix (Phase 5.6a)
+// ─────────────────────────────────────
+
+/** One (role, capability) cell of the effective matrix. `capability` is a stable
+ *  snake_case value (not camelized — the backend returns cells as a list). */
+export interface PermissionCell {
+  capability: string
+  allowed: boolean
+  default: boolean
+  overridden: boolean
+}
+
+export interface PermissionRow {
+  role: string
+  cells: PermissionCell[]
+}
+
+export interface PermissionMatrix {
+  capabilities: string[]
+  roles: string[]
+  editableRoles: string[]
+  matrix: PermissionRow[]
+}
+
+export interface PermissionOverride {
+  role: string
+  capability: string
+  allowed: boolean
+}
+
+// ─────────────────────────────────────
+// Automation engine (Phase 5.6b/c)
+// ─────────────────────────────────────
+
+/** The condition DSL tree (mirrors the backend). All keys are lowercase, so the
+ *  camel↔snake client transform leaves them untouched. */
+export type ConditionNode =
+  | { type: 'group'; op: 'and' | 'or'; children: ConditionNode[] }
+  | { type: 'condition'; field: string; op: string; value: unknown }
+
+export interface RuleAction {
+  type: string
+  params: Record<string, unknown>
+}
+
+export type AutomationTrigger = 'scheduled_daily' | 'event'
+
+export interface AutomationRule {
+  id: string
+  name: string
+  description: string
+  enabled: boolean
+  triggerType: AutomationTrigger
+  eventKey: string
+  subjectType: string
+  conditions: ConditionNode
+  actions: RuleAction[]
+  createdBy: StaffMini | null
+  lastRunAt: string | null
+  logCount: number
+  createdAt: string
+  updatedAt: string
+}
+
+/** POST/PATCH body — keys the write serializer accepts. */
+export interface AutomationRuleInput {
+  name: string
+  description?: string
+  enabled?: boolean
+  trigger_type: AutomationTrigger
+  event_key?: string
+  conditions: ConditionNode
+  actions: RuleAction[]
+}
+
+export interface AutomationLog {
+  id: string
+  ruleId: string
+  ruleName: string
+  subjectType: string
+  subjectId: string
+  subjectLabel: string
+  runDate: string
+  matched: boolean
+  actionsTaken: Array<{ type?: string; status: string; detail?: string }>
+  status: 'ok' | 'skipped' | 'error'
+  error: string
+  createdAt: string
+}
+
+// Catalog (drives the builder). List-shaped so snake_case values survive.
+export interface CatalogField {
+  key: string
+  label: string
+  type: 'number' | 'enum'
+  ops: string[]
+  choices: string[]
+}
+export interface CatalogAction {
+  type: string
+  label: string
+  params: Array<{ key: string; kind: string; required: boolean; choices: string[] }>
+}
+export interface AutomationCatalog {
+  subjectTypes: string[]
+  triggers: Array<{ key: string; label: string }>
+  events: Array<{ key: string; label: string; subjectType: string }>
+  fields: CatalogField[]
+  operators: Array<{ op: string; label: string }>
+  actions: CatalogAction[]
+  limits: { maxDepth: number; maxChildren: number; maxActions: number }
+}
+
+export interface AutomationDryRun {
+  cohortSize: number
+  matchedCount: number
+  sample: Array<{ id: string; label: string }>
+  actions: RuleAction[]
+}
+
+export interface AutomationSweepResult {
+  rules: number
+  students: number
+  matched: number
+  acted: number
 }

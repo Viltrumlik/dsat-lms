@@ -3,16 +3,22 @@ DSAT LMS v2 — Academy Serializers
 Domain: Academy
 """
 
+from decimal import Decimal
+
 from rest_framework import serializers
 
 from apps.identity.models import User
 
 from .models import (
+    Attendance,
     Class,
     ClassEnrollment,
+    ClassScheduleRule,
+    ClassSession,
     Guardian,
     MentorCheckIn,
     ParentContactLog,
+    StudentNote,
     StudentProfile,
 )
 
@@ -208,3 +214,133 @@ class ParentContactCreateSerializer(serializers.Serializer):
         default=ParentContactLog.Method.CALL,
     )
     note = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+# ─────────────────────────────────────
+# Attendance (5.2a)
+# ─────────────────────────────────────
+
+
+class ClassSessionSerializer(serializers.ModelSerializer):
+    klass_name = serializers.CharField(source="klass.name", read_only=True)
+    marked_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ClassSession
+        fields = [
+            "id",
+            "klass",
+            "klass_name",
+            "title",
+            "starts_at",
+            "ends_at",
+            "location",
+            "status",
+            "marked_count",
+            "created_at",
+        ]
+        read_only_fields = ["id", "klass_name", "marked_count", "created_at"]
+
+    def get_marked_count(self, obj):
+        annotated = getattr(obj, "marked_count_annotated", None)
+        if annotated is not None:
+            return annotated
+        return obj.attendances.count()
+
+
+class ClassSessionCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ClassSession
+        fields = ["klass", "title", "starts_at", "ends_at", "location"]
+
+
+class ClassSessionUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ClassSession
+        fields = ["title", "starts_at", "ends_at", "location", "status"]
+
+
+class AttendanceRowSerializer(serializers.Serializer):
+    """One roster row: the student + their current mark (null = unmarked)."""
+
+    student = StudentMiniSerializer(read_only=True)
+    status = serializers.CharField(allow_null=True)
+    note = serializers.CharField(allow_blank=True)
+
+
+class AttendanceMarkSerializer(serializers.Serializer):
+    """Bulk-mark payload: a list of {student, status, note?}."""
+
+    class _Mark(serializers.Serializer):
+        student = serializers.UUIDField()
+        status = serializers.ChoiceField(choices=Attendance.Status.choices)
+        note = serializers.CharField(required=False, allow_blank=True, default="")
+
+    marks = _Mark(many=True)
+
+
+class ClassScheduleRuleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ClassScheduleRule
+        fields = [
+            "id",
+            "klass",
+            "weekday",
+            "start_time",
+            "end_time",
+            "title",
+            "location",
+            "is_active",
+            "created_at",
+        ]
+        read_only_fields = ["id", "klass", "created_at"]
+
+
+class ClassScheduleRuleWriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ClassScheduleRule
+        fields = ["weekday", "start_time", "end_time", "title", "location", "is_active"]
+
+    def validate_weekday(self, value):
+        if not 0 <= value <= 6:
+            raise serializers.ValidationError("weekday must be 0–6 (0=Mon … 6=Sun).")
+        return value
+
+
+class StudentNoteSerializer(serializers.ModelSerializer):
+    author = StudentMiniSerializer(read_only=True)
+
+    class Meta:
+        model = StudentNote
+        fields = ["id", "body", "pinned", "author", "created_at", "updated_at"]
+
+
+class StudentNoteWriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = StudentNote
+        fields = ["body", "pinned"]
+
+
+class GradeWriteSerializer(serializers.Serializer):
+    """Set/clear a submission's manual grade + feedback."""
+
+    grade = serializers.DecimalField(
+        max_digits=5, decimal_places=2, min_value=Decimal("0"), required=False, allow_null=True
+    )
+    grade_scale = serializers.IntegerField(min_value=1, required=False)
+    feedback = serializers.CharField(required=False, allow_blank=True)
+
+
+class BulkGradeSerializer(serializers.Serializer):
+    """Bulk-grade payload: a list of {submission, grade?, feedback?}."""
+
+    class _Row(serializers.Serializer):
+        submission = serializers.UUIDField()
+        grade = serializers.DecimalField(
+            max_digits=5, decimal_places=2, min_value=Decimal("0"), required=False, allow_null=True
+        )
+        # No default: an omitted feedback must be SKIPPED, not overwrite a stored
+        # comment with "" (a default would always land in validated_data).
+        feedback = serializers.CharField(required=False, allow_blank=True)
+
+    grades = _Row(many=True)

@@ -28,6 +28,8 @@ RISK_TREND_DOWN_RED = -10  # accuracy delta (pts) at/below this → red
 RISK_TREND_DOWN_YELLOW = -5
 RISK_INACTIVE_RED_DAYS = 14  # days since last activity at/above this → red
 RISK_INACTIVE_YELLOW_DAYS = 7
+RISK_ATTENDANCE_RED = 60  # attendance rate % below this → red
+RISK_ATTENDANCE_YELLOW = 80
 
 # improvement_trend classification (up/down/flat)
 TREND_UP = 5
@@ -305,8 +307,31 @@ def _sig_recency(days):
     }
 
 
+def _sig_attendance(rate):
+    level = (
+        "red"
+        if rate < RISK_ATTENDANCE_RED
+        else "yellow" if rate < RISK_ATTENDANCE_YELLOW else "green"
+    )
+    return {
+        "signal": "attendance",
+        "level": level,
+        "value": rate,
+        "unit": "pct",
+        "message": f"attendance {rate}%",
+    }
+
+
 def _compose_risk(
-    *, completion_pct, has_homework, overall_accuracy, has_accuracy, delta_pct, days_inactive
+    *,
+    completion_pct,
+    has_homework,
+    overall_accuracy,
+    has_accuracy,
+    delta_pct,
+    days_inactive,
+    attendance_rate=None,
+    has_attendance=False,
 ):
     """Classify the (up to four) signals and combine worst-wins: any red → red;
     else any yellow → yellow; else green. Only non-green signals become `reasons`
@@ -324,6 +349,8 @@ def _compose_risk(
         signals.append(_sig_accuracy(overall_accuracy))
     if delta_pct is not None:
         signals.append(_sig_trend(delta_pct))
+    if has_attendance and attendance_rate is not None:
+        signals.append(_sig_attendance(attendance_rate))
     if days_inactive is not None:
         signals.append(_sig_recency(days_inactive))
     elif has_homework:
@@ -361,6 +388,7 @@ def risk_assessment(user, *, precomputed=None):
         trend = improvement_trend(user)
         last = _last_activity(user)
         days_inactive = (timezone.now() - last).days if last is not None else None
+        rate = _attendance_rates([user.id]).get(user.id)
         precomputed = {
             "completion_pct": hw["completion_pct"],
             "has_homework": hw["assigned"] > 0,
@@ -368,6 +396,8 @@ def risk_assessment(user, *, precomputed=None):
             "has_accuracy": summ["total_answered"] > 0,
             "delta_pct": trend["delta_pct"],
             "days_inactive": days_inactive,
+            "attendance_rate": rate,
+            "has_attendance": rate is not None,
         }
     return _compose_risk(**precomputed)
 
@@ -383,6 +413,28 @@ def _last_activity(user):
     res = ExamResult.objects.filter(user=user).aggregate(m=Max("computed_at"))["m"]
     cands = [d for d in (hw, cat, res) if d is not None]
     return max(cands) if cands else None
+
+
+def _attendance_rates(user_ids):
+    """{user_id: attendance rate %} = (present + late) / (present + late + absent);
+    excused is excluded from the denominator. None when a student has no counted
+    marks (so the signal is omitted, not treated as 0%). One grouped query."""
+    from apps.academy.models import Attendance
+
+    counted_statuses = [Attendance.Status.PRESENT, Attendance.Status.LATE, Attendance.Status.ABSENT]
+    attended_statuses = [Attendance.Status.PRESENT, Attendance.Status.LATE]
+    out = {}
+    for r in (
+        Attendance.objects.filter(student_id__in=user_ids)
+        .values("student_id")
+        .annotate(
+            counted=Count("id", filter=Q(status__in=counted_statuses)),
+            attended=Count("id", filter=Q(status__in=attended_statuses)),
+        )
+    ):
+        counted = r["counted"] or 0
+        out[r["student_id"]] = round(r["attended"] / counted * 100, 1) if counted else None
+    return out
 
 
 def _batch_signals(user_ids):
@@ -462,6 +514,9 @@ def _batch_signals(user_ids):
         .annotate(m=Max("computed_at"))
     }
 
+    # 5) Attendance rate — one more grouped query.
+    attendance = _attendance_rates(user_ids)
+
     out = {}
     for uid in user_ids:
         assigned = denom.get(uid, 0)
@@ -478,6 +533,8 @@ def _batch_signals(user_ids):
             "has_accuracy": overall_accuracy is not None,
             "delta_pct": _trend_delta(per_user_accs.get(uid, []))[0],
             "days_inactive": (now - last).days if last is not None else None,
+            "attendance_rate": attendance.get(uid),
+            "has_attendance": attendance.get(uid) is not None,
         }
     return out
 
@@ -494,6 +551,7 @@ def batch_student_metrics(user_ids):
         uid: {
             "overall_accuracy": sig["overall_accuracy"] if sig["has_accuracy"] else None,
             "homework_completion_pct": sig["completion_pct"] if sig["has_homework"] else None,
+            "attendance_pct": sig["attendance_rate"] if sig["has_attendance"] else None,
             "days_inactive": sig["days_inactive"],
             "risk": _compose_risk(**sig),
         }

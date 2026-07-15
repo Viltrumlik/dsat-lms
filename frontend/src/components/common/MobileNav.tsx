@@ -76,7 +76,8 @@ export function MobileNav() {
                 const base = item.href.split('#')[0]
                 const active =
                   !item.href.includes('#') &&
-                  (pathname === base || pathname.startsWith(base + '/'))
+                  (pathname === base ||
+                    (base !== '/admin' && pathname.startsWith(base + '/')))
                 const Icon = item.icon
                 return (
                   <Link

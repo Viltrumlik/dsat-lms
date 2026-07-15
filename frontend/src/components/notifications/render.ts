@@ -58,6 +58,24 @@ export function notificationText(
     }
   }
 
+  if (notification.type === 'course_assigned') {
+    const title = str(data['courseTitle'])
+    if (!title) return fallback
+    return { title: t('notifications.templates.courseAssigned', { title }), body: '' }
+  }
+
+  if (notification.type === 'lead_assigned') {
+    const name = str(data['leadName'])
+    if (!name) return fallback
+    return { title: t('notifications.templates.leadAssigned', { name }), body: '' }
+  }
+
+  if (notification.type === 'follow_up_due') {
+    const title = str(data['taskTitle'])
+    if (!title) return fallback
+    return { title: t('notifications.templates.followUpDue', { title }), body: '' }
+  }
+
   if (notification.type === 'support_reply') {
     // Staff-facing rows carry studentName; the student-facing one doesn't.
     const student = str(data['studentName'])

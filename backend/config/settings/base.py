@@ -59,6 +59,10 @@ LOCAL_APPS = [
     "apps.notifications",
     "apps.files",
     "apps.support",
+    "apps.audit",
+    "apps.courses",
+    "apps.crm",
+    "apps.automation",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -168,6 +172,22 @@ CELERY_BEAT_SCHEDULE = {
     "generate-support-ops-daily": {
         "task": "apps.support.tasks.generate_support_ops_daily",
         "schedule": crontab(hour=1, minute=0),  # daily, CELERY_TIMEZONE
+    },
+    "generate-platform-ops-daily": {
+        "task": "apps.analytics.tasks.generate_platform_ops_daily",
+        "schedule": crontab(hour=1, minute=15),  # daily, CELERY_TIMEZONE
+    },
+    "materialize-class-sessions": {
+        "task": "apps.academy.tasks.materialize_class_sessions",
+        "schedule": crontab(hour=2, minute=0),  # daily, CELERY_TIMEZONE
+    },
+    "send-follow-up-reminders": {
+        "task": "apps.crm.tasks.send_follow_up_reminders",
+        "schedule": crontab(hour=8, minute=30),  # daily, CELERY_TIMEZONE
+    },
+    "run-automation-sweep": {
+        "task": "apps.automation.tasks.run_automation_sweep",
+        "schedule": crontab(hour=6, minute=30),  # daily, after support triggers
     },
 }
 

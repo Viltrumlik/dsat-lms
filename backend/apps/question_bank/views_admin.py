@@ -11,6 +11,7 @@ from django.db.models import Q
 from rest_framework.exceptions import NotFound
 from rest_framework.views import APIView
 
+from apps.audit.services import record_activity
 from common.exceptions import ValidationError
 from common.pagination import CursorPagination
 from common.permissions import IsAdmin
@@ -147,6 +148,13 @@ class AdminQuestionApproveView(APIView):
         QuestionReview.objects.create(
             question=question, reviewer=request.user, status=QuestionReview.Status.APPROVED
         )
+        record_activity(
+            actor=request.user,
+            action="question.approved",
+            target=question,
+            summary="Approved question",
+            request=request,
+        )
         return success_response(AdminQuestionDetailSerializer(_get_question(pk)).data)
 
 
@@ -161,6 +169,14 @@ class AdminQuestionRejectView(APIView):
             question.reject(request.user, serializer.validated_data["note"])
         except ValueError as exc:
             return ValidationError(str(exc)).to_response()
+        record_activity(
+            actor=request.user,
+            action="question.rejected",
+            target=question,
+            summary="Rejected question",
+            request=request,
+            note=serializer.validated_data["note"][:255],
+        )
         return success_response(AdminQuestionDetailSerializer(_get_question(pk)).data)
 
 

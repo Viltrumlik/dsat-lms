@@ -6,6 +6,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
+  CalendarCheck,
   CalendarClock,
   ClipboardCheck,
   ClipboardList,
@@ -14,6 +15,7 @@ import {
   HeartHandshake,
   LayoutDashboard,
   LifeBuoy,
+  Table2,
   Users,
 } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
@@ -25,8 +27,11 @@ export const TEACHER_NAV: NavItem[] = [
   { labelKey: 'teacher.nav.dashboard', href: '/teacher/dashboard', icon: Gauge },
   { labelKey: 'teacher.nav.students', href: '/teacher/students', icon: GraduationCap },
   { labelKey: 'teacher.nav.classes', href: '/teacher/classes', icon: Users },
+  { labelKey: 'teacher.nav.attendance', href: '/teacher/attendance', icon: CalendarCheck },
+  { labelKey: 'teacher.nav.schedule', href: '/teacher/schedule', icon: CalendarClock },
   { labelKey: 'teacher.nav.homework', href: '/teacher/homework', icon: ClipboardList },
   { labelKey: 'teacher.nav.grading', href: '/teacher/grading', icon: ClipboardCheck },
+  { labelKey: 'teacher.nav.gradebook', href: '/teacher/gradebook', icon: Table2 },
   { labelKey: 'teacher.nav.mentees', href: '/teacher/mentees', icon: HeartHandshake },
   { labelKey: 'teacher.nav.support', href: '/teacher/support', icon: LifeBuoy },
   // Availability + office-hours are self-service for teachers only (IsTeacher

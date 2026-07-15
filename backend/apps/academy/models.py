@@ -239,3 +239,108 @@ class ParentContactLog(BaseModel):
 
     def __str__(self):
         return f"ParentContact<{self.profile_id}> ({self.method})"
+
+
+class ClassSession(BaseModel):
+    """A dated occurrence of a class — the unit attendance is marked against.
+    `teacher` and `title` are SNAPSHOTTED so later Class edits don't rewrite the
+    history (mirrors support.OfficeHourSession). Sessions are created ad hoc; a
+    recurring weekly schedule (5.2b) will materialize them."""
+
+    class Status(models.TextChoices):
+        SCHEDULED = "scheduled", "Scheduled"
+        COMPLETED = "completed", "Completed"
+        CANCELED = "canceled", "Canceled"
+
+    klass = models.ForeignKey(Class, on_delete=models.CASCADE, related_name="sessions")
+    teacher = models.ForeignKey(
+        "identity.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    title = models.CharField(max_length=200, blank=True, default="")
+    starts_at = models.DateTimeField()
+    ends_at = models.DateTimeField(null=True, blank=True)
+    location = models.CharField(max_length=200, blank=True, default="")
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.SCHEDULED, db_index=True
+    )
+
+    class Meta:
+        db_table = "class_sessions"
+        ordering = ["-starts_at"]
+        unique_together = [("klass", "starts_at")]
+        indexes = [models.Index(fields=["klass", "starts_at"])]
+
+    def __str__(self):
+        return f"{self.klass_id} @ {self.starts_at:%Y-%m-%d %H:%M}"
+
+
+class Attendance(BaseModel):
+    """One student's attendance mark for a class session."""
+
+    class Status(models.TextChoices):
+        PRESENT = "present", "Present"
+        ABSENT = "absent", "Absent"
+        LATE = "late", "Late"
+        EXCUSED = "excused", "Excused"
+
+    session = models.ForeignKey(ClassSession, on_delete=models.CASCADE, related_name="attendances")
+    student = models.ForeignKey(
+        "identity.User", on_delete=models.CASCADE, related_name="attendances"
+    )
+    status = models.CharField(max_length=20, choices=Status.choices)
+    marked_by = models.ForeignKey(
+        "identity.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    note = models.CharField(max_length=255, blank=True, default="")
+
+    class Meta:
+        db_table = "attendances"
+        unique_together = [("session", "student")]
+        indexes = [models.Index(fields=["session", "status"])]
+
+    def __str__(self):
+        return f"{self.student_id} @ {self.session_id}: {self.status}"
+
+
+class ClassScheduleRule(BaseModel):
+    """A recurring weekly slot for a class — the template a daily task materializes
+    into dated ClassSessions (mirrors support.OfficeHour → OfficeHourSession).
+    `weekday` uses Python's convention (0=Mon … 6=Sun, matching date.weekday());
+    slots are materialized in settings.TIME_ZONE."""
+
+    klass = models.ForeignKey(Class, on_delete=models.CASCADE, related_name="schedule_rules")
+    weekday = models.PositiveSmallIntegerField()  # 0=Mon … 6=Sun (date.weekday())
+    start_time = models.TimeField()
+    end_time = models.TimeField(null=True, blank=True)
+    title = models.CharField(max_length=200, blank=True, default="")
+    location = models.CharField(max_length=200, blank=True, default="")
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = "class_schedule_rules"
+        ordering = ["weekday", "start_time"]
+        indexes = [models.Index(fields=["klass", "is_active"])]
+
+    def __str__(self):
+        return f"{self.klass_id} wd={self.weekday} {self.start_time}"
+
+
+class StudentNote(BaseModel):
+    """A free-form, pinnable staff note on a student — distinct from mentor
+    check-ins (MentorCheckIn) and parent-contact logs (ParentContactLog); a
+    general CRM annotation surfaced on the Student-360 timeline (Phase 5.5b)."""
+
+    student = models.ForeignKey("identity.User", on_delete=models.CASCADE, related_name="notes")
+    author = models.ForeignKey(
+        "identity.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    body = models.TextField()
+    pinned = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = "student_notes"
+        ordering = ["-pinned", "-created_at"]
+        indexes = [models.Index(fields=["student", "-created_at"])]
+
+    def __str__(self):
+        return f"note on {self.student_id}"

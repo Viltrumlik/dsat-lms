@@ -117,6 +117,21 @@ def can_access_attachment(user, attachment):
 
         if SupportTicketAttachment.objects.filter(attachment_id=attachment.id).exists():
             return True
+    # A student may read an attachment on a lesson whose course is assigned +
+    # visible to them (mirrors the ticket-pool branch; lazy import decouples files).
+    if getattr(user, "is_academy_student", False):
+        from apps.courses.models import Lesson, LessonAttachment
+        from apps.courses.services import visible_course_qs
+
+        lesson_ids = LessonAttachment.objects.filter(attachment_id=attachment.id).values_list(
+            "lesson_id", flat=True
+        )
+        if lesson_ids:
+            course_ids = Lesson.objects.filter(id__in=lesson_ids).values_list(
+                "unit__course_id", flat=True
+            )
+            if visible_course_qs(user).filter(id__in=course_ids).exists():
+                return True
     return False
 
 

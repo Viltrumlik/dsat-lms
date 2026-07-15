@@ -45,3 +45,6 @@ cryptography==43.*
 
 # Monitoring
 sentry-sdk[django]==2.14.*
+
+# Exports (reports)
+openpyxl==3.1.*

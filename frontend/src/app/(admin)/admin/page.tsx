@@ -1,7 +1,13 @@
-// Domain: Admin
-// Description: /admin index → redirect to the user-management page.
-import { redirect } from 'next/navigation'
+// Domain: Analytics (admin)
+// Description: /admin landing → the executive control center.
+import { DashboardView } from '@/components/admin/DashboardView'
 
-export default function AdminIndexPage() {
-  redirect('/admin/users')
+export const metadata = { title: 'Dashboard' }
+
+export default function AdminDashboardPage() {
+  return (
+    <div className="mx-auto max-w-6xl">
+      <DashboardView />
+    </div>
+  )
 }
