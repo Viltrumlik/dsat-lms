@@ -1609,3 +1609,100 @@ export interface PermissionOverride {
   capability: string
   allowed: boolean
 }
+
+// ─────────────────────────────────────
+// Automation engine (Phase 5.6b/c)
+// ─────────────────────────────────────
+
+/** The condition DSL tree (mirrors the backend). All keys are lowercase, so the
+ *  camel↔snake client transform leaves them untouched. */
+export type ConditionNode =
+  | { type: 'group'; op: 'and' | 'or'; children: ConditionNode[] }
+  | { type: 'condition'; field: string; op: string; value: unknown }
+
+export interface RuleAction {
+  type: string
+  params: Record<string, unknown>
+}
+
+export type AutomationTrigger = 'scheduled_daily' | 'event'
+
+export interface AutomationRule {
+  id: string
+  name: string
+  description: string
+  enabled: boolean
+  triggerType: AutomationTrigger
+  eventKey: string
+  subjectType: string
+  conditions: ConditionNode
+  actions: RuleAction[]
+  createdBy: StaffMini | null
+  lastRunAt: string | null
+  logCount: number
+  createdAt: string
+  updatedAt: string
+}
+
+/** POST/PATCH body — keys the write serializer accepts. */
+export interface AutomationRuleInput {
+  name: string
+  description?: string
+  enabled?: boolean
+  trigger_type: AutomationTrigger
+  event_key?: string
+  conditions: ConditionNode
+  actions: RuleAction[]
+}
+
+export interface AutomationLog {
+  id: string
+  ruleId: string
+  ruleName: string
+  subjectType: string
+  subjectId: string
+  subjectLabel: string
+  runDate: string
+  matched: boolean
+  actionsTaken: Array<{ type?: string; status: string; detail?: string }>
+  status: 'ok' | 'skipped' | 'error'
+  error: string
+  createdAt: string
+}
+
+// Catalog (drives the builder). List-shaped so snake_case values survive.
+export interface CatalogField {
+  key: string
+  label: string
+  type: 'number' | 'enum'
+  ops: string[]
+  choices: string[]
+}
+export interface CatalogAction {
+  type: string
+  label: string
+  params: Array<{ key: string; kind: string; required: boolean; choices: string[] }>
+}
+export interface AutomationCatalog {
+  subjectTypes: string[]
+  triggers: Array<{ key: string; label: string }>
+  events: Array<{ key: string; label: string; subjectType: string }>
+  fields: CatalogField[]
+  operators: Array<{ op: string; label: string }>
+  actions: CatalogAction[]
+  limits: { maxDepth: number; maxChildren: number; maxActions: number }
+}
+
+export interface AutomationDryRun {
+  cohortSize: number
+  matchedCount: number
+  sample: Array<{ id: string; label: string }>
+  actions: RuleAction[]
+}
+
+export interface AutomationSweepResult {
+  rules: number
+  students: number
+  matched: number
+  acted: number
+}

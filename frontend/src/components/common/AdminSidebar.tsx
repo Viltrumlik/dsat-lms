@@ -22,6 +22,7 @@ import {
   Table2,
   UserSquare,
   Users,
+  Workflow,
 } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
 import { useT } from '@/lib/i18n/I18nProvider'
@@ -57,10 +58,16 @@ export const ADMIN_NAV: NavItem[] = [
   { labelKey: 'admin.nav.analytics', href: '/admin/analytics', icon: BarChart3, section: 'insights' },
   { labelKey: 'admin.nav.reports', href: '/admin/reports', icon: FileSpreadsheet, section: 'insights' },
   {
+    labelKey: 'admin.nav.automation',
+    href: '/admin/automation',
+    icon: Workflow,
+    section: 'automation',
+  },
+  {
     labelKey: 'admin.nav.permissions',
     href: '/admin/permissions',
     icon: Shield,
-    section: 'system',
+    section: 'automation',
   },
   { labelKey: 'admin.nav.audit', href: '/admin/audit', icon: ScrollText, section: 'system' },
   { labelKey: 'admin.nav.settings', href: '/admin/settings', icon: Settings, section: 'system' },
