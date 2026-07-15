@@ -127,6 +127,21 @@ class TestGrading:
         sub.refresh_from_db()
         assert float(sub.grade) == 70
 
+    def test_bulk_grade_preserves_feedback(self):
+        # A bulk row omitting `feedback` must NOT erase a previously-saved comment.
+        teacher, sub = self._one()
+        client = client_for(teacher)
+        client.patch(
+            f"{GB}submissions/{sub.id}/", {"grade": "90", "feedback": "Nice work"}, format="json"
+        )
+        client.post(
+            f"{GB}bulk-grade/",
+            {"grades": [{"submission": str(sub.id), "grade": "85"}]},
+            format="json",
+        )
+        sub.refresh_from_db()
+        assert float(sub.grade) == 85 and sub.feedback == "Nice work"
+
     def test_out_of_scope_submission_404(self):
         _, sub = self._one()
         other = UserFactory(role="teacher")

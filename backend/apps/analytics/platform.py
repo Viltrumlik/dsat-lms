@@ -62,11 +62,24 @@ def active_teachers(limit=10):
         User.objects.filter(role=User.Role.TEACHER, is_active=True, deleted_at__isnull=True)
         .annotate(
             classes=Count(
-                "teaching_classes", filter=Q(teaching_classes__is_active=True), distinct=True
+                "teaching_classes",
+                filter=Q(
+                    teaching_classes__is_active=True,
+                    teaching_classes__deleted_at__isnull=True,
+                ),
+                distinct=True,
             ),
+            # `__` traversal bypasses the soft-delete ActiveManager, so exclude
+            # soft-deleted enrollments AND soft-deleted/inactive students explicitly
+            # (mirrors weak_students; otherwise the ranking inflates).
             students=Count(
                 "teaching_classes__enrollments",
-                filter=Q(teaching_classes__enrollments__status=ClassEnrollment.Status.ACTIVE),
+                filter=Q(
+                    teaching_classes__enrollments__status=ClassEnrollment.Status.ACTIVE,
+                    teaching_classes__enrollments__deleted_at__isnull=True,
+                    teaching_classes__enrollments__student__deleted_at__isnull=True,
+                    teaching_classes__enrollments__student__is_active=True,
+                ),
                 distinct=True,
             ),
         )

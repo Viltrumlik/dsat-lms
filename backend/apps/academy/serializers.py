@@ -324,6 +324,8 @@ class BulkGradeSerializer(serializers.Serializer):
         grade = serializers.DecimalField(
             max_digits=5, decimal_places=2, min_value=Decimal("0"), required=False, allow_null=True
         )
-        feedback = serializers.CharField(required=False, allow_blank=True, default="")
+        # No default: an omitted feedback must be SKIPPED, not overwrite a stored
+        # comment with "" (a default would always land in validated_data).
+        feedback = serializers.CharField(required=False, allow_blank=True)
 
     grades = _Row(many=True)
