@@ -14,6 +14,7 @@ import {
   Megaphone,
   ScrollText,
   Settings,
+  Table2,
   Users,
 } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
@@ -31,6 +32,7 @@ export const ADMIN_NAV: NavItem[] = [
     icon: CalendarClock,
     section: 'content',
   },
+  { labelKey: 'admin.nav.gradebook', href: '/admin/gradebook', icon: Table2, section: 'content' },
   {
     labelKey: 'admin.nav.announcements',
     href: '/admin/announcements',

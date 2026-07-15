@@ -181,6 +181,29 @@ export interface MessageTemplate {
   createdAt: string
 }
 
+/** Gradebook (5.3a). */
+export interface GradebookItem {
+  id: string
+  title: string
+  dueAt: string
+  isExam: boolean
+}
+export type GradeSource = 'manual' | 'session' | 'none'
+export interface GradebookCell {
+  submissionId: string | null
+  status: string | null
+  grade: number | null
+  gradeSource: GradeSource
+}
+export interface GradebookRow {
+  student: { id: string; email: string; fullName: string }
+  cells: GradebookCell[]
+}
+export interface Gradebook {
+  items: GradebookItem[]
+  rows: GradebookRow[]
+}
+
 /** Admin global search (⌘K). */
 export interface SearchHit {
   id: string

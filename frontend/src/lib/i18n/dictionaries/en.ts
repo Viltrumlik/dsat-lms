@@ -387,6 +387,7 @@ export const en = {
       schedule: 'Schedule',
       homework: 'Homework',
       grading: 'Grading',
+      gradebook: 'Gradebook',
       mentees: 'Mentees',
       support: 'Support',
       availability: 'Availability',
@@ -718,6 +719,15 @@ export const en = {
       loadFailed: "Couldn't load submissions. Please try again.",
     },
   },
+  gradebook: {
+    title: 'Gradebook',
+    subtitle: 'Grades across the class — click a cell to edit.',
+    class: 'Class',
+    selectClass: 'Select a class',
+    student: 'Student',
+    noItems: 'No published homework for this class yet.',
+    hint: 'Dashed cells are scored from a linked exam; typing a value overrides it.',
+  },
   admin: {
     nav: {
       dashboard: 'Dashboard',
@@ -725,6 +735,7 @@ export const en = {
       questions: 'Questions',
       exams: 'Exams',
       assignments: 'Assignments',
+      gradebook: 'Gradebook',
       announcements: 'Announcements',
       supportOps: 'Support ops',
       audit: 'Activity log',

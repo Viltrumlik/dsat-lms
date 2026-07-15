@@ -390,6 +390,7 @@ export const uz: Dictionary = {
       schedule: 'Jadval',
       homework: 'Uy vazifalari',
       grading: 'Baholash',
+      gradebook: 'Baholar jurnali',
       mentees: 'Shogirdlar',
       support: 'Yordam',
       availability: 'Ish vaqti',
@@ -721,6 +722,15 @@ export const uz: Dictionary = {
       loadFailed: 'Topshiriqlarni yuklab boʻlmadi. Qayta urinib koʻring.',
     },
   },
+  gradebook: {
+    title: 'Baholar jurnali',
+    subtitle: 'Sinf boʻyicha baholar — tahrirlash uchun katakni bosing.',
+    class: 'Sinf',
+    selectClass: 'Sinfni tanlang',
+    student: 'Talaba',
+    noItems: 'Bu sinf uchun hali eʼlon qilingan uy vazifasi yoʻq.',
+    hint: 'Punktir kataklar bogʻlangan imtihondan olinadi; qiymat kiritsangiz, ustidan yoziladi.',
+  },
   admin: {
     nav: {
       dashboard: 'Boshqaruv paneli',
@@ -728,6 +738,7 @@ export const uz: Dictionary = {
       questions: 'Savollar',
       exams: 'Imtihonlar',
       assignments: 'Topshiriqlar',
+      gradebook: 'Baholar jurnali',
       announcements: 'Eʼlonlar',
       supportOps: 'Yordam operatsiyalari',
       audit: 'Faoliyat jurnali',
