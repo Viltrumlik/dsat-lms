@@ -619,6 +619,56 @@ export interface AdminCourseUnit {
   lessons: AdminCourseLessonNode[]
 }
 
+// ─────────────────────────────────────
+// Courses (student player — Phase 5.4d)
+// ─────────────────────────────────────
+
+export type StudentLessonProgressStatus = 'in_progress' | 'completed'
+
+/** GET /courses/ — an assigned course card for the student, with completion. */
+export interface StudentCourseListItem {
+  id: string
+  title: string
+  slug: string
+  subject: CourseSubject
+  description: string
+  coverImageUrl: string | null
+  completed: number
+  total: number
+  completionPct: number
+}
+
+/** A lesson inside the student player. */
+export interface StudentLesson {
+  id: string
+  title: string
+  position: number
+  contentMd: string
+  videoUrl: string | null
+  linkedExam: LinkedExamMini | null
+  linkedHomework: LinkedHomeworkMini | null
+  attachments: AdminLessonAttachment[]
+  progressStatus: StudentLessonProgressStatus | null
+}
+
+export interface StudentCourseUnit {
+  id: string
+  title: string
+  position: number
+  lessons: StudentLesson[]
+}
+
+/** GET /courses/{id}/ — the full course tree for the player. */
+export interface StudentCourse {
+  id: string
+  title: string
+  slug: string
+  description: string
+  subject: CourseSubject
+  coverImageUrl: string | null
+  units: StudentCourseUnit[]
+}
+
 /** GET /admin/course-assignments/ — a course assigned to a class or student. */
 export interface AdminCourseAssignment {
   id: string

@@ -127,3 +127,85 @@ def assignment_progress(assignment):
         )
     out.sort(key=lambda r: r["pct"])
     return out
+
+
+# ─────────────────────────────────────
+# Student visibility + progress
+# ─────────────────────────────────────
+def visible_course_qs(user):
+    """Published courses assigned to `user` — via an active class enrollment or an
+    individual assignment — whose open window has started (opens_at null or past).
+    A closed window (past closes_at) stays visible for review."""
+    from django.db.models import Q
+    from django.utils import timezone
+
+    from apps.academy.models import ClassEnrollment
+
+    from .models import Course, CourseAssignment
+
+    now = timezone.now()
+    class_ids = ClassEnrollment.objects.filter(
+        student=user, status=ClassEnrollment.Status.ACTIVE
+    ).values_list("klass_id", flat=True)
+    assigned_course_ids = (
+        CourseAssignment.objects.filter(
+            Q(assigned_student=user) | Q(assigned_class_id__in=class_ids)
+        )
+        .filter(Q(opens_at__isnull=True) | Q(opens_at__lte=now))
+        .values_list("course_id", flat=True)
+    )
+    return Course.objects.filter(
+        id__in=assigned_course_ids, status=Course.Status.PUBLISHED
+    ).distinct()
+
+
+def student_course_completion(user, course_ids):
+    """Map course_id → {completed, total, pct} for a student, in grouped queries."""
+    from django.db.models import Count
+
+    from .models import Lesson, LessonProgress
+
+    # Total published lessons per course (active units).
+    totals = {
+        r["unit__course_id"]: r["n"]
+        for r in Lesson.objects.filter(
+            unit__course_id__in=course_ids, unit__deleted_at__isnull=True
+        )
+        .values("unit__course_id")
+        .annotate(n=Count("id"))
+    }
+    # Completed lessons per course for this student.
+    completed = {
+        r["lesson__unit__course_id"]: r["n"]
+        for r in LessonProgress.objects.filter(
+            student=user,
+            status=LessonProgress.Status.COMPLETED,
+            lesson__unit__course_id__in=course_ids,
+            lesson__unit__deleted_at__isnull=True,
+        )
+        .values("lesson__unit__course_id")
+        .annotate(n=Count("id"))
+    }
+    out = {}
+    for cid in course_ids:
+        total = totals.get(cid, 0)
+        done = completed.get(cid, 0)
+        out[cid] = {
+            "completed": done,
+            "total": total,
+            "pct": round(done / total * 100, 1) if total else 0.0,
+        }
+    return out
+
+
+def completion_summary():
+    """Platform-wide course KPIs for the admin dashboard (one grouped pass each):
+    published course count + total completed lessons. Cheap; no per-student scan."""
+    from .models import Course, LessonProgress
+
+    return {
+        "published_courses": Course.objects.filter(status=Course.Status.PUBLISHED).count(),
+        "lessons_completed": LessonProgress.objects.filter(
+            status=LessonProgress.Status.COMPLETED
+        ).count(),
+    }
