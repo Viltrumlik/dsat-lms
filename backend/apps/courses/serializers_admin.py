@@ -33,6 +33,7 @@ class LessonAttachmentSerializer(serializers.ModelSerializer):
     original_name = serializers.CharField(source="attachment.original_name", read_only=True)
     content_type = serializers.CharField(source="attachment.content_type", read_only=True)
     size = serializers.IntegerField(source="attachment.size", read_only=True)
+    download_url = serializers.SerializerMethodField()
 
     class Meta:
         model = LessonAttachment
@@ -43,8 +44,14 @@ class LessonAttachmentSerializer(serializers.ModelSerializer):
             "content_type",
             "size",
             "caption",
+            "download_url",
             "created_at",
         ]
+
+    def get_download_url(self, obj):
+        from apps.files.services import attachment_download_url
+
+        return attachment_download_url(obj.attachment)
 
 
 # ─────────────────────────────────────

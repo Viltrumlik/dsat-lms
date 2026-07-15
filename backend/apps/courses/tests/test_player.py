@@ -125,3 +125,40 @@ class TestProgress:
         c.post(f"{LIST}lessons/{lessons[0].id}/progress/", {"status": "in_progress"}, format="json")
         c.post(f"{LIST}lessons/{lessons[0].id}/progress/", {"status": "completed"}, format="json")
         assert LessonProgress.objects.filter(student=student, lesson=lessons[0]).count() == 1
+
+
+class TestAttachmentAccess:
+    def _lesson_attachment(self, lesson, owner):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        from apps.courses.models import LessonAttachment
+        from apps.files.models import Attachment
+
+        att = Attachment.objects.create(
+            owner=owner,
+            uploaded_by=owner,
+            file=SimpleUploadedFile("w.pdf", b"%PDF x"),
+            original_name="w.pdf",
+            content_type="application/pdf",
+            size=6,
+            kind=Attachment.Kind.DOCUMENT,
+        )
+        LessonAttachment.objects.create(lesson=lesson, attachment=att)
+        return att
+
+    def test_student_can_read_attachment_on_assigned_course(self):
+        from apps.files.services import can_access_attachment
+
+        student = UserFactory(role="student")
+        course, _, lessons = _published_course()
+        _enroll_and_assign(student, course)
+        att = self._lesson_attachment(lessons[0], AdminUserFactory())
+        assert can_access_attachment(student, att) is True
+
+    def test_student_cannot_read_attachment_on_unassigned_course(self):
+        from apps.files.services import can_access_attachment
+
+        student = UserFactory(role="student")
+        course, _, lessons = _published_course()  # not assigned to this student
+        att = self._lesson_attachment(lessons[0], AdminUserFactory())
+        assert can_access_attachment(student, att) is False

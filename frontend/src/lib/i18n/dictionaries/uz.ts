@@ -849,6 +849,7 @@ export const uz: Dictionary = {
       removeAttachment: 'Ilovani oʻchirish',
       saveLesson: 'Darsni saqlash',
       lessonSaved: 'Dars saqlandi',
+      lessonLoadFailed: 'Darsni yuklab boʻlmadi.',
       // Assignments
       assignments: 'Tayinlashlar',
       assign: 'Tayinlash',

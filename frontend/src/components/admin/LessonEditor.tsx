@@ -139,6 +139,15 @@ export function LessonEditor({
           </div>
         )}
 
+        {lesson.isError && (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-4 text-sm text-muted-foreground">
+            {t('admin.courses.lessonLoadFailed')}
+            <Button variant="outline" size="sm" onClick={() => lesson.refetch()}>
+              {t('common.tryAgain')}
+            </Button>
+          </div>
+        )}
+
         {lesson.data && (
           <div className="space-y-4">
             <div className="space-y-2">

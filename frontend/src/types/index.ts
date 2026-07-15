@@ -698,6 +698,7 @@ export interface AdminLessonAttachment {
   contentType: string
   size: number
   caption: string
+  downloadUrl: string
   createdAt: string
 }
 

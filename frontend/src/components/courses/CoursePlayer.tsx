@@ -8,9 +8,10 @@ import * as React from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, CheckCircle2, Circle, PlayCircle } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, Circle, FileText, PlayCircle } from 'lucide-react'
 import { coursesAPI } from '@/lib/api/courses'
 import { sessionAPI } from '@/lib/api/sessions'
+import { filesAPI } from '@/lib/api/files'
 import { parseApiError } from '@/lib/api/errors'
 import { cn } from '@/lib/utils/cn'
 import { useI18n } from '@/lib/i18n/I18nProvider'
@@ -184,6 +185,27 @@ export function CoursePlayer({ courseId }: { courseId: string }) {
                         {t('courses.openHomework')}
                       </Button>
                     )}
+                  </div>
+                )}
+
+                {active.attachments.length > 0 && (
+                  <div className="space-y-1.5 border-t border-border pt-4">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      {t('courses.attachments')}
+                    </p>
+                    <ul className="space-y-1.5">
+                      {active.attachments.map((a) => (
+                        <li key={a.id}>
+                          <button
+                            type="button"
+                            onClick={() => filesAPI.download(a.downloadUrl, a.originalName)}
+                            className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
+                          >
+                            <FileText className="h-4 w-4" /> {a.originalName}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 )}
               </CardContent>

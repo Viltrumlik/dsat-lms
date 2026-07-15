@@ -846,6 +846,7 @@ export const en = {
       removeAttachment: 'Remove attachment',
       saveLesson: 'Save lesson',
       lessonSaved: 'Lesson saved',
+      lessonLoadFailed: "Couldn't load the lesson.",
       // Assignments
       assignments: 'Assignments',
       assign: 'Assign',

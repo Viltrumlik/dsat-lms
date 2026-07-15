@@ -285,7 +285,15 @@ export function CourseAssignPanel({ courseId }: { courseId: string }) {
           </Button>
         </div>
 
-        {assignments.length === 0 ? (
+        {query.isLoading ? (
+          <div className="space-y-1.5">
+            {Array.from({ length: 2 }).map((_, i) => (
+              <div key={i} className="h-9 animate-pulse rounded-md bg-muted" />
+            ))}
+          </div>
+        ) : query.isError ? (
+          <p className="text-sm text-muted-foreground">{t('admin.courses.loadFailed')}</p>
+        ) : assignments.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t('admin.courses.noAssignments')}</p>
         ) : (
           <ul className="space-y-1.5">
