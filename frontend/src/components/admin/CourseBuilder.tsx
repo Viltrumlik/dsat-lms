@@ -36,6 +36,7 @@ import {
 } from '@/components/ui/select'
 import { FullPageSpinner } from '@/components/ui/spinner'
 import { LessonEditor } from '@/components/admin/LessonEditor'
+import { CourseAssignPanel } from '@/components/admin/CourseAssignPanel'
 import type { AdminCourse, AdminCourseUnit, CourseStatus, CourseSubject } from '@/types'
 
 const SUBJECTS: CourseSubject[] = ['math', 'reading_writing', 'general']
@@ -448,6 +449,8 @@ export function CourseBuilder({ courseId }: { courseId: string }) {
           <Plus className="h-4 w-4" /> {t('admin.courses.addUnit')}
         </Button>
       </form>
+
+      <CourseAssignPanel courseId={courseId} />
 
       <EditCourseDialog course={c} open={editOpen} onOpenChange={setEditOpen} />
       <LessonEditor

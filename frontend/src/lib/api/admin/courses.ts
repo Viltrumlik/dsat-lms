@@ -8,10 +8,12 @@
 import { del, get, getPaginated, patch, post } from '../client'
 import type {
   AdminCourse,
+  AdminCourseAssignment,
   AdminCourseListItem,
   AdminCourseUnit,
   AdminLessonAttachment,
   AdminLessonDetail,
+  CourseProgressRow,
   CourseSubject,
 } from '@/types'
 
@@ -75,4 +77,22 @@ export const adminCoursesAPI = {
     post<AdminLessonAttachment>(`/admin/lessons/${lessonId}/attachments/`, { attachment, caption }),
   removeLessonAttachment: (lessonId: string, attId: string) =>
     del<void>(`/admin/lessons/${lessonId}/attachments/${attId}/`),
+
+  // Assignments
+  assignments: (courseId: string) =>
+    getPaginated<AdminCourseAssignment>('/admin/course-assignments/', { course: courseId }),
+  createAssignment: (payload: CourseAssignmentWritePayload) =>
+    post<AdminCourseAssignment>('/admin/course-assignments/', payload),
+  removeAssignment: (id: string) => del<void>(`/admin/course-assignments/${id}/`),
+  assignmentProgress: (id: string) =>
+    get<CourseProgressRow[]>(`/admin/course-assignments/${id}/progress/`),
+}
+
+export interface CourseAssignmentWritePayload {
+  course: string
+  assignedClass?: string | null
+  assignedStudent?: string | null
+  opensAt?: string | null
+  closesAt?: string | null
+  note?: string
 }

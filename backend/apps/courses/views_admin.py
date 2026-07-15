@@ -6,6 +6,8 @@ Description: Course CRUD + publish lifecycle, unit/lesson CRUD + reorder
     /api/v1/admin/. IsAdmin on every endpoint.
 """
 
+import logging
+
 from django.db import IntegrityError, transaction
 from django.db.models import Count, Q
 from rest_framework.exceptions import NotFound
@@ -18,9 +20,11 @@ from common.permissions import IsAdmin
 from common.responses import created_response, no_content_response, success_response
 
 from . import services
-from .models import Course, Lesson, LessonAttachment, Unit
+from .models import Course, CourseAssignment, Lesson, LessonAttachment, Unit
 from .serializers_admin import (
     AddLessonAttachmentSerializer,
+    AdminCourseAssignmentSerializer,
+    AdminCourseAssignmentWriteSerializer,
     CourseDetailSerializer,
     CourseListSerializer,
     CourseWriteSerializer,
@@ -31,6 +35,8 @@ from .serializers_admin import (
     UnitNodeSerializer,
     UnitWriteSerializer,
 )
+
+logger = logging.getLogger(__name__)
 
 
 # ─────────────────────────────────────
@@ -287,3 +293,101 @@ class AdminLessonAttachmentDeleteView(APIView):
             raise NotFound("Attachment not on this lesson.")
         link.soft_delete()
         return no_content_response()
+
+
+# ─────────────────────────────────────
+# Assignments
+# ─────────────────────────────────────
+def _get_assignment(pk):
+    assignment = (
+        CourseAssignment.objects.select_related(
+            "course", "assigned_by", "assigned_class", "assigned_student"
+        )
+        .filter(pk=pk)
+        .first()
+    )
+    if assignment is None:
+        raise NotFound("Assignment not found.")
+    return assignment
+
+
+def _notify_course_assigned(assignment):
+    """Best-effort in-app notification to every targeted student. English strings
+    are fallbacks; the client renders localized templates from the structured data."""
+    try:
+        from apps.identity.models import User
+        from apps.notifications.services import notify
+
+        student_ids = services.assignment_cohort_ids(assignment)
+        course = assignment.course
+        for user in User.objects.filter(id__in=student_ids):
+            notify(
+                user,
+                "course_assigned",
+                f"New course: {course.title}",
+                body=course.title,
+                data={
+                    "course_id": str(course.id),
+                    "course_title": course.title,
+                    "url": f"/courses/{course.id}",
+                },
+            )
+    except Exception:  # noqa: BLE001
+        logger.exception("Failed to send course-assigned notifications for %s", assignment.id)
+
+
+class AdminCourseAssignmentListCreateView(APIView):
+    permission_classes = [IsAdmin]
+
+    def get(self, request):
+        qs = CourseAssignment.objects.select_related(
+            "course", "assigned_by", "assigned_class", "assigned_student"
+        )
+        course = (request.query_params.get("course") or "").strip()
+        if course:
+            qs = qs.filter(course_id=course)
+        qs = qs.order_by("-created_at")
+        paginator = CursorPagination()
+        page = paginator.paginate_queryset(qs, request, view=self)
+        return paginator.get_paginated_response(
+            AdminCourseAssignmentSerializer(page, many=True).data
+        )
+
+    def post(self, request):
+        serializer = AdminCourseAssignmentWriteSerializer(
+            data=request.data, context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+        assignment = serializer.save()
+        _notify_course_assigned(assignment)
+        return created_response(
+            AdminCourseAssignmentSerializer(_get_assignment(assignment.id)).data
+        )
+
+
+class AdminCourseAssignmentDetailView(APIView):
+    permission_classes = [IsAdmin]
+
+    def get(self, request, pk):
+        return success_response(AdminCourseAssignmentSerializer(_get_assignment(pk)).data)
+
+    def patch(self, request, pk):
+        assignment = _get_assignment(pk)
+        serializer = AdminCourseAssignmentWriteSerializer(
+            assignment, data=request.data, partial=True, context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return success_response(AdminCourseAssignmentSerializer(_get_assignment(pk)).data)
+
+    def delete(self, request, pk):
+        _get_assignment(pk).soft_delete()
+        return no_content_response()
+
+
+class AdminCourseAssignmentProgressView(APIView):
+    permission_classes = [IsAdmin]
+
+    def get(self, request, pk):
+        assignment = _get_assignment(pk)
+        return success_response(services.assignment_progress(assignment))

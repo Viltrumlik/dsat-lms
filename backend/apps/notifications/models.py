@@ -30,6 +30,8 @@ class Notification(BaseModel):
         SUPPORT_RECOMMENDATION = "support_recommendation", "Support Recommendation"
         MENTOR_ASSIGNED = "mentor_assigned", "Mentor Assigned"
         MENTOR_CHECKIN_DUE = "mentor_checkin_due", "Mentor Check-in Due"
+        # Courses (Phase 5.4)
+        COURSE_ASSIGNED = "course_assigned", "Course Assigned"
 
     user = models.ForeignKey(
         "identity.User",

@@ -58,6 +58,12 @@ export function notificationText(
     }
   }
 
+  if (notification.type === 'course_assigned') {
+    const title = str(data['courseTitle'])
+    if (!title) return fallback
+    return { title: t('notifications.templates.courseAssigned', { title }), body: '' }
+  }
+
   if (notification.type === 'support_reply') {
     // Staff-facing rows carry studentName; the student-facing one doesn't.
     const student = str(data['studentName'])

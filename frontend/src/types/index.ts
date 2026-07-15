@@ -619,6 +619,27 @@ export interface AdminCourseUnit {
   lessons: AdminCourseLessonNode[]
 }
 
+/** GET /admin/course-assignments/ — a course assigned to a class or student. */
+export interface AdminCourseAssignment {
+  id: string
+  course: { id: string; title: string; status: CourseStatus; subject: CourseSubject }
+  assignedBy: { id: string; email: string; fullName: string }
+  assignedClass: { id: string; name: string } | null
+  assignedStudent: { id: string; email: string; fullName: string } | null
+  opensAt: string | null
+  closesAt: string | null
+  note: string
+  createdAt: string
+}
+
+/** GET /admin/course-assignments/{id}/progress/ — a student's completion row. */
+export interface CourseProgressRow {
+  student: { id: string; fullName: string; email: string }
+  completed: number
+  total: number
+  pct: number
+}
+
 /** A file linked to a lesson. */
 export interface AdminLessonAttachment {
   id: string
@@ -1358,6 +1379,7 @@ export type NotificationType =
   | 'support_recommendation'
   | 'mentor_assigned'
   | 'mentor_checkin_due'
+  | 'course_assigned'
 
 export interface Notification {
   id: string

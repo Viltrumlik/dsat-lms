@@ -5,10 +5,12 @@ Domain: Courses (admin authoring)
 
 from rest_framework import serializers
 
+from apps.academy.models import Class
 from apps.assessments.models import ExamTemplate
 from apps.homework.models import Homework
+from apps.identity.models import User
 
-from .models import Course, Lesson, LessonAttachment, Unit
+from .models import Course, CourseAssignment, Lesson, LessonAttachment, Unit
 
 
 # ─────────────────────────────────────
@@ -194,3 +196,79 @@ class CourseWriteSerializer(serializers.ModelSerializer):
 
 class ReorderSerializer(serializers.Serializer):
     order = serializers.ListField(child=serializers.UUIDField(), allow_empty=False)
+
+
+# ─────────────────────────────────────
+# Assignments (5.4c)
+# ─────────────────────────────────────
+class CourseMiniSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Course
+        fields = ["id", "title", "status", "subject"]
+
+
+class _UserMiniSerializer(serializers.ModelSerializer):
+    full_name = serializers.CharField(source="get_full_name", read_only=True)
+
+    class Meta:
+        model = User
+        fields = ["id", "email", "full_name"]
+
+
+class _ClassMiniSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Class
+        fields = ["id", "name"]
+
+
+class AdminCourseAssignmentSerializer(serializers.ModelSerializer):
+    course = CourseMiniSerializer(read_only=True)
+    assigned_by = _UserMiniSerializer(read_only=True)
+    assigned_class = _ClassMiniSerializer(read_only=True)
+    assigned_student = _UserMiniSerializer(read_only=True)
+
+    class Meta:
+        model = CourseAssignment
+        fields = [
+            "id",
+            "course",
+            "assigned_by",
+            "assigned_class",
+            "assigned_student",
+            "opens_at",
+            "closes_at",
+            "note",
+            "created_at",
+        ]
+
+
+class AdminCourseAssignmentWriteSerializer(serializers.ModelSerializer):
+    course = serializers.PrimaryKeyRelatedField(queryset=Course.objects.all())
+    assigned_class = serializers.PrimaryKeyRelatedField(
+        queryset=Class.objects.all(), required=False, allow_null=True
+    )
+    assigned_student = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.filter(deleted_at__isnull=True),
+        required=False,
+        allow_null=True,
+    )
+
+    class Meta:
+        model = CourseAssignment
+        fields = ["course", "assigned_class", "assigned_student", "opens_at", "closes_at", "note"]
+
+    def validate(self, attrs):
+        klass = attrs.get("assigned_class", getattr(self.instance, "assigned_class", None))
+        student = attrs.get("assigned_student", getattr(self.instance, "assigned_student", None))
+        if bool(klass) == bool(student):
+            raise serializers.ValidationError("Assign to exactly one of a class or a student.")
+        opens = attrs.get("opens_at", getattr(self.instance, "opens_at", None))
+        closes = attrs.get("closes_at", getattr(self.instance, "closes_at", None))
+        if opens and closes and closes <= opens:
+            raise serializers.ValidationError({"closes_at": "Must be after it opens."})
+        return attrs
+
+    def create(self, validated_data):
+        return CourseAssignment.objects.create(
+            assigned_by=self.context["request"].user, **validated_data
+        )

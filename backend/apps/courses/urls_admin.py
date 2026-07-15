@@ -6,6 +6,9 @@ Domain: Courses (admin authoring); mounted at /api/v1/admin/. IsAdmin on every v
 from django.urls import path
 
 from .views_admin import (
+    AdminCourseAssignmentDetailView,
+    AdminCourseAssignmentListCreateView,
+    AdminCourseAssignmentProgressView,
     AdminCourseDetailView,
     AdminCourseListCreateView,
     AdminCoursePublishView,
@@ -63,5 +66,21 @@ urlpatterns = [
         "lessons/<uuid:pk>/attachments/<uuid:att_id>/",
         AdminLessonAttachmentDeleteView.as_view(),
         name="lesson-attachment-delete",
+    ),
+    # Assignments
+    path(
+        "course-assignments/",
+        AdminCourseAssignmentListCreateView.as_view(),
+        name="course-assignment-list",
+    ),
+    path(
+        "course-assignments/<uuid:pk>/",
+        AdminCourseAssignmentDetailView.as_view(),
+        name="course-assignment-detail",
+    ),
+    path(
+        "course-assignments/<uuid:pk>/progress/",
+        AdminCourseAssignmentProgressView.as_view(),
+        name="course-assignment-progress",
     ),
 ]
