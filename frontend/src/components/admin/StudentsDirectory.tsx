@@ -59,6 +59,12 @@ export function StudentsDirectory() {
     return () => clearTimeout(id)
   }, [search])
 
+  // Clear the selection when the filter changes — otherwise a bulk action would
+  // silently target now-hidden students while the visible checkboxes look empty.
+  React.useEffect(() => {
+    setSelected(new Set())
+  }, [searchQ, status, tag])
+
   const params: StudentDirParams = {
     q: searchQ || undefined,
     status: status === ALL ? undefined : status,

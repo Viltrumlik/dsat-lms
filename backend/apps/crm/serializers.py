@@ -9,6 +9,14 @@ from apps.identity.models import User
 
 from .models import FollowUpTask, Lead, LeadActivity
 
+# Leads are owned and follow-ups assigned by front-office staff only (mirrors the
+# IsFrontOffice gate) — not students/teachers/public.
+_FRONT_OFFICE_ROLES = ("admin", "academic_manager", "receptionist")
+
+
+def _front_office_users():
+    return User.objects.filter(deleted_at__isnull=True, role__in=_FRONT_OFFICE_ROLES)
+
 
 class _UserMiniSerializer(serializers.ModelSerializer):
     full_name = serializers.CharField(source="get_full_name", read_only=True)
@@ -43,7 +51,7 @@ class FollowUpTaskSerializer(serializers.ModelSerializer):
 
 class FollowUpTaskCreateSerializer(serializers.ModelSerializer):
     assignee = serializers.PrimaryKeyRelatedField(
-        queryset=User.objects.filter(deleted_at__isnull=True), required=False, allow_null=True
+        queryset=_front_office_users(), required=False, allow_null=True
     )
 
     class Meta:
@@ -114,7 +122,7 @@ class LeadDetailSerializer(serializers.ModelSerializer):
 
 class LeadWriteSerializer(serializers.ModelSerializer):
     owner = serializers.PrimaryKeyRelatedField(
-        queryset=User.objects.filter(deleted_at__isnull=True), required=False, allow_null=True
+        queryset=_front_office_users(), required=False, allow_null=True
     )
 
     class Meta:

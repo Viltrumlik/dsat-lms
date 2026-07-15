@@ -59,7 +59,12 @@ def assign_tag(tag, entity_type, entity_id):
         if existing.deleted_at is not None:
             existing.restore()
         return existing
-    return TaggedItem.objects.create(tag=tag, content_type=ct, object_id=obj.pk)
+    try:
+        with transaction.atomic():
+            return TaggedItem.objects.create(tag=tag, content_type=ct, object_id=obj.pk)
+    except IntegrityError:
+        # A concurrent assign won the partial-unique race — return its row.
+        return TaggedItem.all_objects.filter(tag=tag, content_type=ct, object_id=obj.pk).first()
 
 
 def unassign_tag(tag, entity_type, entity_id):

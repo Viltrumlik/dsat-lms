@@ -126,6 +126,24 @@ class TestActivitiesAndTasks:
         assert done.status_code == 200 and done.data["data"]["done"] is True
         assert FollowUpTask.objects.get(id=task_id).done_at is not None
 
+    def test_open_tasks_excludes_soft_deleted(self):
+        # Review finding: the open_tasks badge annotation must not count a
+        # soft-deleted (but still done=False) follow-up task.
+        lead = LeadFactory(owner=reception())
+        FollowUpTask.objects.create(lead=lead, title="A", due_at="2026-08-01T09:00:00Z")
+        gone = FollowUpTask.objects.create(lead=lead, title="B", due_at="2026-08-01T09:00:00Z")
+        gone.soft_delete()
+        rows = client_for(AdminUserFactory()).get(BASE).data["data"]
+        assert rows[0]["open_tasks"] == 1
+
+    def test_owner_must_be_front_office(self):
+        # Review finding: a student/teacher can't own a lead.
+        student = UserFactory(role="student")
+        r = client_for(AdminUserFactory()).post(
+            BASE, {"name": "X", "owner": str(student.id)}, format="json"
+        )
+        assert r.status_code == 400
+
 
 class TestConversion:
     def test_convert_creates_student(self):

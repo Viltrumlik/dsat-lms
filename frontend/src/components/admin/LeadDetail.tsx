@@ -99,6 +99,8 @@ export function LeadDetail({
     mutationFn: () => leadsAPI.convert(leadId as string),
     onSuccess: () => {
       invalidate()
+      // A converted lead becomes a student — refresh the students directory.
+      queryClient.invalidateQueries({ queryKey: ['admin', 'students-dir'] })
       toast({ variant: 'success', title: t('admin.leads.converted') })
     },
     onError,

@@ -21,7 +21,11 @@ export function NotesPanel({ studentId }: { studentId: string }) {
 
   const key = ['admin', 'student-notes', studentId]
   const query = useQuery({ queryKey: key, queryFn: () => studentNotesAPI.list(studentId) })
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: key })
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: key })
+    // Notes feed the unified activity timeline too — keep it in sync.
+    queryClient.invalidateQueries({ queryKey: ['admin', 'student-timeline', studentId] })
+  }
   const onError = (err: unknown) =>
     toast({ variant: 'error', title: t('admin.notes.actionFailed'), description: parseApiError(err).message })
 

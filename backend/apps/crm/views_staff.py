@@ -77,7 +77,12 @@ class LeadListCreateView(APIView):
         qs = (
             scoped_leads(request)
             .select_related("owner", "converted_user")
-            .annotate(open_tasks_annotated=Count("follow_ups", filter=Q(follow_ups__done=False)))
+            .annotate(
+                open_tasks_annotated=Count(
+                    "follow_ups",
+                    filter=Q(follow_ups__done=False, follow_ups__deleted_at__isnull=True),
+                )
+            )
         )
         stage = (request.query_params.get("stage") or "").strip()
         if stage:
@@ -112,7 +117,19 @@ class LeadBoardView(APIView):
     permission_classes = [IsFrontOffice]
 
     def get(self, request):
-        qs = scoped_leads(request).select_related("owner").order_by("-created_at")
+        # Annotate open_tasks like the list view — else the serializer fallback
+        # fires one COUNT per card (N+1 across the board).
+        qs = (
+            scoped_leads(request)
+            .select_related("owner")
+            .annotate(
+                open_tasks_annotated=Count(
+                    "follow_ups",
+                    filter=Q(follow_ups__done=False, follow_ups__deleted_at__isnull=True),
+                )
+            )
+            .order_by("-created_at")
+        )
         columns = {}
         for stage, _label in Lead.Stage.choices:
             rows = qs.filter(stage=stage)[:_BOARD_COLUMN_CAP]
