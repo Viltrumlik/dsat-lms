@@ -619,6 +619,46 @@ export interface AdminCourseUnit {
   lessons: AdminCourseLessonNode[]
 }
 
+/** A file linked to a lesson. */
+export interface AdminLessonAttachment {
+  id: string
+  attachmentId: string
+  originalName: string
+  contentType: string
+  size: number
+  caption: string
+  createdAt: string
+}
+
+export interface LinkedExamMini {
+  id: string
+  title: string
+  type: ExamType
+}
+
+export interface LinkedHomeworkMini {
+  id: string
+  title: string
+}
+
+/** GET /admin/lessons/{id}/ — full lesson for the editor. */
+export interface AdminLessonDetail {
+  id: string
+  unit: string
+  course: string
+  title: string
+  position: number
+  contentMd: string
+  videoUrl: string | null
+  linkedExam: string | null
+  linkedExamDetail: LinkedExamMini | null
+  linkedHomework: string | null
+  linkedHomeworkDetail: LinkedHomeworkMini | null
+  attachments: AdminLessonAttachment[]
+  createdAt: string
+  updatedAt: string
+}
+
 /** GET /admin/courses/{id}/ — full course with nested units + lessons. */
 export interface AdminCourse {
   id: string

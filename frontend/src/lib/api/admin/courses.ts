@@ -6,7 +6,14 @@
 // ═══════════════════════════════════════
 
 import { del, get, getPaginated, patch, post } from '../client'
-import type { AdminCourse, AdminCourseListItem, CourseSubject } from '@/types'
+import type {
+  AdminCourse,
+  AdminCourseListItem,
+  AdminCourseUnit,
+  AdminLessonAttachment,
+  AdminLessonDetail,
+  CourseSubject,
+} from '@/types'
 
 export interface CourseListParams {
   status?: string
@@ -24,6 +31,14 @@ export interface CourseWritePayload {
 
 export type CoursePublishAction = 'publish' | 'unpublish' | 'archive'
 
+export interface LessonWritePayload {
+  title: string
+  contentMd?: string
+  videoUrl?: string | null
+  linkedExam?: string | null
+  linkedHomework?: string | null
+}
+
 export const adminCoursesAPI = {
   list: (params?: CourseListParams) =>
     getPaginated<AdminCourseListItem>('/admin/courses/', params),
@@ -34,4 +49,30 @@ export const adminCoursesAPI = {
   remove: (id: string) => del<void>(`/admin/courses/${id}/`),
   publish: (id: string, action: CoursePublishAction) =>
     post<AdminCourse>(`/admin/courses/${id}/publish/`, { action }),
+
+  // Units
+  createUnit: (courseId: string, title: string) =>
+    post<AdminCourseUnit>(`/admin/courses/${courseId}/units/`, { title }),
+  updateUnit: (courseId: string, unitId: string, title: string) =>
+    patch<AdminCourseUnit>(`/admin/courses/${courseId}/units/${unitId}/`, { title }),
+  removeUnit: (courseId: string, unitId: string) =>
+    del<void>(`/admin/courses/${courseId}/units/${unitId}/`),
+  reorderUnits: (courseId: string, order: string[]) =>
+    post<AdminCourse>(`/admin/courses/${courseId}/units/reorder/`, { order }),
+
+  // Lessons
+  getLesson: (lessonId: string) => get<AdminLessonDetail>(`/admin/lessons/${lessonId}/`),
+  createLesson: (courseId: string, unitId: string, payload: LessonWritePayload) =>
+    post<AdminLessonDetail>(`/admin/courses/${courseId}/units/${unitId}/lessons/`, payload),
+  updateLesson: (lessonId: string, payload: Partial<LessonWritePayload>) =>
+    patch<AdminLessonDetail>(`/admin/lessons/${lessonId}/`, payload),
+  removeLesson: (lessonId: string) => del<void>(`/admin/lessons/${lessonId}/`),
+  reorderLessons: (courseId: string, unitId: string, order: string[]) =>
+    post<AdminCourseUnit>(`/admin/courses/${courseId}/units/${unitId}/lessons/reorder/`, { order }),
+
+  // Lesson attachments
+  addLessonAttachment: (lessonId: string, attachment: string, caption = '') =>
+    post<AdminLessonAttachment>(`/admin/lessons/${lessonId}/attachments/`, { attachment, caption }),
+  removeLessonAttachment: (lessonId: string, attId: string) =>
+    del<void>(`/admin/lessons/${lessonId}/attachments/${attId}/`),
 }
