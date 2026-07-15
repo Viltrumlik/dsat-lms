@@ -9,6 +9,7 @@ import {
   BarChart3,
   CalendarClock,
   ClipboardList,
+  Contact,
   FileSpreadsheet,
   FileText,
   GraduationCap,
@@ -37,6 +38,7 @@ export const ADMIN_NAV: NavItem[] = [
   },
   { labelKey: 'admin.nav.gradebook', href: '/admin/gradebook', icon: Table2, section: 'content' },
   { labelKey: 'admin.nav.courses', href: '/admin/courses', icon: GraduationCap, section: 'content' },
+  { labelKey: 'admin.nav.leads', href: '/admin/leads', icon: Contact, section: 'crm' },
   {
     labelKey: 'admin.nav.announcements',
     href: '/admin/announcements',

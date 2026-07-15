@@ -669,6 +669,80 @@ export interface StudentCourse {
   units: StudentCourseUnit[]
 }
 
+// ─────────────────────────────────────
+// CRM — Leads pipeline (Phase 5.5)
+// ─────────────────────────────────────
+
+export type LeadStage = 'new' | 'contacted' | 'trial' | 'registered' | 'lost'
+export type LeadSource = 'walk_in' | 'referral' | 'social' | 'web' | 'phone' | 'other' | ''
+export type LeadSubject = 'math' | 'reading_writing' | 'full' | 'other' | ''
+export type LeadActivityKind = 'note' | 'call' | 'meeting' | 'email' | 'stage_change'
+
+export interface StaffMini {
+  id: string
+  email: string
+  fullName: string
+}
+
+/** GET /staff/leads/ — a lead card. */
+export interface LeadListItem {
+  id: string
+  name: string
+  email: string
+  phone: string
+  stage: LeadStage
+  source: LeadSource
+  subjectInterest: LeadSubject
+  owner: StaffMini | null
+  convertedUser: string | null
+  convertedAt: string | null
+  openTasks: number
+  createdAt: string
+}
+
+export interface LeadActivity {
+  id: string
+  kind: LeadActivityKind
+  body: string
+  author: StaffMini | null
+  createdAt: string
+}
+
+export interface FollowUpTask {
+  id: string
+  lead: string
+  title: string
+  dueAt: string
+  done: boolean
+  doneAt: string | null
+  assignee: StaffMini | null
+  createdAt: string
+}
+
+/** GET /staff/leads/{id}/ — full lead with timeline + tasks. */
+export interface LeadDetail {
+  id: string
+  name: string
+  email: string
+  phone: string
+  stage: LeadStage
+  source: LeadSource
+  subjectInterest: LeadSubject
+  note: string
+  owner: StaffMini | null
+  convertedUser: StaffMini | null
+  convertedAt: string | null
+  activities: LeadActivity[]
+  followUps: FollowUpTask[]
+  createdAt: string
+  updatedAt: string
+}
+
+/** GET /staff/leads/board/ — leads grouped by stage. */
+export interface LeadBoard {
+  columns: Record<LeadStage, LeadListItem[]>
+}
+
 /** GET /admin/course-assignments/ — a course assigned to a class or student. */
 export interface AdminCourseAssignment {
   id: string
@@ -1431,6 +1505,8 @@ export type NotificationType =
   | 'mentor_assigned'
   | 'mentor_checkin_due'
   | 'course_assigned'
+  | 'lead_assigned'
+  | 'follow_up_due'
 
 export interface Notification {
   id: string
