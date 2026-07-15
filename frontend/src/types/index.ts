@@ -158,6 +158,29 @@ export interface ClassScheduleRule {
   createdAt: string
 }
 
+/** Announcements (5.2c). */
+export type AnnouncementAudience = 'all_students' | 'all_staff' | 'role' | 'class'
+export interface Announcement {
+  id: string
+  authorName: string | null
+  title: string
+  body: string
+  audienceType: AnnouncementAudience
+  audienceRef: string
+  channels: string[]
+  status: 'draft' | 'sent'
+  sentAt: string | null
+  deliveryCount: number
+  createdAt: string
+}
+export interface MessageTemplate {
+  id: string
+  name: string
+  subject: string
+  body: string
+  createdAt: string
+}
+
 /** Admin global search (⌘K). */
 export interface SearchHit {
   id: string

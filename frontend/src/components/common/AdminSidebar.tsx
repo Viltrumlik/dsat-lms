@@ -11,6 +11,7 @@ import {
   FileText,
   LayoutDashboard,
   LifeBuoy,
+  Megaphone,
   ScrollText,
   Settings,
   Users,
@@ -29,6 +30,12 @@ export const ADMIN_NAV: NavItem[] = [
     href: '/admin/assignments',
     icon: CalendarClock,
     section: 'content',
+  },
+  {
+    labelKey: 'admin.nav.announcements',
+    href: '/admin/announcements',
+    icon: Megaphone,
+    section: 'communication',
   },
   {
     labelKey: 'admin.nav.supportOps',
