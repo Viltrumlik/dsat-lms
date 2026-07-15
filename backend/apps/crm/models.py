@@ -130,5 +130,29 @@ class FollowUpTask(BaseModel):
         return f"{self.title} → {self.due_at:%Y-%m-%d}"
 
 
+class SavedFilter(BaseModel):
+    """A per-user saved filter for a list view (e.g. the admin students directory).
+    `params` holds the query params to re-apply (status/tag/mentor/q/…)."""
+
+    class Kind(models.TextChoices):
+        STUDENTS = "students", "Students"
+        LEADS = "leads", "Leads"
+
+    owner = models.ForeignKey(
+        "identity.User", on_delete=models.CASCADE, related_name="saved_filters"
+    )
+    kind = models.CharField(max_length=20, choices=Kind.choices, default=Kind.STUDENTS)
+    name = models.CharField(max_length=120)
+    params = models.JSONField(default=dict)
+
+    class Meta:
+        db_table = "crm_saved_filters"
+        ordering = ["name"]
+        indexes = [models.Index(fields=["owner", "kind"])]
+
+    def __str__(self):
+        return f"{self.owner_id}:{self.name}"
+
+
 # Tag / TaggedItem live in tags.py; import so Django discovers them as crm models.
 from .tags import Tag, TaggedItem  # noqa: E402,F401
