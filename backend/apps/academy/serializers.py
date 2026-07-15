@@ -3,6 +3,8 @@ DSAT LMS v2 — Academy Serializers
 Domain: Academy
 """
 
+from decimal import Decimal
+
 from rest_framework import serializers
 
 from apps.identity.models import User
@@ -302,3 +304,26 @@ class ClassScheduleRuleWriteSerializer(serializers.ModelSerializer):
         if not 0 <= value <= 6:
             raise serializers.ValidationError("weekday must be 0–6 (0=Mon … 6=Sun).")
         return value
+
+
+class GradeWriteSerializer(serializers.Serializer):
+    """Set/clear a submission's manual grade + feedback."""
+
+    grade = serializers.DecimalField(
+        max_digits=5, decimal_places=2, min_value=Decimal("0"), required=False, allow_null=True
+    )
+    grade_scale = serializers.IntegerField(min_value=1, required=False)
+    feedback = serializers.CharField(required=False, allow_blank=True)
+
+
+class BulkGradeSerializer(serializers.Serializer):
+    """Bulk-grade payload: a list of {submission, grade?, feedback?}."""
+
+    class _Row(serializers.Serializer):
+        submission = serializers.UUIDField()
+        grade = serializers.DecimalField(
+            max_digits=5, decimal_places=2, min_value=Decimal("0"), required=False, allow_null=True
+        )
+        feedback = serializers.CharField(required=False, allow_blank=True, default="")
+
+    grades = _Row(many=True)
