@@ -578,6 +578,62 @@ export interface AdminExam {
   updatedAt: string
 }
 
+// ─────────────────────────────────────
+// Courses (admin authoring — Phase 5.4)
+// ─────────────────────────────────────
+
+export type CourseStatus = 'draft' | 'published' | 'archived'
+export type CourseSubject = 'math' | 'reading_writing' | 'general'
+
+/** GET /admin/courses/ — a course row with rolled-up counts. */
+export interface AdminCourseListItem {
+  id: string
+  title: string
+  slug: string
+  subject: CourseSubject
+  status: CourseStatus
+  coverImageUrl: string | null
+  unitCount: number
+  lessonCount: number
+  publishedAt: string | null
+  createdAt: string
+}
+
+/** A lesson node inside the course tree (no full body). */
+export interface AdminCourseLessonNode {
+  id: string
+  title: string
+  position: number
+  videoUrl: string | null
+  linkedExam: string | null
+  linkedHomework: string | null
+  hasContent: boolean
+  attachmentCount: number
+}
+
+/** A unit node inside the course tree. */
+export interface AdminCourseUnit {
+  id: string
+  title: string
+  position: number
+  lessons: AdminCourseLessonNode[]
+}
+
+/** GET /admin/courses/{id}/ — full course with nested units + lessons. */
+export interface AdminCourse {
+  id: string
+  title: string
+  slug: string
+  description: string
+  subject: CourseSubject
+  status: CourseStatus
+  coverImageUrl: string | null
+  publishedAt: string | null
+  units: AdminCourseUnit[]
+  createdAt: string
+  updatedAt: string
+}
+
 export interface AssignmentClassRef {
   id: string
   name: string

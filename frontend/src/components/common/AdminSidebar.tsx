@@ -11,6 +11,7 @@ import {
   ClipboardList,
   FileSpreadsheet,
   FileText,
+  GraduationCap,
   LayoutDashboard,
   LifeBuoy,
   Megaphone,
@@ -35,6 +36,7 @@ export const ADMIN_NAV: NavItem[] = [
     section: 'content',
   },
   { labelKey: 'admin.nav.gradebook', href: '/admin/gradebook', icon: Table2, section: 'content' },
+  { labelKey: 'admin.nav.courses', href: '/admin/courses', icon: GraduationCap, section: 'content' },
   {
     labelKey: 'admin.nav.announcements',
     href: '/admin/announcements',
