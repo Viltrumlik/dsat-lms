@@ -204,6 +204,37 @@ export interface Gradebook {
   rows: GradebookRow[]
 }
 
+/** Platform analytics (5.3c). */
+export interface WeakStudentRow {
+  student: { id: string; fullName: string; email: string }
+  accuracy: number | null
+  homework: number | null
+  attendance: number | null
+  daysInactive: number | null
+  risk: 'red' | 'yellow' | 'green'
+}
+export interface ActiveTeacherRow {
+  teacher: { id: string; fullName: string; email: string }
+  classes: number
+  students: number
+}
+export interface ExamDifficultyRow {
+  exam: string
+  avgAccuracy: number | null
+  attempts: number
+}
+export interface AttendanceClassRow {
+  class: string
+  rate: number
+  marked: number
+}
+export interface PlatformAnalytics {
+  weakStudents: WeakStudentRow[]
+  activeTeachers: ActiveTeacherRow[]
+  examDifficulty: ExamDifficultyRow[]
+  attendanceByClass: AttendanceClassRow[]
+}
+
 /** Admin global search (⌘K). */
 export interface SearchHit {
   id: string
