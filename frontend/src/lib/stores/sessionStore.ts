@@ -9,7 +9,13 @@
 
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { SessionQuestion, EngineSection, QuestionClientState, ExamType } from '@/types'
+import type {
+  SessionQuestion,
+  EngineSection,
+  QuestionClientState,
+  ExamType,
+  Annotation,
+} from '@/types'
 
 // ─────────────────────────────────────
 // Types
@@ -43,6 +49,18 @@ interface SessionState {
   questionStates: Record<string, QuestionClientState>
 
   // ─────────────────────────────────────
+  // Bluebook exam-surface preferences (session-scoped, persisted locally)
+  // ─────────────────────────────────────
+  /** "ABC" answer-eliminator mode — shows the cross-out column. */
+  eliminatorOn: boolean
+  /** Timer collapsed via the "Hide" pill. */
+  timerHidden: boolean
+  /** Split-pane divider position, as a fraction of the body width. */
+  splitRatio: number
+  /** Highlights & Notes rail open. */
+  notesOpen: boolean
+
+  // ─────────────────────────────────────
   // Actions
   // ─────────────────────────────────────
 
@@ -64,6 +82,17 @@ interface SessionState {
   setNote: (questionId: string, note: string) => void
   setHighlight: (questionId: string, highlight: QuestionClientState['highlight']) => void
 
+  // Annotations (Highlights & Notes)
+  addAnnotation: (questionId: string, annotation: Annotation) => void
+  updateAnnotation: (questionId: string, id: string, patch: Partial<Annotation>) => void
+  removeAnnotation: (questionId: string, id: string) => void
+
+  // Exam-surface preferences
+  toggleEliminator: () => void
+  toggleTimerHidden: () => void
+  setSplitRatio: (ratio: number) => void
+  setNotesOpen: (open: boolean) => void
+
   // Timer
   setTimeRemaining: (seconds: number) => void
   tickTimer: () => void
@@ -84,6 +113,7 @@ const defaultQuestionState = (): QuestionClientState => ({
   note: '',
   crossedOut: [],
   highlight: null,
+  annotations: [],
 })
 
 // ─────────────────────────────────────
@@ -102,6 +132,10 @@ export const useSessionStore = create<SessionState>()(
       timeRemaining: null,
       isTimerRunning: false,
       questionStates: {},
+      eliminatorOn: false,
+      timerHidden: false,
+      splitRatio: 0.5,
+      notesOpen: false,
 
       // ─────────────────────────────────────
       // Initialize
@@ -130,6 +164,10 @@ export const useSessionStore = create<SessionState>()(
           timeRemaining: null,
           isTimerRunning: false,
           questionStates: {},
+          eliminatorOn: false,
+          timerHidden: false,
+          splitRatio: 0.5,
+          notesOpen: false,
         })
       },
 
@@ -236,6 +274,63 @@ export const useSessionStore = create<SessionState>()(
       },
 
       // ─────────────────────────────────────
+      // Annotations (Highlights & Notes)
+      // ─────────────────────────────────────
+
+      addAnnotation: (questionId, annotation) => {
+        const { questionStates } = get()
+        const current = questionStates[questionId] ?? defaultQuestionState()
+        set({
+          questionStates: {
+            ...questionStates,
+            [questionId]: {
+              ...current,
+              annotations: [...(current.annotations ?? []), annotation],
+            },
+          },
+        })
+      },
+
+      updateAnnotation: (questionId, id, patch) => {
+        const { questionStates } = get()
+        const current = questionStates[questionId] ?? defaultQuestionState()
+        set({
+          questionStates: {
+            ...questionStates,
+            [questionId]: {
+              ...current,
+              annotations: (current.annotations ?? []).map((a) =>
+                a.id === id ? { ...a, ...patch } : a
+              ),
+            },
+          },
+        })
+      },
+
+      removeAnnotation: (questionId, id) => {
+        const { questionStates } = get()
+        const current = questionStates[questionId] ?? defaultQuestionState()
+        set({
+          questionStates: {
+            ...questionStates,
+            [questionId]: {
+              ...current,
+              annotations: (current.annotations ?? []).filter((a) => a.id !== id),
+            },
+          },
+        })
+      },
+
+      // ─────────────────────────────────────
+      // Exam-surface preferences
+      // ─────────────────────────────────────
+
+      toggleEliminator: () => set({ eliminatorOn: !get().eliminatorOn }),
+      toggleTimerHidden: () => set({ timerHidden: !get().timerHidden }),
+      setSplitRatio: (ratio) => set({ splitRatio: Math.min(0.8, Math.max(0.2, ratio)) }),
+      setNotesOpen: (open) => set({ notesOpen: open }),
+
+      // ─────────────────────────────────────
       // Timer
       // ─────────────────────────────────────
 
@@ -270,6 +365,10 @@ export const useSessionStore = create<SessionState>()(
         currentQuestionIndex: state.currentQuestionIndex,
         timeRemaining: state.timeRemaining,
         questionStates: state.questionStates,
+        eliminatorOn: state.eliminatorOn,
+        timerHidden: state.timerHidden,
+        splitRatio: state.splitRatio,
+        notesOpen: state.notesOpen,
         // sections server'dan re-fetch qilamiz (versioning uchun)
       }),
     }
@@ -289,6 +388,16 @@ export const selectCurrentQuestion = (state: SessionState): SessionQuestion | nu
 export const selectCurrentQuestionState = (state: SessionState, questionId: string): QuestionClientState => {
   return state.questionStates[questionId] ?? defaultQuestionState()
 }
+
+/** Annotations for the current question, always an array. */
+export const selectCurrentAnnotations = (state: SessionState): Annotation[] => {
+  const question = selectCurrentQuestion(state)
+  if (!question) return EMPTY_ANNOTATIONS
+  return state.questionStates[question.id]?.annotations ?? EMPTY_ANNOTATIONS
+}
+
+// Stable identity — a fresh [] on every read would loop useSyncExternalStore.
+const EMPTY_ANNOTATIONS: Annotation[] = []
 
 export const selectSectionProgress = (state: SessionState, sectionIndex: number) => {
   const section = state.sections[sectionIndex]

@@ -21,6 +21,9 @@ import { BottomBar } from './BottomBar'
 import { BreakScreen } from './BreakScreen'
 import { ReviewScreen } from './ReviewScreen'
 import { SubmitDialog } from './SubmitDialog'
+import { ExamBanner } from './ExamBanner'
+import { DirectionsPanel } from './DirectionsPanel'
+import { useExamShortcuts } from './useExamShortcuts'
 
 export function TestShell() {
   const router = useRouter()
@@ -47,6 +50,15 @@ export function TestShell() {
 
   const [submitOpen, setSubmitOpen] = React.useState(false)
   const [submitting, setSubmitting] = React.useState(false)
+  const [directionsOpen, setDirectionsOpen] = React.useState(false)
+
+  // Directions belong to the section — close them when the section changes.
+  const sectionIndex = useSessionStore((s) => s.currentSectionIndex)
+  React.useEffect(() => {
+    setDirectionsOpen(false)
+  }, [sectionIndex])
+
+  useExamShortcuts({ enabled: status === 'active' && !submitOpen && !directionsOpen })
 
   const handleSubmit = React.useCallback(async () => {
     const { meta, questionStates, setStatus } = useSessionStore.getState()
@@ -103,7 +115,7 @@ export function TestShell() {
 
   if (status === 'break') {
     return (
-      <div className="flex h-[100dvh] flex-col bg-background">
+      <div className="flex h-[100dvh] flex-col bg-white">
         <BreakScreen />
       </div>
     )
@@ -111,7 +123,7 @@ export function TestShell() {
 
   if (status === 'review') {
     return (
-      <div className="flex h-[100dvh] flex-col bg-background">
+      <div className="flex h-[100dvh] flex-col bg-white">
         <ReviewScreen onSubmit={() => setSubmitOpen(true)} />
         <SubmitDialog
           open={submitOpen}
@@ -130,11 +142,20 @@ export function TestShell() {
   }
 
   return (
-    <div className="flex h-[100dvh] flex-col bg-background">
-      <TopBar onTimeUp={handleSubmit} onPause={handlePause} />
-      <main className="flex-1 overflow-y-auto px-4 py-6 md:px-8">
-        <QuestionPane />
-      </main>
+    <div className="flex h-[100dvh] flex-col bg-white">
+      <TopBar
+        onTimeUp={handleSubmit}
+        onPause={handlePause}
+        directionsOpen={directionsOpen}
+        onToggleDirections={() => setDirectionsOpen((v) => !v)}
+      />
+      <div className="relative flex min-h-0 flex-1 flex-col">
+        <ExamBanner />
+        <main className="min-h-0 flex-1 pt-3">
+          <QuestionPane />
+        </main>
+        <DirectionsPanel open={directionsOpen} onClose={() => setDirectionsOpen(false)} />
+      </div>
       <BottomBar />
       <SubmitDialog
         open={submitOpen}

@@ -99,3 +99,67 @@
 .prose-question strong {
   font-weight: 600;
 }
+
+/* ═══════════════════════════════════════
+   Test engine — Bluebook chrome
+   The exam surface is deliberately theme-independent: it must look the same
+   for every student, in light or dark mode, exactly like the real app.
+   ═══════════════════════════════════════ */
+
+/* The perforated rule that separates the header/footer bars from the test
+   body — a row of short black ticks, as in the official app. */
+.bb-ticks {
+  background-image: repeating-linear-gradient(
+    to right,
+    #1e1e1e 0 44px,
+    transparent 44px 56px
+  );
+  background-repeat: repeat-x;
+  height: 3px;
+}
+
+/* Passage / stem / choice reading type */
+.bb-prose {
+  font-family: theme('fontFamily.exam');
+  color: #1e1e1e;
+  font-size: 19px;
+  line-height: 1.55;
+}
+.bb-prose p {
+  margin-bottom: 1em;
+}
+.bb-prose p:last-child {
+  margin-bottom: 0;
+}
+.bb-prose table {
+  border-collapse: collapse;
+  margin: 0.75em 0;
+}
+.bb-prose th,
+.bb-prose td {
+  border: 1px solid #1e1e1e;
+  padding: 4px 10px;
+}
+
+/* User highlights inside the passage / stem */
+.bb-hl {
+  border-radius: 1px;
+  padding: 0.5px 0;
+}
+.bb-hl[data-color='yellow'] { background-color: #fbe79b; }
+.bb-hl[data-color='blue']   { background-color: #e9f5fe; }
+.bb-hl[data-color='pink']   { background-color: #fbe6f7; }
+.bb-hl[data-underline='true'] {
+  text-decoration: underline;
+  text-decoration-style: solid;
+  text-underline-offset: 3px;
+}
+.bb-hl[data-active='true'] {
+  outline: 2px solid #1e1e1e;
+  outline-offset: 1px;
+}
+
+/* Native selection colour inside the exam panes */
+.bb-selectable ::selection {
+  background: #fbe79b;
+}

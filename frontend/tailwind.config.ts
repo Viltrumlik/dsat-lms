@@ -87,11 +87,37 @@ const config: Config = {
         easy:   '#10B981',
         medium: '#F59E0B',
         hard:   '#EF4444',
+
+        // ─────────────────────────────────────
+        // Test engine — Bluebook palette
+        // Sampled from the official Digital SAT app. These are FIXED (not
+        // CSS-variable) tokens: the test engine renders identically in light
+        // and dark mode, exactly like the real exam.
+        // ─────────────────────────────────────
+        bb: {
+          chrome:      '#E7EDF7', // header / footer bar
+          chromeEdge:  '#1E1E1E', // the ticked rule under the header
+          banner:      '#1B2560', // navy "THIS IS A PRACTICE TEST" bar
+          ink:         '#1E1E1E', // question-number chip, nav pill, body text
+          blue:        '#3451BD', // Back/Next, nav numbers, links
+          blueDark:    '#26399A', // hover
+          rule:        '#888888', // split-pane divider
+          choice:      '#505050', // answer-choice border
+          flag:        '#9E3038', // "Mark for Review" active
+          yellow:      '#F9DA4A', // Close button + yellow highlight swatch
+          rail:        '#F0F0F0', // notes rail background
+          strip:       '#F0F0F0', // question header strip
+          hlYellow:    '#FBE79B',
+          hlBlue:      '#E9F5FE',
+          hlPink:      '#FBE6F7',
+        },
       },
 
       fontFamily: {
         sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
         mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
+        // Test engine content face — matches the exam's serif reading type.
+        exam: ['Charter', 'Bitstream Charter', 'Sitka Text', 'Cambria', 'Georgia', 'serif'],
       },
 
       fontSize: {

@@ -15,6 +15,7 @@ import { sessionAPI } from '@/lib/api/sessions'
 import { resetAnswerQueue } from '@/lib/hooks/useAnswerSync'
 import { useSessionStore } from '@/lib/stores/sessionStore'
 import type {
+  Annotation,
   EngineSection,
   QuestionClientState,
   SessionDetail,
@@ -43,6 +44,7 @@ function normalizeState(partial: Partial<QuestionClientState> | undefined): Ques
     note: partial?.note ?? '',
     crossedOut: (partial?.crossedOut as ChoiceLabel[] | undefined) ?? [],
     highlight: partial?.highlight ?? null,
+    annotations: (partial?.annotations as Annotation[] | undefined) ?? [],
   }
 }
 

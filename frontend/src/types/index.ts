@@ -1025,9 +1025,34 @@ export interface SessionListItem {
 export interface QuestionClientState {
   answer: string | null
   flagged: boolean
+  /** Legacy free-text note. Superseded by `annotations`; kept so older
+   *  client_session_data blobs still round-trip. */
   note: string
   crossedOut: ChoiceLabel[]
   highlight: HighlightData | null
+  /** Bluebook "Highlights & Notes" — a highlight optionally carrying a note. */
+  annotations: Annotation[]
+}
+
+export type HighlightColor = 'yellow' | 'blue' | 'pink'
+
+/** Which text block an annotation is anchored to. */
+export type AnnotationTarget = 'stimulus' | 'stem'
+
+/**
+ * A user highlight over the rendered plain text of a target block.
+ * `start`/`end` are character offsets into that block's textContent, so an
+ * annotation survives a reload as long as the question content is unchanged.
+ */
+export interface Annotation {
+  id: string
+  target: AnnotationTarget
+  start: number
+  end: number
+  text: string
+  color: HighlightColor
+  underline: boolean
+  note: string
 }
 
 export interface HighlightData {
