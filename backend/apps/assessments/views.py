@@ -2,7 +2,7 @@
 DSAT LMS v2 — Assessment Views (Test Engine)
 Domain: Assessments
 Description: Session lifecycle — start, fetch (recovery), auto-save (timer-checked),
-            answer, submit (grade), result.
+            answer, submit (grade), result, and post-submission review.
 Permissions: IsAuthenticated (global). Sessions are owner-scoped (others get 404).
              Academy-only exams require user.has_full_access to start.
 """
@@ -25,11 +25,18 @@ from .serializers import (
     ExamListSerializer,
     ResponseSerializer,
     ResultSerializer,
+    ReviewQuestionSerializer,
     SessionDetailSerializer,
     SessionListItemSerializer,
     StartSessionSerializer,
 )
-from .services import TIME_GRACE_SECONDS, grade_session, is_expired, server_time_remaining
+from .services import (
+    TIME_GRACE_SECONDS,
+    answers_match,
+    grade_session,
+    is_expired,
+    server_time_remaining,
+)
 
 logger = logging.getLogger("apps.assessments")
 
@@ -262,3 +269,58 @@ class SessionResultView(APIView):
         if result is None:
             return ExamSessionError("No result yet — submit the session first.").to_response()
         return success_response(ResultSerializer(result).data)
+
+
+class SessionReviewView(APIView):
+    """GET /sessions/{id}/review/ — the post-submission answer review.
+
+    Returns every question in exam order with its correct answer, the student's
+    answer, and whether they matched. Only available on a submitted session the
+    requester owns: it exposes correct answers and explanations.
+
+    Correctness is recomputed here from the question bank's CURRENT correct
+    answer (via the same `answers_match` grading uses) rather than read from the
+    stored response flag, so the review always agrees with the question a student
+    is looking at — questions are not versioned and admins edit them in place.
+    """
+
+    def get(self, request, pk):
+        session = _owned_session(request, pk)
+        if session.status != ExamSession.Status.COMPLETED:
+            return ExamSessionError("Review is available after you submit.").to_response()
+
+        exam_questions = (
+            ExamQuestion.objects.filter(section__exam=session.exam)
+            .select_related("section", "question")
+            .prefetch_related("question__choices")
+            .order_by("section__section_number", "position")
+        )
+        chosen_by_question = {
+            r.question_id: r.chosen_answer for r in ExamResponse.objects.filter(session=session)
+        }
+
+        rows = []
+        for number, exam_question in enumerate(exam_questions, start=1):
+            question = exam_question.question
+            chosen = chosen_by_question.get(question.id) or ""
+            if not chosen.strip():
+                status = "skipped"
+            elif answers_match(chosen, question.correct_answer):
+                status = "correct"
+            else:
+                status = "incorrect"
+            rows.append(
+                {
+                    "number": number,
+                    "section_number": exam_question.section.section_number,
+                    "section_title": exam_question.section.title,
+                    "question": question,
+                    "correct_answer": question.correct_answer,
+                    "explanation": question.explanation,
+                    "explanation_image_url": question.explanation_image_url,
+                    "chosen_answer": chosen or None,
+                    "status": status,
+                }
+            )
+
+        return success_response(ReviewQuestionSerializer(rows, many=True).data)

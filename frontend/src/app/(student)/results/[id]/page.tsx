@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
+import { AnswerReview } from '@/components/results/AnswerReview'
 import { cn } from '@/lib/utils/cn'
 import type { CategoryBreakdown } from '@/types'
 
@@ -178,6 +179,8 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
           </CardContent>
         </Card>
       )}
+
+      <AnswerReview sessionId={params.id} />
 
       <div className="flex flex-col gap-3 pb-8 sm:flex-row sm:justify-center">
         <Link href="/dashboard" className={cn(buttonVariants({ variant: 'outline' }))}>

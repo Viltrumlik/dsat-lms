@@ -1,14 +1,15 @@
 // Domain: Admin (content studio)
 // Description: Author / edit a question with a live KaTeX preview (reuses
 //   MarkdownMath), plus the review lifecycle. Editing is allowed only in DRAFT
-//   (§9) — published questions are read-only and revised via "new version".
+//   No versioning — a question is editable at ANY status and the edit is live
+//   everywhere it is used (every exam template, every exam type).
 'use client'
 
 import * as React from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, CheckCircle2, Copy, Send, X } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, CheckCircle2, Send, X } from 'lucide-react'
 import { adminQuestionsAPI, type QuestionWritePayload } from '@/lib/api/admin/questions'
 import { adminCategoriesAPI, adminTagsAPI } from '@/lib/api/admin/taxonomy'
 import { parseApiError } from '@/lib/api/errors'
@@ -90,7 +91,6 @@ export function QuestionEditor({ mode, questionId }: { mode: 'create' | 'edit'; 
   const allTags = useQuery({ queryKey: ['admin', 'tags-all'], queryFn: () => adminTagsAPI.list() })
 
   const status = detail.data?.status
-  const readOnly = mode === 'edit' && status !== undefined && status !== 'draft'
 
   // Seed the form from the fetched question (edit mode).
   React.useEffect(() => {
@@ -159,26 +159,20 @@ export function QuestionEditor({ mode, questionId }: { mode: 'create' | 'edit'; 
     },
   })
 
-  const lifecycle = useMutation<
-    unknown,
-    unknown,
-    { kind: 'submit' | 'approve' | 'reject' | 'newVersion' }
-  >({
+  const lifecycle = useMutation<unknown, unknown, { kind: 'submit' | 'approve' | 'reject' }>({
     mutationFn: ({ kind }) => {
       const id = questionId!
       if (kind === 'submit') return adminQuestionsAPI.submit(id)
       if (kind === 'approve') return adminQuestionsAPI.approve(id)
-      if (kind === 'reject') return adminQuestionsAPI.reject(id, rejectNote.trim())
-      return adminQuestionsAPI.newVersion(id)
+      return adminQuestionsAPI.reject(id, rejectNote.trim())
     },
-    onSuccess: (res, { kind }) => {
+    onSuccess: (_res, { kind }) => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'questions'] })
       queryClient.invalidateQueries({ queryKey: ['admin', 'question', questionId] })
       queryClient.invalidateQueries({ queryKey: ['admin', 'question-reviews', questionId] })
       setRejectOpen(false)
       setRejectNote('')
       toast({ variant: 'success', title: t(`admin.questions.${kind}Done`) })
-      if (kind === 'newVersion') router.push(`/admin/questions/${(res as { id: string }).id}`)
     },
     onError: (err) =>
       toast({ variant: 'error', title: t('admin.questions.actionFailed'), description: parseApiError(err).message }),
@@ -192,7 +186,7 @@ export function QuestionEditor({ mode, questionId }: { mode: 'create' | 'edit'; 
 
   if (mode === 'edit' && detail.isLoading) return <FullPageSpinner label={t('common.loading')} />
 
-  const disabled = readOnly || save.isPending
+  const disabled = save.isPending
 
   return (
     <div className="space-y-6">
@@ -204,22 +198,15 @@ export function QuestionEditor({ mode, questionId }: { mode: 'create' | 'edit'; 
           <ArrowLeft className="h-4 w-4" /> {t('admin.questions.backToList')}
         </Link>
         {status && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span>v{detail.data?.version}</span>
-            <Badge variant={STATUS_BADGE[status]}>{t(`admin.questions.statusLabel.${status}`)}</Badge>
-          </div>
+          <Badge variant={STATUS_BADGE[status]}>{t(`admin.questions.statusLabel.${status}`)}</Badge>
         )}
       </div>
 
-      {readOnly && (
-        <Card>
-          <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4 text-sm">
-            <span className="text-muted-foreground">{t('admin.questions.readOnlyHint')}</span>
-            {status === 'published' && (
-              <Button size="sm" loading={lifecycle.isPending} onClick={() => lifecycle.mutate({ kind: 'newVersion' })}>
-                <Copy className="h-4 w-4" /> {t('admin.questions.newVersion')}
-              </Button>
-            )}
+      {status === 'published' && (
+        <Card className="border-warning/40 bg-warning-light/40">
+          <CardContent className="flex items-start gap-2 p-4 text-sm text-warning-dark">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>{t('admin.questions.liveEditHint')}</span>
           </CardContent>
         </Card>
       )}
@@ -443,18 +430,16 @@ export function QuestionEditor({ mode, questionId }: { mode: 'create' | 'edit'; 
             </Label>
           </div>
 
-          {!readOnly && (
-            <div className="flex flex-wrap gap-2 pt-2">
-              <Button loading={save.isPending} disabled={!canSave} onClick={() => save.mutate()}>
-                {t('admin.questions.save')}
+          <div className="flex flex-wrap gap-2 pt-2">
+            <Button loading={save.isPending} disabled={!canSave} onClick={() => save.mutate()}>
+              {t('admin.questions.save')}
+            </Button>
+            {mode === 'edit' && status === 'draft' && (
+              <Button variant="outline" loading={lifecycle.isPending} onClick={() => lifecycle.mutate({ kind: 'submit' })}>
+                <Send className="h-4 w-4" /> {t('admin.questions.submit')}
               </Button>
-              {mode === 'edit' && status === 'draft' && (
-                <Button variant="outline" loading={lifecycle.isPending} onClick={() => lifecycle.mutate({ kind: 'submit' })}>
-                  <Send className="h-4 w-4" /> {t('admin.questions.submit')}
-                </Button>
-              )}
-            </div>
-          )}
+            )}
+          </div>
 
           {status === 'review' && (
             <div className="flex flex-wrap gap-2 pt-2">

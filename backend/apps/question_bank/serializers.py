@@ -53,7 +53,6 @@ class QuestionListSerializer(serializers.ModelSerializer):
             "has_math",
             "stem",
             "tags",
-            "version",
             "created_at",
         ]
 
@@ -85,6 +84,5 @@ class QuestionDetailSerializer(serializers.ModelSerializer):
             "source",
             "source_ref",
             "tags",
-            "version",
             "created_at",
         ]

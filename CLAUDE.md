@@ -179,7 +179,7 @@ users               -- role: public | student | teacher | admin
 classes             -- akademiya sinflari
 class_enrollments   -- student ↔ class
 qb_categories       -- module(math/rw) + parent_id (tree)
-questions           -- versioning (parent_id), status (draft/review/published/archived)
+questions           -- status (draft/review/published/archived); versioning YO'Q — in-place edit
 question_choices    -- A/B/C/D per question
 exam_templates      -- practice | past_paper | mock | midterm | assessment | homework
 exam_sessions       -- user sessiyasi (status: in_progress/paused/completed)
@@ -315,10 +315,21 @@ CanViewStudentData   # teacher sees only own class students
 DRAFT → submit_for_review → REVIEW → approve → PUBLISHED
                                     → reject  → DRAFT (with note)
 
-PUBLISHED → update needed → new VERSION created (parent_id = old id)
-                           → old → ARCHIVED
-                           → new → PUBLISHED
+PUBLISHED → update needed → EDIT IN PLACE → PUBLISHED
 ```
+
+**NO VERSIONING.** A question row *is* the question — there is no `version` /
+`parent` chain and no "new version" action. A question is editable at ANY
+status, and an edit is **live immediately everywhere it is used**: every exam
+template, every exam type (practice / past paper / mock / midterm / assessment /
+homework), and any in-flight or already-submitted session that renders it.
+Exams reference questions by FK and nothing snapshots their content.
+
+The one consequence to know: a stored `ExamResult` score is a snapshot taken at
+submit time. If an admin later corrects an answer key, the per-question **answer
+review** (`GET /sessions/{id}/review/`, which recomputes correctness live) will
+reflect the correction while the older score card will not. Regrading historical
+sessions is deliberately out of scope.
 
 ---
 
@@ -474,7 +485,7 @@ Bularni hech qachon buzmang:
 1. Teacher faqat o'z sinfini ko'radi — HECH QACHON boshqa sinf ma'lumotini qaytarmang
 2. Public user academy-only kontentga kirmasligi kerak — server-side enforce qiling
 3. Exam session timer server-side authoritative — client timer faqat display
-4. Question versioning — hech qachon published savolni in-place edit qilmang, yangi version yarating
+4. Question versioning YO'Q — savol tahriri joyida bo'ladi va u ishlatilgan hamma joyda darhol jonli o'zgaradi (§9)
 5. Soft delete — hech qachon hard delete, faqat deleted_at = now()
 6. Circular imports yo'q — domain dependency tartibiga rioya qiling
 7. JSONB faqat belgilangan 3 joyda — boshqa hamma narsa typed column
@@ -621,7 +632,7 @@ Admin content studio / exam builder / user management (+ their REST endpoints); 
 - `/api/v1/admin/` is already mounted (`config/urls.py` → `apps/identity/urls_admin.py`, currently an empty stub). Mount admin endpoints here: fill `identity/urls_admin.py`, add `question_bank/urls_admin.py` + `assessments/urls_admin.py`.
 - **Reuse — do NOT duplicate:** `IsAdmin` (`common/permissions.py`); `success_response`/`created_response`/`no_content_response` (`common/responses.py`); `BaseModel.soft_delete`; existing read serializers (extend for writes); the Django admin registrations prove the data model is sound.
 - Models already exist (Phase 3 only exposes them over REST):
-  - **Content** (`apps/question_bank/models.py`): `Question` — status `draft/review/published/archived`; methods `submit_for_review()`, `approve(reviewer)`, `reject(reviewer, note)`; versioning via `version` + `parent`. Plus `QuestionReview` (audit), `QuestionChoice`, `QuestionCategory` (tree), `QuestionTag`.
+  - **Content** (`apps/question_bank/models.py`): `Question` — status `draft/review/published/archived`; methods `submit_for_review()`, `approve(reviewer)`, `reject(reviewer, note)`. (Versioning was later removed — see §9.) Plus `QuestionReview` (audit), `QuestionChoice`, `QuestionCategory` (tree), `QuestionTag`.
   - **Exams** (`apps/assessments/models.py`): `ExamTemplate` / `ExamSection` / `ExamQuestion` / `ExamAssignment`.
   - **Users** (`apps/identity/models.py`): `User` — role `public/student/teacher/admin`, soft-delete.
 
@@ -644,7 +655,7 @@ Admin content studio / exam builder / user management (+ their REST endpoints); 
 - Frontend: `/admin/exams` list + create dialog + per-exam `ExamBuilder` (add/remove sections, published-question picker with search, up/down reorder, remove); `/admin/assignments` list + create dialog (exam + class-or-student target + schedule + attempts) + progress dialog. Class list reuses the teacher endpoint (admins see all); students from the admin users list. `lib/api/admin/exams.ts`; `AdminExam*`/`AdminAssignment*` types; Exams + Assignments nav; full en/uz. type-check + lint + vitest + build green. **Deferred:** exam-meta inline edit, section edit UI, assignment edit, browser verification + e2e (port 3000 held by another session).
 
 ### Conventions
-As Phases 1–2 (see §2, §6, §8, §9, §11). Every admin endpoint is `IsAdmin`, under `/api/v1/admin/`, standard `{success,data,meta}` envelope, cursor pagination, soft-delete. **Never in-place edit a PUBLISHED question** — version it (§9). All admin text through `useT` (en + uz). Server state via TanStack Query; **Zustand only** for the test engine.
+As Phases 1–2 (see §2, §6, §8, §9, §11). Every admin endpoint is `IsAdmin`, under `/api/v1/admin/`, standard `{success,data,meta}` envelope, cursor pagination, soft-delete. Questions are edited **in place at any status** — there is no versioning (§9). All admin text through `useT` (en + uz). Server state via TanStack Query; **Zustand only** for the test engine.
 
 ### Verification (per slice)
 Backend: `pytest` (endpoint auth + validation + state transitions) + `ruff` + `black --check` + `makemigrations --check`. Frontend: `type-check` + `lint` + `vitest` + `next build`; browser-verify the `(admin)` surface as an `admin` user (seed via `/admin/` or a `seed_demo_admin` command) in **both en + uz**; extend the Playwright e2e; keep both CI jobs green.

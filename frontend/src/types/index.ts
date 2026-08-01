@@ -438,7 +438,6 @@ export interface QuestionListItem {
   hasMath: boolean
   stem: string
   tags: string[] // slugs
-  version: number
   createdAt: string
 }
 
@@ -461,7 +460,6 @@ export interface QuestionDetail {
   source: 'official' | 'custom' | 'imported'
   sourceRef: string | null
   tags: QuestionTag[]
-  version: number
   createdAt: string
 }
 
@@ -491,8 +489,6 @@ export interface AdminQuestionListItem {
   status: QuestionStatus
   stem: string
   tags: string[] // slugs
-  version: number
-  parent: string | null
   createdAt: string
   updatedAt: string
 }
@@ -500,8 +496,6 @@ export interface AdminQuestionListItem {
 /** GET /admin/questions/{id}/ — full admin authoring shape. */
 export interface AdminQuestion {
   id: string
-  version: number
-  parent: string | null
   module: QuestionModule
   category: QuestionCategoryRef
   difficulty: 1 | 2 | 3 | 4 | 5
@@ -1009,6 +1003,27 @@ export interface SessionDetail {
   clientSessionData: ClientSessionData
   sections: SessionSectionRaw[]
   responses: SessionResponse[]
+}
+
+/** How a student's answer compared with the key (distinct from the question
+ *  content-review `ReviewStatus`). */
+export type AnswerReviewStatus = 'correct' | 'incorrect' | 'skipped'
+
+/**
+ * GET /sessions/{id}/review/ — one row of the post-submission answer review.
+ * Unlike the in-test shapes this DOES carry the correct answer + explanation,
+ * and the question content is read live from the question bank.
+ */
+export interface SessionReviewItem {
+  number: number
+  sectionNumber: number
+  sectionTitle: string
+  question: SessionQuestion
+  correctAnswer: string
+  explanation: string | null
+  explanationImageUrl: string | null
+  chosenAnswer: string | null
+  status: AnswerReviewStatus
 }
 
 /** GET /sessions/ — history list item. */

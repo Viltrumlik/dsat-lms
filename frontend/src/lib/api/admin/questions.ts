@@ -2,8 +2,8 @@
 // DSAT LMS v2 — Admin Questions API
 // Domain: Question Bank (admin content studio)
 // Description: Question authoring + review lifecycle. All endpoints require
-//   role='admin' (enforced server-side). §9: edit only in DRAFT; revise a
-//   published question via newVersion().
+//   role='admin' (enforced server-side). Questions are NOT versioned: update()
+//   edits in place at any status and the change is live everywhere at once.
 // ═══════════════════════════════════════
 
 import { del, get, getPaginated, patch, post } from '../client'
@@ -67,8 +67,6 @@ export const adminQuestionsAPI = {
   approve: (id: string) => post<AdminQuestion>(`/admin/questions/${id}/approve/`),
   reject: (id: string, note: string) =>
     post<AdminQuestion>(`/admin/questions/${id}/reject/`, { note }),
-  newVersion: (id: string) => post<AdminQuestion>(`/admin/questions/${id}/new-version/`),
 
   reviews: (id: string) => get<QuestionReviewEntry[]>(`/admin/questions/${id}/reviews/`),
-  revisions: (id: string) => get<AdminQuestionListItem[]>(`/admin/questions/${id}/revisions/`),
 }

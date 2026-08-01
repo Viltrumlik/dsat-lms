@@ -48,8 +48,6 @@ class AdminQuestionListSerializer(serializers.ModelSerializer):
             "status",
             "stem",
             "tags",
-            "version",
-            "parent",
             "created_at",
             "updated_at",
         ]
@@ -68,8 +66,6 @@ class AdminQuestionDetailSerializer(serializers.ModelSerializer):
         model = Question
         fields = [
             "id",
-            "version",
-            "parent",
             "module",
             "category",
             "difficulty",

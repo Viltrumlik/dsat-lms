@@ -66,7 +66,9 @@ class TestTimeline:
         guardian = Guardian.objects.create(profile=profile, name="Parent", relation="mother")
 
         StudentNote.objects.create(student=s, author=admin, body="A note")
-        ParentContactLog.objects.create(profile=profile, guardian=guardian, author=admin, note="Called home")
+        ParentContactLog.objects.create(
+            profile=profile, guardian=guardian, author=admin, note="Called home"
+        )
         MentorCheckIn.objects.create(profile=profile, mentor=admin, note="Weekly check-in")
 
         from apps.audit.services import record_activity

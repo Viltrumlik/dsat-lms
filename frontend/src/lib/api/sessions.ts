@@ -16,6 +16,7 @@ import type {
   SessionDetail,
   SessionListItem,
   SessionResponse,
+  SessionReviewItem,
 } from '@/types'
 
 export interface AutoSavePayload {
@@ -63,4 +64,7 @@ export const sessionAPI = {
 
   /** Fetch a previously computed result. */
   result: (sessionId: string) => get<ExamResult>(`/sessions/${sessionId}/result/`),
+
+  /** Per-question answer review (submitted sessions only — includes the key). */
+  review: (sessionId: string) => get<SessionReviewItem[]>(`/sessions/${sessionId}/review/`),
 }

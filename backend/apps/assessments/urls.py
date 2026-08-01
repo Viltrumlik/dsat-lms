@@ -13,6 +13,7 @@ from .views import (
     SessionPauseView,
     SessionResultView,
     SessionResumeView,
+    SessionReviewView,
     SessionSubmitView,
 )
 
@@ -26,4 +27,5 @@ urlpatterns = [
     path("<uuid:pk>/resume/", SessionResumeView.as_view(), name="session-resume"),
     path("<uuid:pk>/submit/", SessionSubmitView.as_view(), name="session-submit"),
     path("<uuid:pk>/result/", SessionResultView.as_view(), name="session-result"),
+    path("<uuid:pk>/review/", SessionReviewView.as_view(), name="session-review"),
 ]

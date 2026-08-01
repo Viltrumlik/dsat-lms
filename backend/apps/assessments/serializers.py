@@ -181,3 +181,25 @@ class ResultSerializer(serializers.ModelSerializer):
             "score_breakdown",
             "computed_at",
         ]
+
+
+class ReviewQuestionSerializer(serializers.Serializer):
+    """One row of the post-submission answer review.
+
+    REVIEW MODE — unlike TestQuestionSerializer this DOES expose the correct
+    answer and the explanation, so it must only ever be served for a session the
+    requester owns and has already submitted.
+
+    Question content is read live from the question bank (questions are not
+    versioned), so a correction made by an admin shows up here immediately.
+    """
+
+    number = serializers.IntegerField()
+    section_number = serializers.IntegerField()
+    section_title = serializers.CharField()
+    question = TestQuestionSerializer()
+    correct_answer = serializers.CharField()
+    explanation = serializers.CharField(allow_null=True)
+    explanation_image_url = serializers.CharField(allow_null=True)
+    chosen_answer = serializers.CharField(allow_null=True)
+    status = serializers.ChoiceField(choices=["correct", "incorrect", "skipped"])

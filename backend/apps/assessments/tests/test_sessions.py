@@ -355,3 +355,92 @@ class TestPerSectionTimer:
         r = auth_client.patch(f"{SESSIONS}{sid}/", {"current_section": 2}, format="json")
         assert r.status_code == 200
         assert r.data["data"]["server_time_remaining"] >= 595  # fresh 10-min section
+
+
+class TestAnswerReview:
+    """GET /sessions/{id}/review/ — the post-submission answer review.
+
+    Exposes correct answers + explanations, so it must be owner-scoped and only
+    served after submit. Correctness is recomputed from the live question bank.
+    """
+
+    def _submitted(self, auth_client):
+        exam, qs = make_exam(answers=("A", "B", "C"))
+        sid = start(auth_client, exam).data["data"]["id"]
+        answer = f"{SESSIONS}{sid}/answer/"
+        auth_client.post(answer, {"question": str(qs[0].id), "chosen_answer": "A"}, format="json")
+        auth_client.post(answer, {"question": str(qs[1].id), "chosen_answer": "D"}, format="json")
+        # qs[2] deliberately left unanswered
+        auth_client.post(f"{SESSIONS}{sid}/submit/", {}, format="json")
+        return sid, qs
+
+    def test_requires_submission(self, auth_client):
+        exam, _ = make_exam()
+        sid = start(auth_client, exam).data["data"]["id"]
+        r = auth_client.get(f"{SESSIONS}{sid}/review/")
+        assert r.status_code == 400
+        assert r.data["error"]["code"] == "EXAM_SESSION_ERROR"
+
+    def test_other_users_get_404(self, auth_client):
+        sid, _ = self._submitted(auth_client)
+        other = APIClient()
+        other.force_authenticate(UserFactory())
+        assert other.get(f"{SESSIONS}{sid}/review/").status_code == 404
+
+    def test_returns_every_question_in_exam_order(self, auth_client):
+        sid, qs = self._submitted(auth_client)
+        rows = auth_client.get(f"{SESSIONS}{sid}/review/").data["data"]
+        assert [r["number"] for r in rows] == [1, 2, 3]
+        assert [r["question"]["id"] for r in rows] == [str(q.id) for q in qs]
+
+    def test_marks_correct_incorrect_and_skipped(self, auth_client):
+        sid, _ = self._submitted(auth_client)
+        rows = auth_client.get(f"{SESSIONS}{sid}/review/").data["data"]
+        assert [r["status"] for r in rows] == ["correct", "incorrect", "skipped"]
+        assert [r["chosen_answer"] for r in rows] == ["A", "D", None]
+        assert [r["correct_answer"] for r in rows] == ["A", "B", "C"]
+
+    def test_includes_choices_and_explanation(self, auth_client):
+        from apps.question_bank.tests.factories import ChoiceFactory
+
+        exam, qs = make_exam(answers=("A",))
+        qs[0].explanation = "Because alpha."
+        qs[0].save(update_fields=["explanation"])
+        ChoiceFactory(question=qs[0], label="A", text="alpha")
+        ChoiceFactory(question=qs[0], label="B", text="beta")
+        sid = start(auth_client, exam).data["data"]["id"]
+        auth_client.post(f"{SESSIONS}{sid}/submit/", {}, format="json")
+
+        row = auth_client.get(f"{SESSIONS}{sid}/review/").data["data"][0]
+        assert row["explanation"] == "Because alpha."
+        assert {c["text"] for c in row["question"]["choices"]} == {"alpha", "beta"}
+
+    def test_reflects_a_live_question_edit(self, auth_client):
+        """Questions are not versioned — editing one updates a past review."""
+        sid, qs = self._submitted(auth_client)
+        rows = auth_client.get(f"{SESSIONS}{sid}/review/").data["data"]
+        assert rows[1]["status"] == "incorrect"
+
+        # An admin corrects the answer key to what the student actually chose.
+        qs[1].correct_answer = "D"
+        qs[1].stem = "corrected stem"
+        qs[1].save(update_fields=["correct_answer", "stem"])
+
+        rows = auth_client.get(f"{SESSIONS}{sid}/review/").data["data"]
+        assert rows[1]["status"] == "correct"
+        assert rows[1]["correct_answer"] == "D"
+        assert rows[1]["question"]["stem"] == "corrected stem"
+
+    def test_grid_in_equivalence_counts_as_correct(self, auth_client):
+        exam, qs = make_exam(answers=("7/2",))
+        qs[0].answer_type = "grid_in"
+        qs[0].save(update_fields=["answer_type"])
+        sid = start(auth_client, exam).data["data"]["id"]
+        auth_client.post(
+            f"{SESSIONS}{sid}/answer/",
+            {"question": str(qs[0].id), "chosen_answer": "3.5"},
+            format="json",
+        )
+        auth_client.post(f"{SESSIONS}{sid}/submit/", {}, format="json")
+        rows = auth_client.get(f"{SESSIONS}{sid}/review/").data["data"]
+        assert rows[0]["status"] == "correct"

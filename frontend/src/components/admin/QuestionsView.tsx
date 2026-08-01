@@ -1,14 +1,14 @@
 // Domain: Admin (content studio)
 // Description: Question directory — status/module filters + search, cursor-paginated
 //   table with the stem preview, difficulty, status badge, and row actions (edit,
-//   submit-for-review, new-version, delete). The status=review filter is the review
+//   submit-for-review, delete). The status=review filter is the review
 //   queue; approve/reject happen in the editor.
 'use client'
 
 import * as React from 'react'
 import Link from 'next/link'
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { MoreHorizontal, Pencil, Plus, Search, Send, Trash2, Copy } from 'lucide-react'
+import { MoreHorizontal, Pencil, Plus, Search, Send, Trash2 } from 'lucide-react'
 import { adminQuestionsAPI, type AdminQuestionListParams } from '@/lib/api/admin/questions'
 import { cursorFromUrl } from '@/lib/api/client'
 import { parseApiError } from '@/lib/api/errors'
@@ -82,10 +82,9 @@ export function QuestionsView() {
   })
   const questions = query.data?.pages.flatMap((p) => p.data) ?? []
 
-  const act = useMutation<unknown, unknown, { kind: 'submit' | 'newVersion' | 'remove'; q: AdminQuestionListItem }>({
+  const act = useMutation<unknown, unknown, { kind: 'submit' | 'remove'; q: AdminQuestionListItem }>({
     mutationFn: ({ kind, q }) => {
       if (kind === 'submit') return adminQuestionsAPI.submit(q.id)
-      if (kind === 'newVersion') return adminQuestionsAPI.newVersion(q.id)
       return adminQuestionsAPI.remove(q.id)
     },
     onSuccess: (_res, { kind }) => {
@@ -179,7 +178,6 @@ export function QuestionsView() {
                   <TableHead>{t('admin.questions.module')}</TableHead>
                   <TableHead>{t('admin.questions.difficulty')}</TableHead>
                   <TableHead>{t('admin.questions.status')}</TableHead>
-                  <TableHead>{t('admin.questions.version')}</TableHead>
                   <TableHead />
                 </TableRow>
               </TableHeader>
@@ -208,7 +206,6 @@ export function QuestionsView() {
                         {t(`admin.questions.statusLabel.${q.status}`)}
                       </Badge>
                     </TableCell>
-                    <TableCell className="tabular-nums text-muted-foreground">v{q.version}</TableCell>
                     <TableCell className="w-10 text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -225,11 +222,6 @@ export function QuestionsView() {
                           {q.status === 'draft' && (
                             <DropdownMenuItem onSelect={() => act.mutate({ kind: 'submit', q })}>
                               <Send className="h-4 w-4" /> {t('admin.questions.submit')}
-                            </DropdownMenuItem>
-                          )}
-                          {q.status === 'published' && (
-                            <DropdownMenuItem onSelect={() => act.mutate({ kind: 'newVersion', q })}>
-                              <Copy className="h-4 w-4" /> {t('admin.questions.newVersion')}
                             </DropdownMenuItem>
                           )}
                           <DropdownMenuSeparator />

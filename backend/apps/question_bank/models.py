@@ -6,7 +6,12 @@ Description: Questions, Categories, Tags — platformaning asosi
 Status lifecycle:
     DRAFT → REVIEW → PUBLISHED
                    ↘ DRAFT (rejected with note)
-    PUBLISHED → (edit) → new version → ARCHIVED (old), PUBLISHED (new)
+    PUBLISHED → (edit in place) → PUBLISHED
+
+There is no question versioning: a question row IS the question. Editing one
+takes effect immediately everywhere it is used — every exam template, every
+exam type, and any session that renders it — because exams reference questions
+by FK and nothing snapshots their content.
 """
 
 from django.db import models
@@ -69,10 +74,8 @@ class Question(BaseModel):
     """
     Savol — platformaning asosiy content birligi.
 
-    Versioning:
-        - parent = None → original savol
-        - parent = <Question> → revision (yangi versiya)
-        - Versiya yaratilib PUBLISHED bo'lganda, parent ARCHIVED bo'ladi
+    No versioning — edits apply in place and are live everywhere the question is
+    used (see the module docstring).
 
     Math support:
         - has_math = True → frontend KaTeX bilan render qiladi
@@ -101,16 +104,6 @@ class Question(BaseModel):
         OFFICIAL = "official", "Official SAT"
         CUSTOM = "custom", "Custom"
         IMPORTED = "imported", "Imported"
-
-    # Versioning
-    version = models.SmallIntegerField(default=1)
-    parent = models.ForeignKey(
-        "self",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="versions",
-    )
 
     # Classification
     module = models.CharField(max_length=20, choices=Module.choices, db_index=True)
