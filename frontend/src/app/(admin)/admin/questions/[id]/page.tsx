@@ -1,13 +1,9 @@
 // Domain: Admin (content studio)
-// Description: Edit / review a question.
+// Description: Deep link into the workspace with one question selected.
 'use client'
 
-import { QuestionEditor } from '@/components/admin/QuestionEditor'
+import { QuestionsPanel } from '@/components/admin/questions/QuestionsPanel'
 
 export default function EditQuestionPage({ params }: { params: { id: string } }) {
-  return (
-    <div className="mx-auto max-w-6xl">
-      <QuestionEditor mode="edit" questionId={params.id} />
-    </div>
-  )
+  return <QuestionsPanel initialQuestionId={params.id} />
 }

@@ -1,13 +1,9 @@
 // Domain: Admin (content studio)
-// Description: Author a new question (draft).
+// Description: Deep link into the workspace with a blank draft open.
 'use client'
 
-import { QuestionEditor } from '@/components/admin/QuestionEditor'
+import { QuestionsPanel } from '@/components/admin/questions/QuestionsPanel'
 
 export default function NewQuestionPage() {
-  return (
-    <div className="mx-auto max-w-6xl">
-      <QuestionEditor mode="create" />
-    </div>
-  )
+  return <QuestionsPanel initialCreating />
 }

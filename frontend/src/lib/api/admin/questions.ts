@@ -40,9 +40,12 @@ export interface QuestionWritePayload {
   answerType: AnswerType
   hasMath?: boolean
   stem: string
+  stemImageUrl?: string | null
   passage?: string | null
+  passageImageUrl?: string | null
   correctAnswer: string
   explanation?: string | null
+  explanationImageUrl?: string | null
   source?: QuestionSource
   sourceRef?: string | null
   tags?: string[] // tag ids
