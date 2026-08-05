@@ -28,11 +28,16 @@ class SubmissionFileSerializer(AttachmentRefSerializer):
 
 
 class HomeworkEventSerializer(serializers.ModelSerializer):
-    actor_name = serializers.CharField(source="actor.full_name", read_only=True, default=None)
+    # User has no `full_name` attribute — it is get_full_name() (see
+    # academy.StudentMiniSerializer, which does the same).
+    actor_name = serializers.SerializerMethodField()
 
     class Meta:
         model = HomeworkEvent
         fields = ["id", "kind", "actor_name", "note", "attempt_number", "created_at"]
+
+    def get_actor_name(self, obj):
+        return obj.actor.get_full_name() if obj.actor else None
 
 
 class MySubmissionSerializer(serializers.ModelSerializer):

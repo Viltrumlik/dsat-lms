@@ -27,6 +27,7 @@ import type { HomeworkStatus } from '@/types'
 const STATUS_VARIANT: Record<HomeworkStatus, BadgeProps['variant']> = {
   assigned: 'warning',
   submitted: 'success',
+  returned: 'warning',
   graded: 'default',
 }
 

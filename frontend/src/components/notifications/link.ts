@@ -18,7 +18,10 @@ export function notificationHref(notification: Notification): string | null {
 
   const homeworkId = data['homeworkId']
   if (
-    (notification.type === 'homework_assigned' || notification.type === 'homework_due') &&
+    (notification.type === 'homework_assigned' ||
+      notification.type === 'homework_due' ||
+      notification.type === 'homework_graded' ||
+      notification.type === 'homework_returned') &&
     typeof homeworkId === 'string'
   ) {
     return `/homework/${homeworkId}`

@@ -1294,12 +1294,44 @@ export type TeacherStudentRow = ClassOverviewRosterEntry
 // Homework
 // ─────────────────────────────────────
 
-export type HomeworkStatus = 'assigned' | 'submitted' | 'graded'
+export type HomeworkStatus = 'assigned' | 'submitted' | 'returned' | 'graded'
+
+/** A file attached to a brief or handed in with a submission. */
+export interface HomeworkFile {
+  id: string
+  originalName: string
+  contentType: string
+  size: number
+  attemptNumber?: number
+}
+
+export type HomeworkEventKind = 'submitted' | 'returned' | 'graded'
+
+/** One entry in a submission's trail. */
+export interface HomeworkEvent {
+  id: string
+  kind: HomeworkEventKind
+  actorName: string | null
+  note: string
+  attemptNumber: number
+  createdAt: string
+}
 
 /** The requesting student's own submission, embedded in homework payloads. */
 export interface HomeworkMySubmission {
+  id: string
   status: HomeworkStatus
   submittedAt: string | null
+  responseText: string
+  isLate: boolean
+  attemptNumber: number
+  returnedAt: string | null
+  grade: string | null
+  gradeScale: number
+  feedback: string
+  gradedAt: string | null
+  files: HomeworkFile[]
+  events: HomeworkEvent[]
 }
 
 export interface Homework {
@@ -1312,6 +1344,8 @@ export interface Homework {
   examTitle: string | null
   dueAt: string
   isPublished: boolean
+  /** Materials the teacher attached to the brief. */
+  attachments: HomeworkFile[]
   mySubmission: HomeworkMySubmission | null // null for teachers and for students with no submission yet
   createdAt: string
 }
@@ -1322,6 +1356,15 @@ export interface HomeworkSubmission {
   student: StudentMini
   status: HomeworkStatus
   submittedAt: string | null
+  responseText: string
+  isLate: boolean
+  attemptNumber: number
+  returnedAt: string | null
+  grade: string | null
+  gradeScale: number
+  feedback: string
+  gradedAt: string | null
+  files: HomeworkFile[]
   createdAt: string
 }
 
@@ -1598,6 +1641,8 @@ export type NotificationType =
   | 'exam_scheduled'
   | 'homework_assigned'
   | 'homework_due'
+  | 'homework_graded'
+  | 'homework_returned'
   | 'announcement'
   | 'system'
   | 'booking_requested'

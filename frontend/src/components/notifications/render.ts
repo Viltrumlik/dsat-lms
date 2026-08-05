@@ -58,6 +58,18 @@ export function notificationText(
     }
   }
 
+  if (notification.type === 'homework_graded' || notification.type === 'homework_returned') {
+    const title = str(data['homeworkTitle'])
+    if (!title) return fallback
+    const titleKey =
+      notification.type === 'homework_graded'
+        ? 'notifications.templates.homeworkGraded'
+        : 'notifications.templates.homeworkReturned'
+    // The server puts the teacher's feedback in the body; it is free text, so it
+    // passes through as-is rather than through a template.
+    return { title: t(titleKey, { title }), body: notification.body ?? '' }
+  }
+
   if (notification.type === 'course_assigned') {
     const title = str(data['courseTitle'])
     if (!title) return fallback

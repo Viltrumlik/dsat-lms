@@ -462,6 +462,10 @@ export const en = {
       homeworkAssigned: 'New homework: {title}',
       homeworkDue: 'Due soon: {title}',
       homeworkBody: '{class} — due {date}',
+
+      homeworkGraded: '{title} has been graded',
+
+      homeworkReturned: '{title} was returned for revision',
       bookingRequested: 'New session request from {name} for {date}',
       bookingConfirmed: 'Your session with {name} is confirmed for {date}',
       bookingCancelled: 'Your session on {date} was cancelled',
@@ -505,6 +509,7 @@ export const en = {
     status: {
       assigned: 'Assigned',
       submitted: 'Submitted',
+      returned: 'Returned',
       graded: 'Graded',
       overdue: 'Overdue',
     },
@@ -517,6 +522,34 @@ export const en = {
     submit: 'Submit homework',
     submittedAt: 'Submitted {time}.',
     gradedNote: 'This homework has been graded.',
+    materials: 'Materials',
+    yourWork: 'Your work',
+    noWorkAttached: 'Nothing was attached.',
+    late: 'Late',
+    attemptN: 'Attempt {n}',
+    history: 'History',
+    gradedScore: 'Graded — {grade} / {scale}',
+    returned: {
+      title: 'Returned for revision',
+      noNote: 'Your teacher asked you to have another go.',
+    },
+    event: {
+      submitted: 'Handed in',
+      returned: 'Returned for revision',
+      graded: 'Graded',
+    },
+    form: {
+      responseLabel: 'Your answer',
+      responsePlaceholder: 'Type your answer here (optional).',
+      filesLabel: 'Files',
+      addFiles: 'Add files',
+      removeFile: 'Remove file',
+      resubmit: 'Hand in again',
+    },
+    files: {
+      uploadFailed: "Couldn't upload the file",
+      downloadFailed: "Couldn't download the file",
+    },
     confirm: {
       title: 'Submit this homework?',
       desc: 'Your teacher will see it as submitted. This can’t be undone.',
@@ -870,6 +903,19 @@ export const en = {
       submittedAt: 'Submitted',
       empty: 'No enrolled students have a submission record yet.',
       loadFailed: "Couldn't load submissions. Please try again.",
+      grade: 'Grade',
+    },
+    mark: {
+      open: 'Mark',
+      gradeLabel: 'Grade (out of {scale})',
+      feedbackLabel: 'Feedback',
+      feedbackPlaceholder: 'What went well, what to fix.',
+      save: 'Save grade',
+      return: 'Return for revision',
+      nothingYet: 'This student has not handed anything in yet.',
+      graded: 'Grade saved',
+      returned: 'Handed back for revision',
+      failed: "Couldn't save",
     },
   },
   gradebook: {

@@ -21,6 +21,32 @@ export const homeworkAPI = {
    */
   start: (id: string) => post<SessionDetail>(`/homework/${id}/start/`),
 
-  /** Mark the homework submitted manually (plain homework / fallback). */
-  submit: (id: string) => post<HomeworkSubmission>(`/homework/${id}/submit/`),
+  /**
+   * Hand work in — a written response, files, or just the acknowledgement.
+   * Also the way a RETURNED piece is handed in again (attempt N+1).
+   */
+  submit: (id: string, payload: SubmitPayload = {}) =>
+    post<HomeworkSubmission>(`/homework/${id}/submit/`, {
+      responseText: payload.responseText ?? '',
+      attachmentIds: payload.attachmentIds ?? [],
+    }),
+
+  /** Teacher: record a mark + feedback. Own classes only (404 otherwise). */
+  grade: (id: string, submissionId: string, payload: GradePayload) =>
+    post<HomeworkSubmission>(`/homework/${id}/submissions/${submissionId}/grade/`, payload),
+
+  /** Teacher: hand the work back for another go, with a note saying why. */
+  returnForRevision: (id: string, submissionId: string, note: string) =>
+    post<HomeworkSubmission>(`/homework/${id}/submissions/${submissionId}/return/`, { note }),
+}
+
+export interface SubmitPayload {
+  responseText?: string
+  attachmentIds?: string[]
+}
+
+export interface GradePayload {
+  grade?: string | null
+  gradeScale?: number
+  feedback?: string
 }

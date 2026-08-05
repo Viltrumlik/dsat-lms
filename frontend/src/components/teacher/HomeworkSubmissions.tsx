@@ -1,8 +1,9 @@
 // Domain: Homework (teacher)
-// Description: Per-student submissions for one homework — header from the
-//   (cached) homework list, table of student / status / submitted-at.
+// Description: Per-student submissions for one homework. A row opens the marking
+//   dialog — read the work, then grade it or hand it back for another go.
 'use client'
 
+import * as React from 'react'
 import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
 import { format } from 'date-fns'
@@ -12,6 +13,7 @@ import { homeworkAPI } from '@/lib/api/homework'
 import { teacherAPI } from '@/lib/api/teacher'
 import { useI18n } from '@/lib/i18n/I18nProvider'
 import { Badge, type BadgeProps } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import {
   Table,
@@ -21,17 +23,20 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import type { HomeworkStatus } from '@/types'
+import { MarkSubmissionDialog } from './MarkSubmissionDialog'
+import type { HomeworkStatus, HomeworkSubmission } from '@/types'
 
 const STATUS_VARIANT: Record<HomeworkStatus, BadgeProps['variant']> = {
   assigned: 'warning',
   submitted: 'success',
+  returned: 'warning',
   graded: 'default',
 }
 
 export function HomeworkSubmissions({ homeworkId }: { homeworkId: string }) {
   const { t, locale } = useI18n()
   const dateLocale = locale === 'uz' ? uzDate : undefined
+  const [marking, setMarking] = React.useState<HomeworkSubmission | null>(null)
 
   const homeworkQuery = useQuery({
     queryKey: ['homework'],
@@ -102,6 +107,8 @@ export function HomeworkSubmissions({ homeworkId }: { homeworkId: string }) {
                 <TableHead>{t('teacher.submissions.student')}</TableHead>
                 <TableHead>{t('teacher.submissions.status')}</TableHead>
                 <TableHead>{t('teacher.submissions.submittedAt')}</TableHead>
+                <TableHead>{t('teacher.submissions.grade')}</TableHead>
+                <TableHead className="sr-only">{t('teacher.mark.open')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -124,6 +131,21 @@ export function HomeworkSubmissions({ homeworkId }: { homeworkId: string }) {
                     {submission.submittedAt
                       ? format(new Date(submission.submittedAt), 'PPp', { locale: dateLocale })
                       : '—'}
+                    {submission.isLate && (
+                      <Badge variant="error" className="ml-2">
+                        {t('homework.late')}
+                      </Badge>
+                    )}
+                  </TableCell>
+                  <TableCell className="tabular-nums text-muted-foreground">
+                    {submission.grade !== null
+                      ? `${submission.grade} / ${submission.gradeScale}`
+                      : '—'}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button variant="outline" size="sm" onClick={() => setMarking(submission)}>
+                      {t('teacher.mark.open')}
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}
@@ -131,6 +153,12 @@ export function HomeworkSubmissions({ homeworkId }: { homeworkId: string }) {
           </Table>
         </Card>
       )}
+
+      <MarkSubmissionDialog
+        homeworkId={homeworkId}
+        submission={marking}
+        onOpenChange={(open) => !open && setMarking(null)}
+      />
     </div>
   )
 }

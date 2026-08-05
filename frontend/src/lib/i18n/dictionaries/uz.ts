@@ -464,6 +464,10 @@ export const uz: Dictionary = {
       homeworkAssigned: 'Yangi uy vazifasi: {title}',
       homeworkDue: 'Muddati yaqin: {title}',
       homeworkBody: '{class} — muddat: {date}',
+
+      homeworkGraded: '{title} baholandi',
+
+      homeworkReturned: '{title} qayta ishlashga qaytarildi',
       bookingRequested: '{name}dan {date} uchun yangi mashgʻulot soʻrovi',
       bookingConfirmed: '{name} bilan mashgʻulotingiz {date} uchun tasdiqlandi',
       bookingCancelled: '{date} kunidagi mashgʻulotingiz bekor qilindi',
@@ -507,6 +511,7 @@ export const uz: Dictionary = {
     status: {
       assigned: 'Berilgan',
       submitted: 'Topshirilgan',
+      returned: 'Qaytarilgan',
       graded: 'Baholangan',
       overdue: 'Muddati oʻtgan',
     },
@@ -519,6 +524,34 @@ export const uz: Dictionary = {
     submit: 'Vazifani topshirish',
     submittedAt: 'Topshirilgan: {time}.',
     gradedNote: 'Bu vazifa baholangan.',
+    materials: 'Materiallar',
+    yourWork: 'Sizning ishingiz',
+    noWorkAttached: 'Hech narsa biriktirilmagan.',
+    late: 'Kechikkan',
+    attemptN: '{n}-urinish',
+    history: 'Tarix',
+    gradedScore: 'Baholandi — {grade} / {scale}',
+    returned: {
+      title: 'Qayta ishlash uchun qaytarildi',
+      noNote: 'Oʻqituvchi qayta ishlashingizni soʻradi.',
+    },
+    event: {
+      submitted: 'Topshirildi',
+      returned: 'Qayta ishlashga qaytarildi',
+      graded: 'Baholandi',
+    },
+    form: {
+      responseLabel: 'Javobingiz',
+      responsePlaceholder: 'Javobingizni shu yerga yozing (ixtiyoriy).',
+      filesLabel: 'Fayllar',
+      addFiles: 'Fayl qoʻshish',
+      removeFile: 'Faylni olib tashlash',
+      resubmit: 'Qayta topshirish',
+    },
+    files: {
+      uploadFailed: 'Faylni yuklab boʻlmadi',
+      downloadFailed: 'Faylni yuklab olib boʻlmadi',
+    },
     confirm: {
       title: 'Vazifa topshirilsinmi?',
       desc: 'Oʻqituvchingiz uni topshirilgan deb koʻradi. Buni bekor qilib boʻlmaydi.',
@@ -872,6 +905,19 @@ export const uz: Dictionary = {
       submittedAt: 'Topshirilgan',
       empty: 'Hali hech bir talabada topshiriq yozuvi yoʻq.',
       loadFailed: 'Topshiriqlarni yuklab boʻlmadi. Qayta urinib koʻring.',
+      grade: 'Baho',
+    },
+    mark: {
+      open: 'Baholash',
+      gradeLabel: 'Baho ({scale} dan)',
+      feedbackLabel: 'Izoh',
+      feedbackPlaceholder: 'Nima yaxshi, nimani tuzatish kerak.',
+      save: 'Bahoni saqlash',
+      return: 'Qayta ishlashga qaytarish',
+      nothingYet: 'Bu oʻquvchi hali hech narsa topshirmagan.',
+      graded: 'Baho saqlandi',
+      returned: 'Qayta ishlashga qaytarildi',
+      failed: 'Saqlab boʻlmadi',
     },
   },
   gradebook: {
