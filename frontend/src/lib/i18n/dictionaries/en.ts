@@ -28,8 +28,48 @@ export const en = {
     adminPanel: 'Admin panel',
     settings: 'Settings',
     soon: 'Soon',
+    sections: {
+      tests: 'Tests',
+      study: 'Study',
+      you: 'You',
+    },
     openMenu: 'Open menu',
     closeMenu: 'Close menu',
+  },
+  tests: {
+    unavailable: 'This test is not available',
+    types: {
+      practice: {
+        nav: 'Practice tests',
+        title: 'Practice tests',
+        subtitle: 'Papers you can sit any time to build up your score.',
+        empty: 'No practice tests are published yet. Check back soon.',
+      },
+      pastPaper: {
+        nav: 'Past papers',
+        title: 'Past papers',
+        subtitle: 'Real papers from previous sittings, in full Bluebook conditions.',
+        empty: 'No past papers are available to you yet.',
+      },
+      mock: {
+        nav: 'Mock exams',
+        title: 'Mock exams',
+        subtitle: 'Full-length timed exams that mirror test day. The clock cannot be paused.',
+        empty: 'No mock exam has been scheduled for you yet.',
+      },
+      midterm: {
+        nav: 'Midterms',
+        title: 'Midterms',
+        subtitle: 'Academy midterms set by your teacher, with a fixed window and attempt limit.',
+        empty: 'No midterm has been assigned to you yet.',
+      },
+      assessment: {
+        nav: 'Assessments',
+        title: 'Assessments',
+        subtitle: 'Placement and progress checks used to track your level.',
+        empty: 'No assessment has been assigned to you yet.',
+      },
+    },
   },
   modules: {
     math: 'Math',
@@ -130,6 +170,7 @@ export const en = {
       minutes: 'min',
       fullTest: 'Full Test',
       start: 'Start test',
+      seeAll: 'See all',
       startFailed: 'Could not start test',
       empty: 'No tests are available yet. Seed one with',
       loadFailed: "Couldn't load tests. Please try again.",

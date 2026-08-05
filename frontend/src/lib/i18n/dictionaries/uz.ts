@@ -29,8 +29,48 @@ export const uz: Dictionary = {
     adminPanel: 'Administrator paneli',
     settings: 'Sozlamalar',
     soon: 'Tez orada',
+    sections: {
+      tests: 'Testlar',
+      study: 'Oʻqish',
+      you: 'Siz',
+    },
     openMenu: 'Menyuni ochish',
     closeMenu: 'Menyuni yopish',
+  },
+  tests: {
+    unavailable: 'Bu test mavjud emas',
+    types: {
+      practice: {
+        nav: 'Amaliy testlar',
+        title: 'Amaliy testlar',
+        subtitle: 'Ballingizni oshirish uchun istalgan vaqtda ishlaydigan testlar.',
+        empty: 'Hozircha amaliy test chop etilmagan. Keyinroq qarang.',
+      },
+      pastPaper: {
+        nav: 'Oʻtgan imtihonlar',
+        title: 'Oʻtgan imtihonlar',
+        subtitle: 'Oldingi imtihonlarning haqiqiy variantlari, toʻliq Bluebook sharoitida.',
+        empty: 'Sizga hozircha oʻtgan imtihon variantlari ochilmagan.',
+      },
+      mock: {
+        nav: 'Mock imtihonlar',
+        title: 'Mock imtihonlar',
+        subtitle: 'Imtihon kunini aks ettiruvchi toʻliq vaqtli imtihonlar. Soatni toʻxtatib boʻlmaydi.',
+        empty: 'Sizga hozircha mock imtihon belgilanmagan.',
+      },
+      midterm: {
+        nav: 'Midtermlar',
+        title: 'Midtermlar',
+        subtitle: 'Oʻqituvchi belgilagan akademiya midtermlari — aniq muddat va urinishlar chegarasi bilan.',
+        empty: 'Sizga hozircha midterm tayinlanmagan.',
+      },
+      assessment: {
+        nav: 'Assessmentlar',
+        title: 'Assessmentlar',
+        subtitle: 'Darajangizni aniqlash va kuzatish uchun joylashtiruv va progress testlari.',
+        empty: 'Sizga hozircha assessment tayinlanmagan.',
+      },
+    },
   },
   modules: {
     math: 'Matematika',
@@ -132,6 +172,7 @@ export const uz: Dictionary = {
       minutes: 'daqiqa',
       fullTest: 'Toʻliq test',
       start: 'Testni boshlash',
+      seeAll: 'Hammasini koʻrish',
       startFailed: 'Testni boshlab boʻlmadi',
       empty: 'Hozircha testlar mavjud emas. Buni quyidagi bilan yarating:',
       loadFailed: 'Testlarni yuklab boʻlmadi. Qayta urinib koʻring.',
