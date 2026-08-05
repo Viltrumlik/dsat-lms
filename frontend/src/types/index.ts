@@ -428,6 +428,16 @@ export interface QuestionChoice {
   sortOrder: number
 }
 
+/** The last answer this student gave to a question, in any sitting.
+ *  Null when they have never answered it — or when it sits in a paper they
+ *  currently have open, where repeating it would be the answer key. */
+export interface MyAttempt {
+  chosenAnswer: string
+  /** Null while the sitting it came from is still ungraded. */
+  isCorrect: boolean | null
+  answeredAt: string
+}
+
 /** Question list item (browsing) — no correct answer / explanation. */
 export interface QuestionListItem {
   id: string
@@ -438,6 +448,7 @@ export interface QuestionListItem {
   hasMath: boolean
   stem: string
   tags: string[] // slugs
+  myAttempt: MyAttempt | null
   createdAt: string
 }
 
@@ -460,6 +471,7 @@ export interface QuestionDetail {
   source: 'official' | 'custom' | 'imported'
   sourceRef: string | null
   tags: QuestionTag[]
+  myAttempt: MyAttempt | null
   createdAt: string
 }
 
@@ -932,6 +944,9 @@ export interface ExamSummary {
   /** Whether the clock may be stopped. Off for invigilated papers — pausing a
    *  timed test is unlimited time, so the server refuses it there. */
   allowPause: boolean
+  /** Built by the question bank rather than authored. A drill is scored as a
+   *  drill: accuracy and a per-skill breakdown, not a scaled SAT total. */
+  isGenerated: boolean
 }
 
 /** GET /exams/ — a startable exam template for the dashboard. */

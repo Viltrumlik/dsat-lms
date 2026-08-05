@@ -417,6 +417,14 @@ export const en = {
       answer: 'Correct answer',
       explanation: 'Explanation',
     },
+    practice: {
+      complete: 'Practice complete',
+      scoreLabel: 'You got',
+      ofTotal: 'of {total} right',
+      backToBank: 'Back to Question Bank',
+      practiseAgain: 'Build another set',
+      bySkill: 'By skill',
+    },
   },
   questionBank: {
     title: 'Question Bank',
@@ -474,6 +482,13 @@ export const en = {
     explanation: 'Explanation',
     noExplanation: 'No explanation provided for this question.',
     sourceLine: 'Source:',
+    attempt: {
+      correct: 'You got it',
+      incorrect: 'You missed it',
+      answered: 'Answered',
+      lastTime: 'Last time you answered',
+      tryAgain: 'Answer it again',
+    },
   },
   analytics: {
     title: 'Analytics',

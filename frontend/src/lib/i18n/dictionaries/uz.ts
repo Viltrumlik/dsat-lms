@@ -419,6 +419,14 @@ export const uz: Dictionary = {
       answer: 'Toʻgʻri javob',
       explanation: 'Izoh',
     },
+    practice: {
+      complete: 'Mashq yakunlandi',
+      scoreLabel: 'Siz',
+      ofTotal: '{total} tadan toʻgʻri ishladingiz',
+      backToBank: 'Savollar bankiga qaytish',
+      practiseAgain: 'Yana toʻplam tuzish',
+      bySkill: 'Koʻnikmalar boʻyicha',
+    },
   },
   questionBank: {
     title: 'Savollar banki',
@@ -476,6 +484,13 @@ export const uz: Dictionary = {
     explanation: 'Izoh',
     noExplanation: 'Bu savol uchun izoh berilmagan.',
     sourceLine: 'Manba:',
+    attempt: {
+      correct: 'Toʻgʻri ishlagansiz',
+      incorrect: 'Xato ishlagansiz',
+      answered: 'Ishlangan',
+      lastTime: 'Oʻtgan safar javobingiz',
+      tryAgain: 'Yana ishlab koʻring',
+    },
   },
   analytics: {
     title: 'Tahlil',
