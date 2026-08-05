@@ -430,7 +430,7 @@ export const en = {
     practice: {
       complete: 'Practice complete',
       scoreLabel: 'You got',
-      ofTotal: 'of {total} right',
+      pctCorrect: '{pct}% correct',
       backToBank: 'Back to Question Bank',
       practiseAgain: 'Build another set',
       bySkill: 'By skill',

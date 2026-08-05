@@ -431,8 +431,8 @@ export const uz: Dictionary = {
     },
     practice: {
       complete: 'Mashq yakunlandi',
-      scoreLabel: 'Siz',
-      ofTotal: '{total} tadan toʻgʻri ishladingiz',
+      scoreLabel: 'Natijangiz',
+      pctCorrect: '{pct}% toʻgʻri',
       backToBank: 'Savollar bankiga qaytish',
       practiseAgain: 'Yana toʻplam tuzish',
       bySkill: 'Koʻnikmalar boʻyicha',

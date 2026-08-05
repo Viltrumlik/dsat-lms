@@ -65,7 +65,7 @@ function PracticeHero({ correct, total }: { correct: number; total: number }) {
           <span className="text-3xl text-primary-200">/{total}</span>
         </p>
         <p className="mt-1 text-sm text-primary-100">
-          {t('results.practice.ofTotal', { total })} · {accuracy.toFixed(0)}%
+          {t('results.practice.pctCorrect', { pct: accuracy.toFixed(0) })}
         </p>
       </div>
     </Card>

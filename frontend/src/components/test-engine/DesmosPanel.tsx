@@ -116,10 +116,23 @@ export function DesmosPanel() {
     return () => window.cancelAnimationFrame(id)
   }, [open, tab, box.width, box.height])
 
+  // Placed against a real viewport yet? On the server, and in a tab that has not
+  // been laid out, the window falls back to the top-left corner — over the
+  // question. As soon as a real size arrives, put it where it belongs instead.
+  const placed = React.useRef(viewport().width > 0)
   React.useEffect(() => {
-    const onResize = () => setBox((b) => clampBox(b, viewport()))
-    window.addEventListener('resize', onResize)
-    return () => window.removeEventListener('resize', onResize)
+    const settle = () => {
+      const vp = viewport()
+      if (!placed.current && vp.width > 0) {
+        placed.current = true
+        setBox(initialBox(vp))
+        return
+      }
+      setBox((b) => clampBox(b, vp))
+    }
+    settle() // the panel mounts on first open, which may be long after load
+    window.addEventListener('resize', settle)
+    return () => window.removeEventListener('resize', settle)
   }, [])
 
   // One pointer gesture drives both moving and resizing; only the arithmetic differs.
