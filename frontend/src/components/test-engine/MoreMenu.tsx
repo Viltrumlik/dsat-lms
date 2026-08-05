@@ -20,6 +20,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import { useT } from '@/lib/i18n/I18nProvider'
+import { useSessionStore } from '@/lib/stores/sessionStore'
 
 // Keep in sync with useExamShortcuts — only list keys the engine actually binds.
 const SHORTCUT_KEYS = [
@@ -33,6 +34,11 @@ export function MoreMenu({ onPause }: { onPause: () => void }) {
   const t = useT()
   const [helpOpen, setHelpOpen] = React.useState(false)
   const [shortcutsOpen, setShortcutsOpen] = React.useState(false)
+  // Save & exit is a pause, and the server refuses to pause an invigilated
+  // paper (stopping the clock there is unlimited time). Offering a button that
+  // is guaranteed to fail — and would drop the student out with the clock still
+  // running — is worse than not offering it.
+  const allowPause = useSessionStore((s) => s.meta?.allowPause ?? false)
 
   return (
     <>
@@ -54,10 +60,14 @@ export function MoreMenu({ onPause }: { onPause: () => void }) {
           <DropdownMenuItem onSelect={() => setShortcutsOpen(true)}>
             <Keyboard className="h-4 w-4" /> {t('testEngine.menu.shortcuts')}
           </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={onPause}>
-            <PauseCircle className="h-4 w-4" /> {t('testEngine.menu.saveAndExit')}
-          </DropdownMenuItem>
+          {allowPause && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={onPause}>
+                <PauseCircle className="h-4 w-4" /> {t('testEngine.menu.saveAndExit')}
+              </DropdownMenuItem>
+            </>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
 

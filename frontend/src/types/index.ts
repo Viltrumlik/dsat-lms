@@ -929,6 +929,9 @@ export interface ExamSummary {
   module: ExamModule
   timeLimit: number | null // minutes
   isAdaptive: boolean
+  /** Whether the clock may be stopped. Off for invigilated papers — pausing a
+   *  timed test is unlimited time, so the server refuses it there. */
+  allowPause: boolean
 }
 
 /** GET /exams/ — a startable exam template for the dashboard. */
@@ -977,10 +980,13 @@ export interface EngineSection {
   questions: SessionQuestion[]
 }
 
+/** A saved answer. `isCorrect` is absent entirely while the paper is open —
+ *  the server withholds correctness until submit so the answer endpoint can't
+ *  be used as an oracle — and present once the session is completed. */
 export interface SessionResponse {
   question: string
   chosenAnswer: string
-  isCorrect: boolean | null
+  isCorrect?: boolean | null
   timeSpent: number | null
   answeredAt: string
 }
@@ -996,8 +1002,10 @@ export interface SessionDetail {
   status: SessionStatus
   currentSection: number // 1-indexed
   currentQuestion: number // 1-indexed
-  timeRemaining: number | null // seconds
-  serverTimeRemaining: number | null // seconds — authoritative
+  timeRemaining: number | null // seconds — server-computed cache
+  serverTimeRemaining: number | null // seconds — authoritative (tighter of the two below)
+  sectionTimeRemaining: number | null // seconds left in this module
+  examTimeRemaining: number | null // seconds left on the whole paper
   startedAt: string
   submittedAt: string | null
   clientSessionData: ClientSessionData
@@ -1020,8 +1028,6 @@ export interface SessionReviewItem {
   sectionTitle: string
   question: SessionQuestion
   correctAnswer: string
-  explanation: string | null
-  explanationImageUrl: string | null
   chosenAnswer: string | null
   status: AnswerReviewStatus
 }

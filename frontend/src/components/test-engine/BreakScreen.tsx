@@ -7,11 +7,14 @@ import { ArrowRight, CheckCircle2 } from 'lucide-react'
 import { useSessionStore } from '@/lib/stores/sessionStore'
 import { sessionAPI } from '@/lib/api/sessions'
 import { useT } from '@/lib/i18n/I18nProvider'
+import { parseApiError } from '@/lib/api/errors'
 import { Button } from '@/components/ui/button'
+import { useToast } from '@/components/ui/toast'
 import { sectionLabel } from './examLabels'
 
 export function BreakScreen() {
   const t = useT()
+  const { toast } = useToast()
   const sectionIndex = useSessionStore((s) => s.currentSectionIndex)
   const sections = useSessionStore((s) => s.sections)
   const questionStates = useSessionStore((s) => s.questionStates)
@@ -38,6 +41,14 @@ export function BreakScreen() {
   // with per-section time_limit: the PATCH starts the new section's clock
   // (section_started_at) server-side, and we reset the display timer from the
   // server instead of carrying over the previous section's countdown.
+  //
+  // This PATCH is the ONLY way a section advances — the server refuses backward
+  // moves and stamps the new module's clock here — so a refusal has to be
+  // honoured. If the server says no on a rule (the whole-exam clock has run
+  // out), walking into the next section locally would just leave the student in
+  // a module where every write is rejected; send them to submit instead. A bare
+  // network hiccup still falls through to local navigation, and the next
+  // autosave re-syncs.
   const begin = async () => {
     const nextIndex = sectionIndex + 1
     const meta = useSessionStore.getState().meta
@@ -50,9 +61,14 @@ export function BreakScreen() {
           clientSessionData: { questions: useSessionStore.getState().questionStates },
         })
         setTimeRemaining(detail.serverTimeRemaining ?? detail.timeRemaining ?? 0)
-      } catch {
-        // Network hiccup — fall back to local navigation; the next autosave
-        // re-syncs and the timer stays server-authoritative on reload.
+      } catch (err) {
+        const { code, message } = parseApiError(err)
+        if (code === 'EXAM_SESSION_ERROR') {
+          toast({ variant: 'error', title: t('testEngine.break.cannotContinue'), description: message })
+          setStarting(false)
+          setStatus('review')
+          return
+        }
       }
     }
     navigateTo(nextIndex, 0)

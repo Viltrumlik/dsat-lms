@@ -109,6 +109,7 @@ export function useSession(sessionId: string): { state: SessionLoadState } {
             examId: detail.exam.id,
             examTitle: detail.exam.title,
             examType: detail.exam.type,
+            allowPause: detail.exam.allowPause,
             assignmentId: null,
           },
           sections,

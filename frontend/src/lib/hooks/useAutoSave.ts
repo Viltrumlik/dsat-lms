@@ -3,6 +3,12 @@
 // Domain: Test Engine
 // Description: Har 30 soniyada session state'ni serverga saqlaydi.
 //              Network xatolik bo'lganda retry qiladi.
+//
+// It is also the timer's heartbeat. The local countdown is a setInterval, which
+// browsers throttle in a background tab — so a student who tabs away drifts into
+// showing time they no longer have. Every save comes back with the server's real
+// figure, and we adopt it (downward only). Coming back to the tab forces a save
+// immediately rather than waiting out the interval.
 // ═══════════════════════════════════════
 
 import { useEffect, useRef, useCallback } from 'react'
@@ -26,6 +32,7 @@ export function useAutoSave({
   const status = useSessionStore((s) => s.status)
   const currentQuestionIndex = useSessionStore((s) => s.currentQuestionIndex)
   const questionStates = useSessionStore((s) => s.questionStates)
+  const syncServerTime = useSessionStore((s) => s.syncServerTime)
 
   const isSavingRef = useRef(false)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -40,10 +47,12 @@ export function useAutoSave({
     isSavingRef.current = true
 
     try {
-      await sessionAPI.autoSave(meta.sessionId, {
+      const detail = await sessionAPI.autoSave(meta.sessionId, {
         currentQuestion: currentQuestionIndex + 1,
         clientSessionData: { questions: questionStates },
       })
+      // The reply carries the authoritative clock — re-seat the countdown on it.
+      syncServerTime(detail.serverTimeRemaining)
     } catch (error) {
       // Save xatoligi — localStorage'da saqlanib turibdi, keyingi urinishda yuboriladi
       if (onError && error instanceof Error) {
@@ -53,7 +62,7 @@ export function useAutoSave({
     } finally {
       isSavingRef.current = false
     }
-  }, [meta?.sessionId, status, currentQuestionIndex, questionStates, onError])
+  }, [meta?.sessionId, status, currentQuestionIndex, questionStates, onError, syncServerTime])
 
   // Start/stop interval
   useEffect(() => {
@@ -107,7 +116,13 @@ export function useAutoSave({
   useEffect(() => {
     const onPageHide = () => flush()
     const onVisibility = () => {
-      if (document.visibilityState === 'hidden') flush()
+      if (document.visibilityState === 'hidden') {
+        flush()
+      } else {
+        // Back from a hidden tab, where the countdown was throttled. Don't wait
+        // out the interval to find out how much time actually went by.
+        void save()
+      }
     }
     window.addEventListener('pagehide', onPageHide)
     document.addEventListener('visibilitychange', onVisibility)
@@ -115,7 +130,7 @@ export function useAutoSave({
       window.removeEventListener('pagehide', onPageHide)
       document.removeEventListener('visibilitychange', onVisibility)
     }
-  }, [flush])
+  }, [flush, save])
 
   return { save }
 }

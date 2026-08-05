@@ -33,8 +33,6 @@ function item(partial: Partial<SessionReviewItem> & { number: number }): Session
       ],
     },
     correctAnswer: 'A',
-    explanation: null,
-    explanationImageUrl: null,
     chosenAnswer: 'A',
     status: 'correct',
     ...partial,
@@ -74,7 +72,6 @@ describe('AnswerReview', () => {
         status: 'incorrect',
         chosenAnswer: 'B',
         correctAnswer: 'A',
-        explanation: 'Alpha is right.',
       }),
     ])
     renderWithProviders(<AnswerReview sessionId="s1" />)
@@ -86,7 +83,8 @@ describe('AnswerReview', () => {
     expect(dialog.textContent).toContain('Question 1')
     expect(dialog.textContent).toContain('alpha')
     expect(dialog.textContent).toContain('beta')
-    expect(dialog.textContent).toContain('Alpha is right.')
+    // The review is right-and-wrong only — no explanation is served or shown.
+    expect(dialog.textContent).not.toContain('Explanation')
     // Both the key and the student's pick are called out inside the dialog.
     expect(screen.getAllByText('Correct answer').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Your answer').length).toBeGreaterThan(0)

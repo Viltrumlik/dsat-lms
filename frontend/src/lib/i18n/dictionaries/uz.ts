@@ -273,6 +273,7 @@ export const uz: Dictionary = {
       summary: '{section} boʻlimida {total} savoldan {answered} tasiga javob berdingiz.',
       upNext: 'Keyingisi',
       beginNext: 'Keyingi boʻlimni boshlash',
+      cannotContinue: 'Davom etib boʻlmaydi',
       reviewAnswers: 'Javoblarni koʻrib chiqish',
     },
     reviewScreen: {

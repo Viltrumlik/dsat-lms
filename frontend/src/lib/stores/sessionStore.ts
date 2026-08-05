@@ -28,6 +28,9 @@ interface SessionMeta {
   examId: string
   examTitle: string
   examType: ExamType
+  /** Whether the clock may be stopped. The server refuses pause on invigilated
+   *  papers, so the engine must not offer it there either. */
+  allowPause: boolean
   assignmentId: string | null
 }
 
@@ -95,6 +98,8 @@ interface SessionState {
 
   // Timer
   setTimeRemaining: (seconds: number) => void
+  /** Adopt the server's clock (downward only) — see the implementation. */
+  syncServerTime: (seconds: number | null) => void
   tickTimer: () => void
   pauseTimer: () => void
   resumeTimer: () => void
@@ -335,6 +340,23 @@ export const useSessionStore = create<SessionState>()(
       // ─────────────────────────────────────
 
       setTimeRemaining: (seconds) => set({ timeRemaining: seconds }),
+
+      /**
+       * Re-seat the countdown on the server's figure.
+       *
+       * The local countdown is a setInterval, and browsers throttle those hard
+       * in a hidden tab — so a student who tabs away comes back with a clock
+       * that ran slow and shows them time they no longer have. Every server
+       * reply carries the real number; this adopts it. Only ever DOWNWARD, so a
+       * late or reordered response can't hand time back.
+       */
+      syncServerTime: (seconds) => {
+        if (seconds === null) return
+        const { timeRemaining } = get()
+        if (timeRemaining === null || seconds < timeRemaining) {
+          set({ timeRemaining: Math.max(0, seconds) })
+        }
+      },
 
       tickTimer: () => {
         const { timeRemaining, isTimerRunning } = get()

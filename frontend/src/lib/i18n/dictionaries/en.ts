@@ -271,6 +271,7 @@ export const en = {
       summary: 'You answered {answered} of {total} questions in {section}.',
       upNext: 'Up next',
       beginNext: 'Begin next section',
+      cannotContinue: 'Cannot continue',
       reviewAnswers: 'Review answers',
     },
     reviewScreen: {

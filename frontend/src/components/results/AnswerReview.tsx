@@ -1,7 +1,9 @@
 // Domain: Student / Results
 // Description: Post-submission answer review — every question with the correct
 //   answer, the student's answer, and whether they matched. Clicking a row opens
-//   the full per-question review (passage, stem, choices, explanation).
+//   the question itself with the key and the student's pick marked on it.
+//   Right and wrong, nothing else: explanations are deliberately not part of
+//   this surface (nor of the payload behind it).
 // Data: GET /sessions/{id}/review/ — read live from the question bank, so a
 //   correction an admin makes shows up here immediately.
 'use client'
@@ -208,24 +210,6 @@ function QuestionDialog({
             </div>
           )}
 
-          {(item.explanation || item.explanationImageUrl) && (
-            <div className="rounded-lg border border-border p-3">
-              <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                {t('results.review.explanation')}
-              </p>
-              {item.explanationImageUrl && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={item.explanationImageUrl}
-                  alt=""
-                  className="mb-2 max-w-full rounded-md border border-border"
-                />
-              )}
-              {item.explanation && (
-                <MarkdownMath content={item.explanation} className="text-sm leading-relaxed" />
-              )}
-            </div>
-          )}
         </div>
       </DialogContent>
     </Dialog>

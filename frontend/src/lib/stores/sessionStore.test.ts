@@ -34,6 +34,7 @@ const meta = {
   examId: 'e1',
   examTitle: 'Demo',
   examType: 'practice' as const,
+  allowPause: true,
   assignmentId: null,
 }
 
@@ -95,5 +96,30 @@ describe('sessionStore', () => {
     useSessionStore.getState().toggleFlag('q2')
     const progress = selectSectionProgress(useSessionStore.getState(), 0)
     expect(progress).toEqual({ answered: 1, flagged: 1, total: 2 })
+  })
+
+  describe('syncServerTime', () => {
+    it('adopts a smaller server figure', () => {
+      // The local countdown is a setInterval and browsers throttle it in a
+      // hidden tab, so it drifts SLOW — showing time the student no longer has.
+      useSessionStore.getState().syncServerTime(600)
+      expect(useSessionStore.getState().timeRemaining).toBe(600)
+    })
+
+    it('never hands time back', () => {
+      // A late or reordered response must not top the clock up.
+      useSessionStore.getState().syncServerTime(1200)
+      expect(useSessionStore.getState().timeRemaining).toBe(900)
+    })
+
+    it('ignores an untimed reading', () => {
+      useSessionStore.getState().syncServerTime(null)
+      expect(useSessionStore.getState().timeRemaining).toBe(900)
+    })
+
+    it('clamps at zero', () => {
+      useSessionStore.getState().syncServerTime(-5)
+      expect(useSessionStore.getState().timeRemaining).toBe(0)
+    })
   })
 })
