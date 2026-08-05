@@ -7,7 +7,7 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { BarChart3, BookOpen, ClipboardList, GraduationCap, LayoutDashboard, LifeBuoy, Presentation, Settings, Shield } from 'lucide-react'
+import { BarChart3, BookOpen, ClipboardList, GraduationCap, LayoutDashboard, LifeBuoy, Presentation, Settings, Shield, Users } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
 import { useT } from '@/lib/i18n/I18nProvider'
 import { useAuth } from '@/lib/auth/AuthProvider'
@@ -40,6 +40,7 @@ const TEST_NAV: NavItem[] = EXAM_TYPES.map((meta) => ({
 export const STUDENT_NAV: NavItem[] = [
   { labelKey: 'nav.dashboard', href: '/dashboard', icon: LayoutDashboard },
   ...TEST_NAV,
+  { labelKey: 'nav.classes', href: '/classes', icon: Users, academyOnly: true, section: 'study' },
   { labelKey: 'nav.questionBank', href: '/questions', icon: BookOpen, section: 'study' },
   { labelKey: 'nav.homework', href: '/homework', icon: ClipboardList, academyOnly: true, section: 'study' },
   { labelKey: 'nav.courses', href: '/courses', icon: GraduationCap, academyOnly: true, section: 'study' },

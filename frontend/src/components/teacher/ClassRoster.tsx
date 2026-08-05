@@ -29,6 +29,7 @@ import {
 } from '@/components/ui/table'
 import { pct } from '@/lib/utils/num'
 import { RiskBadge } from './RiskBadge'
+import { ClassStream } from '@/components/classroom/ClassStream'
 
 function EnrollForm({ classId }: { classId: string }) {
   const { t } = useI18n()
@@ -245,6 +246,13 @@ export function ClassRoster({ classId }: { classId: string }) {
           </Table>
         </Card>
       )}
+
+      <div className="space-y-3 pt-2">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          {t('classroom.title')}
+        </h2>
+        <ClassStream classId={classId} />
+      </div>
     </div>
   )
 }

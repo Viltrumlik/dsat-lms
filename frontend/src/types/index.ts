@@ -1643,6 +1643,7 @@ export type NotificationType =
   | 'homework_due'
   | 'homework_graded'
   | 'homework_returned'
+  | 'class_post'
   | 'announcement'
   | 'system'
   | 'booking_requested'
@@ -1796,4 +1797,50 @@ export interface AutomationSweepResult {
   students: number
   matched: number
   acted: number
+}
+
+// ─────────────────────────────────────
+// Classroom stream
+// ─────────────────────────────────────
+
+/** A class the current user is in (GET /classes/). */
+export interface MyClass {
+  id: string
+  name: string
+  teacherName: string | null
+  isActive: boolean
+}
+
+export interface StreamAuthor {
+  id: string
+  fullName: string
+  role: UserRole
+}
+
+export interface StreamAttachment {
+  id: string
+  originalName: string
+  contentType: string
+  size: number
+}
+
+export interface ClassComment {
+  id: string
+  author: StreamAuthor
+  body: string
+  createdAt: string
+}
+
+export type ClassPostKind = 'post' | 'announcement' | 'material'
+
+export interface ClassPost {
+  id: string
+  kind: ClassPostKind
+  author: StreamAuthor
+  body: string
+  isPinned: boolean
+  allowComments: boolean
+  attachments: StreamAttachment[]
+  comments: ClassComment[]
+  createdAt: string
 }
