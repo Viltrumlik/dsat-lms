@@ -15,6 +15,7 @@ everywhere, and an author deleting their own comment is distinct from staff
 moderating someone else's.
 """
 
+from django.db.models import Q
 from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.views import APIView
 
@@ -177,32 +178,27 @@ class ClassCommentDetailView(APIView):
 
 
 class MyClassesView(APIView):
-    """The classes the requester is in — the student's way into the stream.
+    """Every class the requester is IN — taught or attended.
 
-    Teachers already have /teacher/classes/; this is the student-facing list, so
-    it only ever returns classes they are actively enrolled in.
+    A teacher's classes are here too, not only under /teacher/classes/: that is
+    the management surface (create a class, enrol by email), and being in a class
+    is a different thing from administering one. One list means one way into the
+    workspace whichever role you hold.
     """
 
     def get(self, request):
+        from .views_classroom import _class_payload
+
+        enrolled = Q(
+            enrollments__student=request.user,
+            enrollments__status=ClassEnrollment.Status.ACTIVE,
+            enrollments__deleted_at__isnull=True,
+        )
+        mine = Q(teacher=request.user)
         classes = (
-            Class.objects.filter(
-                enrollments__student=request.user,
-                enrollments__status=ClassEnrollment.Status.ACTIVE,
-                enrollments__deleted_at__isnull=True,
-                deleted_at__isnull=True,
-            )
+            Class.objects.filter(enrolled | mine, deleted_at__isnull=True)
             .select_related("teacher")
             .distinct()
             .order_by("name")
         )
-        return success_response(
-            [
-                {
-                    "id": str(klass.id),
-                    "name": klass.name,
-                    "teacher_name": klass.teacher.get_full_name() if klass.teacher else None,
-                    "is_active": klass.is_active,
-                }
-                for klass in classes
-            ]
-        )
+        return success_response([_class_payload(request.user, klass) for klass in classes])

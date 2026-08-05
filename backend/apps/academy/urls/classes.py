@@ -8,6 +8,12 @@ Description: Membership-scoped class endpoints (mounted at /api/v1/classes/).
 
 from django.urls import path
 
+from ..views_classroom import (
+    ClassDetailView,
+    ClassPeopleView,
+    ClassScheduleView,
+    ClassworkView,
+)
 from ..views_stream import (
     ClassCommentDetailView,
     ClassCommentListView,
@@ -20,6 +26,10 @@ app_name = "classes"
 
 urlpatterns = [
     path("", MyClassesView.as_view(), name="my-classes"),
+    path("<uuid:pk>/", ClassDetailView.as_view(), name="class-detail"),
+    path("<uuid:pk>/people/", ClassPeopleView.as_view(), name="class-people"),
+    path("<uuid:pk>/classwork/", ClassworkView.as_view(), name="class-classwork"),
+    path("<uuid:pk>/schedule/", ClassScheduleView.as_view(), name="class-schedule"),
     path("<uuid:pk>/stream/", ClassStreamView.as_view(), name="class-stream"),
     path("<uuid:pk>/stream/<uuid:post_pk>/", ClassPostDetailView.as_view(), name="class-post"),
     path(
