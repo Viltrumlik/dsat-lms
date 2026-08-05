@@ -3,9 +3,10 @@
 //   in the class reads the feed and can reply where replies are open.
 //
 // The same component serves the student and the teacher — what differs is what
-// the server lets you do, and `canPost` mirrors that rather than inventing a
-// second rule. A student sending a post would be refused by the API anyway; not
-// rendering the composer just spares them the error.
+// the server lets you do, and the capabilities it publishes say so directly
+// rather than being re-derived here from a role string. A student sending a post
+// would be refused by the API anyway; not rendering the composer just spares
+// them the error.
 'use client'
 
 import * as React from 'react'
@@ -16,7 +17,7 @@ import { Megaphone, MessageSquare, Pin, Send, Trash2 } from 'lucide-react'
 import { classesAPI } from '@/lib/api/classes'
 import { cursorFromUrl } from '@/lib/api/client'
 import { useAuth } from '@/lib/auth/AuthProvider'
-import { useI18n } from '@/lib/i18n/I18nProvider'
+import { useI18n, plural } from '@/lib/i18n/I18nProvider'
 import { parseApiError } from '@/lib/api/errors'
 import { useToast } from '@/components/ui/toast'
 import { Badge } from '@/components/ui/badge'
@@ -24,9 +25,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
 import { FileList } from '@/components/homework/FileList'
-import type { ClassPost } from '@/types'
-
-const STAFF_ROLES = ['teacher', 'admin', 'academic_manager', 'receptionist']
+import type { ClassCapabilities, ClassPost } from '@/types'
 
 function Composer({ classId }: { classId: string }) {
   const t = useI18n().t
@@ -90,7 +89,15 @@ function Composer({ classId }: { classId: string }) {
   )
 }
 
-function Replies({ classId, post }: { classId: string; post: ClassPost }) {
+function Replies({
+  classId,
+  post,
+  capabilities,
+}: {
+  classId: string
+  post: ClassPost
+  capabilities: ClassCapabilities
+}) {
   const { t, locale } = useI18n()
   const { user } = useAuth()
   const queryClient = useQueryClient()
@@ -100,7 +107,7 @@ function Replies({ classId, post }: { classId: string; post: ClassPost }) {
   // shows just "Reply", which is the only thing you can do with it anyway.
   const [open, setOpen] = React.useState(false)
   const dateLocale = locale === 'uz' ? uzDate : undefined
-  const isStaff = user ? STAFF_ROLES.includes(user.role) : false
+  const isStaff = capabilities.canModerate
 
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: ['class-stream', classId] })
@@ -126,7 +133,12 @@ function Replies({ classId, post }: { classId: string; post: ClassPost }) {
       >
         <MessageSquare className="h-4 w-4" />
         {post.comments.length > 0
-          ? t('classroom.replyCount', { count: post.comments.length })
+          ? plural(
+              locale,
+              post.comments.length,
+              t('classroom.replyCountOne', { count: post.comments.length }),
+              t('classroom.replyCountOther', { count: post.comments.length })
+            )
           : t('classroom.reply')}
       </button>
     )
@@ -187,12 +199,20 @@ function Replies({ classId, post }: { classId: string; post: ClassPost }) {
   )
 }
 
-function PostCard({ classId, post }: { classId: string; post: ClassPost }) {
+function PostCard({
+  classId,
+  post,
+  capabilities,
+}: {
+  classId: string
+  post: ClassPost
+  capabilities: ClassCapabilities
+}) {
   const { t, locale } = useI18n()
   const { user } = useAuth()
   const queryClient = useQueryClient()
   const dateLocale = locale === 'uz' ? uzDate : undefined
-  const isStaff = user ? STAFF_ROLES.includes(user.role) : false
+  const isStaff = capabilities.canModerate
 
   const remove = useMutation({
     mutationFn: () => classesAPI.removePost(classId, post.id),
@@ -239,16 +259,21 @@ function PostCard({ classId, post }: { classId: string; post: ClassPost }) {
 
         {post.attachments.length > 0 && <FileList files={post.attachments} />}
 
-        <Replies classId={classId} post={post} />
+        <Replies classId={classId} post={post} capabilities={capabilities} />
       </CardContent>
     </Card>
   )
 }
 
-export function ClassStream({ classId }: { classId: string }) {
+export function ClassStream({
+  classId,
+  capabilities,
+}: {
+  classId: string
+  capabilities: ClassCapabilities
+}) {
   const t = useI18n().t
-  const { user } = useAuth()
-  const canPost = user ? STAFF_ROLES.includes(user.role) : false
+  const canPost = capabilities.canPost
 
   const query = useInfiniteQuery({
     queryKey: ['class-stream', classId],
@@ -290,7 +315,7 @@ export function ClassStream({ classId }: { classId: string }) {
       )}
 
       {posts.map((post) => (
-        <PostCard key={post.id} classId={classId} post={post} />
+        <PostCard key={post.id} classId={classId} post={post} capabilities={capabilities} />
       ))}
 
       {query.hasNextPage && (

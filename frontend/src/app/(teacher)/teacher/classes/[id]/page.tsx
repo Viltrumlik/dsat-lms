@@ -1,13 +1,13 @@
 // Domain: Academy (teacher)
-// Description: Class detail — roster + enroll-by-email.
-import { ClassRoster } from '@/components/teacher/ClassRoster'
+// Description: A class, as its teacher opens it — the SAME workspace the student
+//   sees. What differs comes from the server's capabilities, not from this file:
+//   the composer appears, hand-in counts appear, the roster gains the enrol form.
+//   /teacher/classes/ stays the management list (create a class); being in a
+//   class is a different job from administering one.
+'use client'
 
-export const metadata = { title: 'Class roster' }
+import { ClassWorkspace } from '@/components/classroom/ClassWorkspace'
 
-export default function TeacherClassDetailPage({ params }: { params: { id: string } }) {
-  return (
-    <div className="mx-auto max-w-4xl">
-      <ClassRoster classId={params.id} />
-    </div>
-  )
+export default function TeacherClassPage({ params }: { params: { id: string } }) {
+  return <ClassWorkspace classId={params.id} backHref="/teacher/classes" />
 }

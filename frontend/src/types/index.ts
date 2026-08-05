@@ -1827,11 +1827,66 @@ export interface AutomationSweepResult {
 // ─────────────────────────────────────
 
 /** A class the current user is in (GET /classes/). */
+/** What a member may do in a class. Derived server-side and published, so the
+ *  client never decides by comparing role strings — it would drift from what
+ *  the API actually enforces. */
+export interface ClassCapabilities {
+  isStaff: boolean
+  isStudent: boolean
+  canPost: boolean
+  canModerate: boolean
+  canManageRoster: boolean
+  canGrade: boolean
+  canSeeSubmissions: boolean
+}
+
 export interface MyClass {
   id: string
   name: string
   teacherName: string | null
+  teacherEmail: string | null
   isActive: boolean
+  myRole: 'staff' | 'student'
+  capabilities: ClassCapabilities
+  studentCount: number
+}
+
+export interface ClassPerson {
+  id: string
+  fullName: string
+  /** Null for a student looking at a classmate. */
+  email: string | null
+  enrolledAt?: string
+}
+
+export interface ClassPeople {
+  teacher: ClassPerson | null
+  students: ClassPerson[]
+}
+
+export interface ClassworkItem {
+  kind: 'homework' | 'material'
+  id: string
+  title: string
+  description: string
+  dueAt: string | null
+  isPublished: boolean
+  examTitle: string | null
+  attachmentCount: number
+  /** The student's own standing. Null for staff. */
+  myStatus: HomeworkStatus | null
+  /** How many handed in. Null for a student. */
+  submittedCount: number | null
+  createdAt: string
+}
+
+export interface ClassMeeting {
+  id: string
+  title: string
+  startsAt: string
+  endsAt: string | null
+  location: string
+  status: 'scheduled' | 'completed' | 'canceled'
 }
 
 export interface StreamAuthor {

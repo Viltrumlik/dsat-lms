@@ -40,9 +40,11 @@ export default function ClassesPage() {
                 </span>
                 <div className="min-w-0">
                   <p className="truncate font-semibold">{klass.name}</p>
-                  {klass.teacherName && (
-                    <p className="truncate text-sm text-muted-foreground">{klass.teacherName}</p>
-                  )}
+                  <p className="truncate text-sm text-muted-foreground">
+                    {klass.teacherName}
+                    {klass.teacherName && ' · '}
+                    {t('classroom.studentCount', { count: klass.studentCount })}
+                  </p>
                 </div>
               </CardContent>
             </Card>

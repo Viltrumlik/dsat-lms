@@ -80,6 +80,25 @@ export const uz: Dictionary = {
     },
   },
   classroom: {
+    notFound: 'Bu sinf topilmadi.',
+    studentCount: '{count} ta oʻquvchi',
+    tabs: {
+      stream: 'Lenta',
+      classwork: 'Vazifalar',
+      people: 'Aʼzolar',
+    },
+    classwork: {
+      empty: 'Hali hech narsa berilmagan.',
+      due: 'Muddati',
+      draft: 'Chop etilmagan',
+      handedIn: '{count} ta topshirilgan',
+    },
+    people: {
+      teacher: 'Oʻqituvchi',
+      noTeacher: 'Oʻqituvchi biriktirilmagan.',
+      students: 'Oʻquvchilar ({count})',
+      empty: 'Bu sinfda hali oʻquvchi yoʻq.',
+    },
     title: 'Mening sinflarim',
     subtitle: 'Sinf eʼlonlar taxtangiz.',
     noClasses: 'Siz hali birorta sinfga qoʻshilmagansiz.',
@@ -95,7 +114,8 @@ export const uz: Dictionary = {
     pinned: 'Mahkamlangan',
     replyPlaceholder: 'Javob yozing…',
 
-    replyCount: '{count} ta javob',
+    replyCountOne: '{count} ta javob',
+    replyCountOther: '{count} ta javob',
 
     reply: 'Javob yozish',
     repliesClosed: 'Bu postga javoblar yopilgan.',
@@ -991,6 +1011,7 @@ export const uz: Dictionary = {
       email: 'Email',
       enrolledAt: 'Qoʻshilgan',
       empty: 'Hali talabalar yoʻq — yuqorida email orqali qoʻshing.',
+      enrollFailedTitle: 'Bu talabani qoʻshib boʻlmadi',
       loadFailed: 'Roʻyxatni yuklab boʻlmadi. Qayta urinib koʻring.',
     },
     studentAnalytics: {

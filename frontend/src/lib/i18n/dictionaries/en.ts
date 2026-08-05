@@ -79,6 +79,25 @@ export const en = {
     },
   },
   classroom: {
+    notFound: "This class couldn't be found.",
+    studentCount: '{count} students',
+    tabs: {
+      stream: 'Stream',
+      classwork: 'Classwork',
+      people: 'People',
+    },
+    classwork: {
+      empty: 'Nothing has been set yet.',
+      due: 'Due',
+      draft: 'Not published',
+      handedIn: '{count} handed in',
+    },
+    people: {
+      teacher: 'Teacher',
+      noTeacher: 'No teacher assigned.',
+      students: 'Students ({count})',
+      empty: 'No students in this class yet.',
+    },
     title: 'My classes',
     subtitle: 'Your class noticeboards.',
     noClasses: "You aren't enrolled in a class yet.",
@@ -94,7 +113,8 @@ export const en = {
     pinned: 'Pinned',
     replyPlaceholder: 'Write a reply…',
 
-    replyCount: '{count} replies',
+    replyCountOne: '{count} reply',
+    replyCountOther: '{count} replies',
 
     reply: 'Reply',
     repliesClosed: 'Replies are closed on this post.',
@@ -989,6 +1009,7 @@ export const en = {
       email: 'Email',
       enrolledAt: 'Enrolled',
       empty: 'No students enrolled yet — add one by email above.',
+      enrollFailedTitle: "Couldn't enroll that student",
       loadFailed: "Couldn't load the roster. Please try again.",
     },
     studentAnalytics: {

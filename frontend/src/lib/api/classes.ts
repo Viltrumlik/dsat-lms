@@ -7,7 +7,15 @@
 // ═══════════════════════════════════════
 
 import { del, get, getPaginated, post } from './client'
-import type { ClassPost, ClassComment, MyClass, Pagination } from '@/types'
+import type {
+  ClassComment,
+  ClassMeeting,
+  ClassPeople,
+  ClassPost,
+  ClassworkItem,
+  MyClass,
+  Pagination,
+} from '@/types'
 
 export interface NewPostPayload {
   body: string
@@ -18,8 +26,18 @@ export interface NewPostPayload {
 }
 
 export const classesAPI = {
-  /** The classes the current user is in. */
+  /** Every class the current user is in — taught or attended. */
   mine: () => get<MyClass[]>('/classes/'),
+
+  /** The workspace header, and the capabilities its tabs hang off. */
+  detail: (classId: string) => get<MyClass>(`/classes/${classId}/`),
+
+  people: (classId: string) => get<ClassPeople>(`/classes/${classId}/people/`),
+
+  /** Homework and materials in one list, each role seeing its own half. */
+  classwork: (classId: string) => get<ClassworkItem[]>(`/classes/${classId}/classwork/`),
+
+  schedule: (classId: string) => get<ClassMeeting[]>(`/classes/${classId}/schedule/`),
 
   stream: (
     classId: string,
