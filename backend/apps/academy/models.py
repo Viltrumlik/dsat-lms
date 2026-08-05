@@ -344,3 +344,79 @@ class StudentNote(BaseModel):
 
     def __str__(self):
         return f"note on {self.student_id}"
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Classroom stream
+#
+# A class had a roster, a schedule, attendance and homework, but no place
+# for the class to actually talk to itself. Announcements go out platform-
+# or audience-wide and are one-way; this is the per-class noticeboard —
+# the teacher posts, students read and reply, and materials hang off the
+# post rather than off a homework brief.
+# ─────────────────────────────────────────────────────────────────────
+
+
+class ClassPost(BaseModel):
+    """One entry on a class's stream.
+
+    Pinned posts float to the top (house rules, the exam timetable). Deletion
+    is soft, like everything else, so a removed post stops rendering but the
+    replies underneath it are still accounted for.
+    """
+
+    class Kind(models.TextChoices):
+        POST = "post", "Post"
+        ANNOUNCEMENT = "announcement", "Announcement"
+        MATERIAL = "material", "Material"
+
+    klass = models.ForeignKey(Class, on_delete=models.CASCADE, related_name="posts")
+    author = models.ForeignKey(
+        "identity.User", on_delete=models.PROTECT, related_name="class_posts"
+    )
+    kind = models.CharField(max_length=20, choices=Kind.choices, default=Kind.POST)
+    body = models.TextField()
+    is_pinned = models.BooleanField(default=False)
+    # Students may be allowed to reply or not, per post — a notice board entry
+    # is not always an invitation to discuss.
+    allow_comments = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = "class_posts"
+        ordering = ["-is_pinned", "-created_at"]
+        indexes = [models.Index(fields=["klass", "-created_at"])]
+
+    def __str__(self):
+        return f"{self.klass_id} · {self.body[:40]}"
+
+
+class ClassPostAttachment(BaseModel):
+    """A file on a stream post. Same pipeline as every other upload."""
+
+    post = models.ForeignKey(ClassPost, on_delete=models.CASCADE, related_name="attachments")
+    attachment = models.ForeignKey(
+        "files.Attachment", on_delete=models.CASCADE, related_name="class_post_links"
+    )
+
+    class Meta:
+        db_table = "class_post_attachments"
+        unique_together = [("post", "attachment")]
+        ordering = ["created_at"]
+
+
+class ClassComment(BaseModel):
+    """A reply under a stream post."""
+
+    post = models.ForeignKey(ClassPost, on_delete=models.CASCADE, related_name="comments")
+    author = models.ForeignKey(
+        "identity.User", on_delete=models.PROTECT, related_name="class_comments"
+    )
+    body = models.TextField()
+
+    class Meta:
+        db_table = "class_comments"
+        ordering = ["created_at"]
+        indexes = [models.Index(fields=["post", "created_at"])]
+
+    def __str__(self):
+        return f"{self.post_id} · {self.body[:40]}"

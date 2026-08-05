@@ -7,6 +7,7 @@ Description: Upload creation with server-side validation (size ceiling + content
 """
 
 from django.conf import settings
+from django.db.models import Q
 from django.utils import timezone
 
 from common.exceptions import ValidationError
@@ -117,6 +118,25 @@ def can_access_attachment(user, attachment):
 
         if SupportTicketAttachment.objects.filter(attachment_id=attachment.id).exists():
             return True
+    # Materials posted to a class stream are readable by anyone IN that class —
+    # the same membership rule the stream endpoints use.
+    if getattr(user, "is_academy_staff", False) or getattr(user, "is_academy_student", False):
+        from apps.academy.models import ClassPostAttachment
+
+        if (
+            ClassPostAttachment.objects.filter(attachment_id=attachment.id)
+            .filter(
+                Q(post__klass__teacher_id=user.id)
+                | Q(
+                    post__klass__enrollments__student=user,
+                    post__klass__enrollments__status="active",
+                    post__klass__enrollments__deleted_at__isnull=True,
+                )
+            )
+            .exists()
+        ):
+            return True
+
     # A teacher may read the work handed in on THEIR OWN class's homework, and
     # the materials attached to a brief they can see. Scoped by the class's
     # teacher FK, so it grants nothing outside their own classes.
