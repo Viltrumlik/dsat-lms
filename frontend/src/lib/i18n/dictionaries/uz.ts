@@ -306,6 +306,16 @@ export const uz: Dictionary = {
       expand: 'Rasmni kengaytirish',
       expanded: 'Kengaytirilgan rasm',
     },
+    calculator: {
+      label: 'Kalkulyator',
+      title: 'Kalkulyator',
+      graphing: 'Grafik',
+      scientific: 'Ilmiy',
+      close: 'Kalkulyatorni yopish',
+      loading: 'Kalkulyator yuklanmoqda…',
+      failed: 'Kalkulyatorni yuklab boʻlmadi. Internet aloqasini tekshiring.',
+      retry: 'Qayta urinish',
+    },
     menu: {
       help: 'Yordam',
       shortcuts: 'Klaviatura yorliqlari',

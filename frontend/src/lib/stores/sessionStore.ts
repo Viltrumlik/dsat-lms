@@ -63,6 +63,11 @@ interface SessionState {
   splitRatio: number
   /** Highlights & Notes rail open. */
   notesOpen: boolean
+  /** The Desmos calculator window. */
+  calculatorOpen: boolean
+  /** Which calculator it is showing. Both stay alive behind the tabs, so a
+   *  graph you drew is still there when you come back from the scientific. */
+  calculatorTab: 'graphing' | 'scientific'
 
   // ─────────────────────────────────────
   // Actions
@@ -96,6 +101,8 @@ interface SessionState {
   toggleTimerHidden: () => void
   setSplitRatio: (ratio: number) => void
   setNotesOpen: (open: boolean) => void
+  setCalculatorOpen: (open: boolean) => void
+  setCalculatorTab: (tab: 'graphing' | 'scientific') => void
 
   /** How this session marks answers. Fixed by the server at start; the client
    *  only reads it to decide whether to render the verdict. */
@@ -151,6 +158,8 @@ export const useSessionStore = create<SessionState>()(
       timerHidden: false,
       splitRatio: 0.5,
       notesOpen: false,
+      calculatorOpen: false,
+      calculatorTab: 'graphing',
 
       // ─────────────────────────────────────
       // Initialize
@@ -188,6 +197,8 @@ export const useSessionStore = create<SessionState>()(
           timerHidden: false,
           splitRatio: 0.5,
           notesOpen: false,
+          calculatorOpen: false,
+          calculatorTab: 'graphing',
         })
       },
 
@@ -349,6 +360,8 @@ export const useSessionStore = create<SessionState>()(
       toggleTimerHidden: () => set({ timerHidden: !get().timerHidden }),
       setSplitRatio: (ratio) => set({ splitRatio: Math.min(0.8, Math.max(0.2, ratio)) }),
       setNotesOpen: (open) => set({ notesOpen: open }),
+      setCalculatorOpen: (open) => set({ calculatorOpen: open }),
+      setCalculatorTab: (tab) => set({ calculatorTab: tab }),
 
       // ─────────────────────────────────────
       // Timer
@@ -409,6 +422,8 @@ export const useSessionStore = create<SessionState>()(
         timerHidden: state.timerHidden,
         splitRatio: state.splitRatio,
         notesOpen: state.notesOpen,
+        calculatorOpen: state.calculatorOpen,
+        calculatorTab: state.calculatorTab,
         // sections server'dan re-fetch qilamiz (versioning uchun)
       }),
     }

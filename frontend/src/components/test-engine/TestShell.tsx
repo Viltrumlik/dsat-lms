@@ -23,6 +23,7 @@ import { ReviewScreen } from './ReviewScreen'
 import { SubmitDialog } from './SubmitDialog'
 import { ExamBanner } from './ExamBanner'
 import { DirectionsPanel } from './DirectionsPanel'
+import { DesmosPanel } from './DesmosPanel'
 import { useExamShortcuts } from './useExamShortcuts'
 
 export function TestShell() {
@@ -157,6 +158,9 @@ export function TestShell() {
         <DirectionsPanel open={directionsOpen} onClose={() => setDirectionsOpen(false)} />
       </div>
       <BottomBar />
+      {/* Floats above the whole surface — every exam type gets the calculator,
+          exactly as the official app does on a Math module. */}
+      <DesmosPanel />
       <SubmitDialog
         open={submitOpen}
         onOpenChange={setSubmitOpen}

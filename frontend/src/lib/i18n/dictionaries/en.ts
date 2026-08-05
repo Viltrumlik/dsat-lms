@@ -304,6 +304,16 @@ export const en = {
       expand: 'Expand figure',
       expanded: 'Expanded figure',
     },
+    calculator: {
+      label: 'Calculator',
+      title: 'Calculator',
+      graphing: 'Graphing',
+      scientific: 'Scientific',
+      close: 'Close calculator',
+      loading: 'Loading the calculator…',
+      failed: "The calculator couldn't be loaded. Check your connection.",
+      retry: 'Try again',
+    },
     menu: {
       help: 'Help',
       shortcuts: 'Keyboard shortcuts',

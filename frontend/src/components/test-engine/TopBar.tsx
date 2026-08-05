@@ -4,7 +4,7 @@
 //   closed by the perforated rule.
 'use client'
 
-import { ChevronDown, ChevronUp, Highlighter, StickyNote } from 'lucide-react'
+import { Calculator, ChevronDown, ChevronUp, Highlighter, StickyNote } from 'lucide-react'
 import { useSessionStore } from '@/lib/stores/sessionStore'
 import { useT } from '@/lib/i18n/I18nProvider'
 import { cn } from '@/lib/utils/cn'
@@ -25,6 +25,8 @@ export function TopBar({ onTimeUp, onPause, directionsOpen, onToggleDirections }
   const sectionIndex = useSessionStore((s) => s.currentSectionIndex)
   const notesOpen = useSessionStore((s) => s.notesOpen)
   const setNotesOpen = useSessionStore((s) => s.setNotesOpen)
+  const calculatorOpen = useSessionStore((s) => s.calculatorOpen)
+  const setCalculatorOpen = useSessionStore((s) => s.setCalculatorOpen)
 
   const title = sectionLabel(sections, sectionIndex, t)
 
@@ -54,8 +56,23 @@ export function TopBar({ onTimeUp, onPause, directionsOpen, onToggleDirections }
           <TimerDisplay onTimeUp={onTimeUp} />
         </div>
 
-        {/* Right — annotations + more */}
+        {/* Right — calculator, annotations + more */}
         <div className="flex flex-1 items-start justify-end gap-7">
+          <button
+            type="button"
+            onClick={() => setCalculatorOpen(!calculatorOpen)}
+            aria-pressed={calculatorOpen}
+            className={cn(
+              'flex flex-col items-center gap-0.5 text-bb-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bb-blue',
+              calculatorOpen && 'underline underline-offset-4'
+            )}
+          >
+            <Calculator className="h-5 w-5" />
+            <span className="whitespace-nowrap text-[13px] font-semibold">
+              {t('testEngine.calculator.label')}
+            </span>
+          </button>
+
           <button
             type="button"
             onClick={() => setNotesOpen(!notesOpen)}

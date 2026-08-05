@@ -17,7 +17,10 @@ function isTyping(target: EventTarget | null): boolean {
   const el = target as HTMLElement | null
   if (!el) return false
   const tag = el.tagName
-  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable) return true
+  // Anything inside the calculator. Desmos handles its own keyboard, and a
+  // student typing "c" into an expression means the variable, not choice C.
+  return typeof el.closest === 'function' && el.closest('[data-exam-calculator]') !== null
 }
 
 export function useExamShortcuts({ enabled }: { enabled: boolean }) {
