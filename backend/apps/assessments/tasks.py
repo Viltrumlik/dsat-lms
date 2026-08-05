@@ -27,6 +27,96 @@ logger = logging.getLogger("apps.assessments")
 EXPIRED_GRACE_HOURS = 24
 # Paused / untimed sessions never expire by clock — retire on pure inactivity.
 STALE_DAYS = 7
+# How long a generated practice template lingers before being swept.
+GENERATED_EXAM_TTL_DAYS = 7
+
+
+@shared_task
+def reconcile_session_answers():
+    """Persist any answer that reached the auto-save blob but not ExamResponse.
+
+    Every answer is POSTed the moment it is chosen (the runner's answer queue),
+    which is what makes a session durable mid-flight. But that write can fail —
+    a dropped connection, a closed laptop, a 500 — and the only other copy is in
+    `client_session_data`, which the 30-second auto-save carries wholesale. That
+    blob is a client-owned scratchpad, not the graded record: grading reads
+    ExamResponse and nothing else, so an answer that only ever landed there
+    would score as omitted.
+
+    This is the net under that. Every live session, every answer in the blob
+    with no matching response row, written through. Grading is deliberately NOT
+    done here: correctness is settled at submit for a paper, and at answer time
+    for a drill, and this task should not become a third place that decides it.
+    Existing rows are never touched — the POSTed value is the newer one.
+    """
+    from apps.question_bank.models import Question
+
+    from .models import ExamQuestion, ExamResponse, ExamSession
+
+    sessions = ExamSession.objects.filter(
+        status__in=[ExamSession.Status.IN_PROGRESS, ExamSession.Status.PAUSED]
+    ).only("id", "exam_id", "client_session_data")
+
+    recovered = 0
+    for session in sessions:
+        blob = (session.client_session_data or {}).get("questions") or {}
+        if not blob:
+            continue
+
+        answered = {
+            qid: str(state.get("answer"))
+            for qid, state in blob.items()
+            if isinstance(state, dict) and str(state.get("answer") or "").strip()
+        }
+        if not answered:
+            continue
+
+        # Only questions actually on this paper, and only ones with no row yet.
+        on_paper = set(
+            ExamQuestion.objects.filter(
+                section__exam_id=session.exam_id, question_id__in=answered
+            ).values_list("question_id", flat=True)
+        )
+        already = set(
+            ExamResponse.objects.filter(session=session, question_id__in=on_paper).values_list(
+                "question_id", flat=True
+            )
+        )
+        missing = on_paper - already
+        if not missing:
+            continue
+
+        valid = set(Question.objects.filter(id__in=missing).values_list("id", flat=True))
+        ExamResponse.objects.bulk_create(
+            [
+                ExamResponse(
+                    session=session,
+                    question_id=question_id,
+                    chosen_answer=answered[str(question_id)][:10],
+                )
+                for question_id in valid
+            ],
+            ignore_conflicts=True,
+        )
+        recovered += len(valid)
+
+    if recovered:
+        logger.info("Recovered %s answer(s) from auto-save into ExamResponse", recovered)
+    return recovered
+
+
+@shared_task
+def cleanup_generated_exams():
+    """Retire question-bank drill templates once their sessions are finished.
+
+    A drill mints a template per run; without this the table grows forever.
+    """
+    from apps.question_bank.practice import cleanup_generated_exams as sweep
+
+    removed = sweep(timezone.now() - dt.timedelta(days=GENERATED_EXAM_TTL_DAYS))
+    if removed:
+        logger.info("Retired %s generated practice template(s)", removed)
+    return removed
 
 
 @shared_task

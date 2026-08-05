@@ -14,6 +14,7 @@ from django.utils import timezone
 from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.views import APIView
 
+from apps.question_bank.models import Question
 from common.exceptions import ExamSessionError
 from common.pagination import CursorPagination
 from common.responses import created_response, success_response
@@ -24,6 +25,7 @@ from .serializers import (
     AnswerSerializer,
     AutoSaveSerializer,
     ExamListSerializer,
+    InstantFeedbackSerializer,
     ResultSerializer,
     ReviewQuestionSerializer,
     SessionDetailSerializer,
@@ -65,7 +67,7 @@ class ExamListView(APIView):
                 section_count=Count("sections", distinct=True),
                 question_count=Count("sections__exam_questions", distinct=True),
             )
-            .filter(section_count__gt=0, question_count__gt=0)
+            .filter(section_count__gt=0, question_count__gt=0, is_generated=False)
             .order_by("type", "title")
         )
 
@@ -266,14 +268,30 @@ class SessionAnswerView(APIView):
                 field="question",
             ).to_response()
 
+        chosen = data.get("chosen_answer", "")
+        instant = session.feedback_mode == ExamSession.FeedbackMode.INSTANT
+
+        # Marked as it is given, but ONLY on a session that was started in
+        # instant mode. The mode is set at start and is not a request field, so
+        # a client cannot ask a real paper to grade for it — which is exactly
+        # the oracle the exam-mode shape exists to prevent.
+        is_correct = None
+        if instant and chosen.strip():
+            question = Question.objects.only("correct_answer").get(pk=question_id)
+            is_correct = answers_match(chosen, question.correct_answer)
+
         response, _ = ExamResponse.objects.update_or_create(
             session=session,
             question_id=question_id,
             defaults={
-                "chosen_answer": data.get("chosen_answer", ""),
+                "chosen_answer": chosen,
                 "time_spent": data.get("time_spent"),
+                "is_correct": is_correct,
             },
         )
+
+        if instant:
+            return success_response(InstantFeedbackSerializer(response).data)
         return success_response(TestResponseSerializer(response).data)
 
 

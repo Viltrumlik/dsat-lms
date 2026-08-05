@@ -50,6 +50,10 @@ class ExamTemplate(BaseModel):
     # homework) may be paused; a mock/midterm/assessment/past paper runs to the
     # bell. Off by default — a new timed template has to opt in.
     allow_pause = models.BooleanField(default=False)
+    # Built on the fly from a question-bank filter for one student, rather than
+    # authored in the admin. Hidden from every exam list — nobody else is meant
+    # to find it — and swept once its sessions are finished.
+    is_generated = models.BooleanField(default=False, db_index=True)
     access_level = models.CharField(
         max_length=10,
         choices=AccessLevel.choices,
@@ -142,6 +146,14 @@ class ExamSession(BaseModel):
         COMPLETED = "completed", "Completed"
         ABANDONED = "abandoned", "Abandoned"
 
+    class FeedbackMode(models.TextChoices):
+        # A paper: you learn nothing until you submit.
+        NONE = "none", "No feedback until submit"
+        # A drill: each answer is marked as it is given. This is the ONLY thing
+        # that unlocks per-question correctness on the answer endpoint, so it is
+        # a property of the SESSION and set at start — never by the client mid-run.
+        INSTANT = "instant", "Mark each answer immediately"
+
     user = models.ForeignKey(
         "identity.User",
         on_delete=models.PROTECT,
@@ -164,6 +176,10 @@ class ExamSession(BaseModel):
         choices=Status.choices,
         default=Status.IN_PROGRESS,
         db_index=True,
+    )
+
+    feedback_mode = models.CharField(
+        max_length=10, choices=FeedbackMode.choices, default=FeedbackMode.NONE
     )
 
     # Navigation state

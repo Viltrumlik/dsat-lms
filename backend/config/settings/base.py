@@ -153,6 +153,18 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.assessments.tasks.abandon_stale_sessions",
         "schedule": crontab(hour=3, minute=30),  # daily, CELERY_TIMEZONE
     },
+    # Answers are POSTed as they are chosen; this is the net under a write that
+    # failed, sweeping the auto-save blob into ExamResponse so nothing a student
+    # actually answered can score as omitted. Runs often because a live session
+    # is the only thing it can help.
+    "reconcile-session-answers": {
+        "task": "apps.assessments.tasks.reconcile_session_answers",
+        "schedule": crontab(minute="*/10"),
+    },
+    "cleanup-generated-exams": {
+        "task": "apps.assessments.tasks.cleanup_generated_exams",
+        "schedule": crontab(hour=3, minute=45),  # daily, after the stale sweep
+    },
     "purge-soft-deleted-attachments": {
         "task": "apps.files.tasks.purge_soft_deleted_attachments",
         "schedule": crontab(hour=4, minute=0),  # daily, CELERY_TIMEZONE

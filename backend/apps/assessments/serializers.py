@@ -111,6 +111,29 @@ class TestResponseSerializer(serializers.ModelSerializer):
         fields = ["question", "chosen_answer", "time_spent", "answered_at"]
 
 
+class InstantFeedbackSerializer(serializers.ModelSerializer):
+    """A marked answer, for a session started in instant-feedback mode.
+
+    This DOES tell the student whether they were right and what the key was —
+    which on a real paper would be the oracle TestResponseSerializer exists to
+    prevent. It is safe here only because the mode is a property of the session,
+    fixed at start and never settable by the client (see SessionAnswerView).
+    """
+
+    correct_answer = serializers.CharField(source="question.correct_answer", read_only=True)
+
+    class Meta:
+        model = ExamResponse
+        fields = [
+            "question",
+            "chosen_answer",
+            "is_correct",
+            "correct_answer",
+            "time_spent",
+            "answered_at",
+        ]
+
+
 class ResponseSerializer(serializers.ModelSerializer):
     """Graded shape — only ever served for a session that has been submitted."""
 
@@ -151,6 +174,7 @@ class SessionDetailSerializer(serializers.ModelSerializer):
             "id",
             "exam",
             "status",
+            "feedback_mode",
             "current_section",
             "current_question",
             "time_remaining",

@@ -45,6 +45,10 @@ def _locked_question_ids(user):
     live_exams = ExamSession.objects.filter(
         user=user,
         status__in=(ExamSession.Status.IN_PROGRESS, ExamSession.Status.PAUSED),
+        # Only papers. A question-bank drill marks each answer as it is given,
+        # so its answers are already on screen — locking the study view there
+        # would block a student from the very thing they opened it for.
+        feedback_mode=ExamSession.FeedbackMode.NONE,
     ).values_list("exam_id", flat=True)
     if not live_exams:
         return set()
