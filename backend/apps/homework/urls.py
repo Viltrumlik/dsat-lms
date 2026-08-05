@@ -8,7 +8,9 @@ from django.urls import path
 
 from .views import (
     HomeworkDetailView,
+    HomeworkGradeView,
     HomeworkListCreateView,
+    HomeworkReturnView,
     HomeworkStartView,
     HomeworkSubmissionsView,
     HomeworkSubmitView,
@@ -22,4 +24,14 @@ urlpatterns = [
     path("<uuid:pk>/start/", HomeworkStartView.as_view(), name="homework-start"),
     path("<uuid:pk>/submit/", HomeworkSubmitView.as_view(), name="homework-submit"),
     path("<uuid:pk>/submissions/", HomeworkSubmissionsView.as_view(), name="homework-submissions"),
+    path(
+        "<uuid:pk>/submissions/<uuid:submission_pk>/grade/",
+        HomeworkGradeView.as_view(),
+        name="homework-grade",
+    ),
+    path(
+        "<uuid:pk>/submissions/<uuid:submission_pk>/return/",
+        HomeworkReturnView.as_view(),
+        name="homework-return",
+    ),
 ]

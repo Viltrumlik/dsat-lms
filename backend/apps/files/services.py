@@ -117,9 +117,36 @@ def can_access_attachment(user, attachment):
 
         if SupportTicketAttachment.objects.filter(attachment_id=attachment.id).exists():
             return True
+    # A teacher may read the work handed in on THEIR OWN class's homework, and
+    # the materials attached to a brief they can see. Scoped by the class's
+    # teacher FK, so it grants nothing outside their own classes.
+    if getattr(user, "is_teacher", False):
+        from apps.homework.models import HomeworkAttachment, HomeworkSubmissionFile
+
+        if HomeworkSubmissionFile.objects.filter(
+            attachment_id=attachment.id,
+            submission__homework__assigned_class__teacher_id=user.id,
+        ).exists():
+            return True
+        if HomeworkAttachment.objects.filter(
+            attachment_id=attachment.id, homework__assigned_class__teacher_id=user.id
+        ).exists():
+            return True
+
     # A student may read an attachment on a lesson whose course is assigned +
     # visible to them (mirrors the ticket-pool branch; lazy import decouples files).
     if getattr(user, "is_academy_student", False):
+        from apps.homework.models import HomeworkAttachment
+
+        # Materials on a brief the student can see (active enrolment, published).
+        if HomeworkAttachment.objects.filter(
+            attachment_id=attachment.id,
+            homework__is_published=True,
+            homework__assigned_class__enrollments__student=user,
+            homework__assigned_class__enrollments__status="active",
+        ).exists():
+            return True
+
         from apps.courses.models import Lesson, LessonAttachment
         from apps.courses.services import visible_course_qs
 
