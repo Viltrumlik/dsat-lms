@@ -89,6 +89,10 @@ export const uz: Dictionary = {
     announcement: 'Eʼlon',
     pinned: 'Mahkamlangan',
     replyPlaceholder: 'Javob yozing…',
+
+    replyCount: '{count} ta javob',
+
+    reply: 'Javob yozish',
     repliesClosed: 'Bu postga javoblar yopilgan.',
     removePost: 'Postni oʻchirish',
     removeReply: 'Javobni oʻchirish',

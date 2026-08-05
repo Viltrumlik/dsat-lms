@@ -95,6 +95,10 @@ function Replies({ classId, post }: { classId: string; post: ClassPost }) {
   const { user } = useAuth()
   const queryClient = useQueryClient()
   const [body, setBody] = React.useState('')
+  // A feed of ten posts, each with a reply box and every reply expanded, is a
+  // wall. Replies stay behind their count until asked for; a post with none
+  // shows just "Reply", which is the only thing you can do with it anyway.
+  const [open, setOpen] = React.useState(false)
   const dateLocale = locale === 'uz' ? uzDate : undefined
   const isStaff = user ? STAFF_ROLES.includes(user.role) : false
 
@@ -112,6 +116,21 @@ function Replies({ classId, post }: { classId: string; post: ClassPost }) {
     mutationFn: (commentId: string) => classesAPI.removeReply(classId, post.id, commentId),
     onSuccess: invalidate,
   })
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex items-center gap-1.5 border-t border-border pt-3 text-sm text-muted-foreground hover:text-foreground"
+      >
+        <MessageSquare className="h-4 w-4" />
+        {post.comments.length > 0
+          ? t('classroom.replyCount', { count: post.comments.length })
+          : t('classroom.reply')}
+      </button>
+    )
+  }
 
   return (
     <div className="space-y-3 border-t border-border pt-3">

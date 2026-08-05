@@ -88,6 +88,10 @@ export const en = {
     announcement: 'Announcement',
     pinned: 'Pinned',
     replyPlaceholder: 'Write a reply…',
+
+    replyCount: '{count} replies',
+
+    reply: 'Reply',
     repliesClosed: 'Replies are closed on this post.',
     removePost: 'Remove post',
     removeReply: 'Remove reply',
