@@ -4,7 +4,7 @@
 //   Only UI chrome lives here; question/exam CONTENT comes from the backend.
 export const en = {
   common: {
-    appName: 'DSAT LMS',
+    appName: 'SATFergana',
     tagline: 'Digital SAT preparation, done right.',
     signOut: 'Sign out',
     loading: 'Loading…',

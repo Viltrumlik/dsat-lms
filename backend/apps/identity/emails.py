@@ -20,6 +20,10 @@ def _frontend_url() -> str:
     return getattr(settings, "FRONTEND_URL", "http://localhost:3000").rstrip("/")
 
 
+def _product() -> str:
+    return getattr(settings, "PRODUCT_NAME", "SATFergana")
+
+
 def _from_email() -> str:
     return getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@dsat.local")
 
@@ -29,7 +33,7 @@ def send_verification_email(user) -> str:
     token = email_verification_token.make_token(user)
     link = f"{_frontend_url()}/verify-email?uid={uid}&token={token}"
     send_mail(
-        subject="Verify your DSAT LMS email",
+        subject=f"Verify your {_product()} email",
         message=(
             f"Hi {user.first_name},\n\n"
             f"Please verify your email address:\n{link}\n\n"
@@ -47,7 +51,7 @@ def send_password_reset_email(user) -> str:
     token = default_token_generator.make_token(user)
     link = f"{_frontend_url()}/reset-password?uid={uid}&token={token}"
     send_mail(
-        subject="Reset your DSAT LMS password",
+        subject=f"Reset your {_product()} password",
         message=(
             f"Hi {user.first_name},\n\n"
             f"Reset your password using the link below:\n{link}\n\n"

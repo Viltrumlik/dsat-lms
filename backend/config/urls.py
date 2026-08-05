@@ -43,6 +43,11 @@ urlpatterns = [
     path(API_V1 + "support/", include("apps.support.urls")),
 ]
 
+# Brand the Django admin from the one product-name setting.
+admin.site.site_header = f"{settings.PRODUCT_NAME} administration"
+admin.site.site_title = settings.PRODUCT_NAME
+admin.site.index_title = "Platform data"
+
 if settings.DEBUG:
     import debug_toolbar
 

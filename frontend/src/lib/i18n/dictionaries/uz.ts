@@ -5,7 +5,7 @@ import type { Dictionary } from './en'
 
 export const uz: Dictionary = {
   common: {
-    appName: 'DSAT LMS',
+    appName: 'SATFergana',
     tagline: 'Raqamli SATʻga tayyorgarlik — toʻgʻri yoʻl bilan.',
     signOut: 'Chiqish',
     loading: 'Yuklanmoqda…',

@@ -21,6 +21,10 @@ environ.Env.read_env(BASE_DIR.parent / ".env")
 # ─────────────────────────────────────
 # Security
 # ─────────────────────────────────────
+# Product identity. One place, so a rebrand is one edit — emails, the OpenAPI
+# title and the Django admin header all read it.
+PRODUCT_NAME = env("PRODUCT_NAME", default="SATFergana")
+
 SECRET_KEY = env("DJANGO_SECRET_KEY")
 DEBUG = env("DJANGO_DEBUG")
 ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["localhost"])
@@ -296,7 +300,7 @@ CORS_ALLOW_CREDENTIALS = True
 # Spectacular (OpenAPI)
 # ─────────────────────────────────────
 SPECTACULAR_SETTINGS = {
-    "TITLE": "DSAT LMS v2 API",
+    "TITLE": f"{PRODUCT_NAME} API",
     "DESCRIPTION": "Digital SAT Learning Management System API",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
