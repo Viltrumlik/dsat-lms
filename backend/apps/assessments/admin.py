@@ -38,9 +38,10 @@ class ExamTemplateAdmin(admin.ModelAdmin):
         "access_level",
         "time_limit",
         "is_adaptive",
+        "allow_pause",
         "created_at",
     )
-    list_filter = ("type", "module", "access_level", "is_adaptive")
+    list_filter = ("type", "module", "access_level", "is_adaptive", "allow_pause")
     search_fields = ("title", "description")
     autocomplete_fields = ("created_by",)
     inlines = [ExamSectionInline]

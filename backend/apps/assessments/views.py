@@ -18,23 +18,25 @@ from common.exceptions import ExamSessionError
 from common.pagination import CursorPagination
 from common.responses import created_response, success_response
 
+from .eligibility import NotEligibleError, check_can_start, live_session_for
 from .models import ExamQuestion, ExamResponse, ExamSession, ExamTemplate
 from .serializers import (
     AnswerSerializer,
     AutoSaveSerializer,
     ExamListSerializer,
-    ResponseSerializer,
     ResultSerializer,
     ReviewQuestionSerializer,
     SessionDetailSerializer,
     SessionListItemSerializer,
     StartSessionSerializer,
+    TestResponseSerializer,
 )
 from .services import (
-    TIME_GRACE_SECONDS,
     answers_match,
+    exam_is_over,
     grade_session,
     is_expired,
+    section_time_remaining,
     server_time_remaining,
 )
 
@@ -90,6 +92,13 @@ class SessionListCreateView(APIView):
         return paginator.get_paginated_response(SessionListItemSerializer(page, many=True).data)
 
     def post(self, request):
+        """Start a paper — or hand back the one already open on it.
+
+        Minting a second session for the same exam would restart the clock, so a
+        student holding a live session is returned THAT session rather than a
+        fresh one. Scheduling, attempt caps and free-tier quotas are enforced
+        here (see eligibility.py); access level stays a 403.
+        """
         serializer = StartSessionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         exam = ExamTemplate.objects.get(id=serializer.validated_data["exam"])
@@ -100,9 +109,21 @@ class SessionListCreateView(APIView):
         ):
             raise PermissionDenied("This exam is available to academy members only.")
 
+        existing = live_session_for(request.user, exam)
+        if existing is not None:
+            return success_response(SessionDetailSerializer(existing).data)
+
+        try:
+            assignment = check_can_start(request.user, exam)
+        except NotEligibleError as exc:
+            error = ExamSessionError(exc.message)
+            error.code = exc.code  # PRACTICE_LIMIT_REACHED, EXAM_CLOSED, …
+            return error.to_response()
+
         session = ExamSession.objects.create(
             user=request.user,
             exam=exam,
+            assignment=assignment,
             status=ExamSession.Status.IN_PROGRESS,
             time_remaining=exam.time_limit * 60 if exam.time_limit else None,
         )
@@ -115,7 +136,23 @@ class SessionDetailView(APIView):
         return success_response(SessionDetailSerializer(session).data)
 
     def patch(self, request, pk):
-        """Auto-save navigation + client state, with server-authoritative timer."""
+        """Auto-save navigation + client state, with a server-authoritative timer.
+
+        Two rules do the security work here:
+
+        1. Sections move FORWARD ONLY. Entering a section stamps its clock, so a
+           client that could move backward could restamp it — hop 2→1→2 and the
+           module timer resets, forever. Backward moves are now refused outright.
+        2. A spent SECTION clock is not a spent PAPER. When the module timer runs
+           out the only thing still permitted is the advance to the next section;
+           when the whole-exam clock runs out nothing is, and the paper must be
+           submitted. Conflating the two used to strand the student: refused the
+           advance because the section had expired, and so unable to ever reach
+           the section they had time left in.
+
+        time_remaining is not read from the request at all — it is recomputed and
+        written by the server on every save.
+        """
         session = _owned_session(request, pk)
         if session.status != ExamSession.Status.IN_PROGRESS:
             return ExamSessionError("Session is not in progress.").to_response()
@@ -124,37 +161,54 @@ class SessionDetailView(APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        remaining = server_time_remaining(session)
-        if remaining is not None:
-            if remaining <= 0:
-                return ExamSessionError("Time is up. Please submit the session.").to_response()
-            claimed = data.get("time_remaining")
-            if claimed is not None and claimed > remaining + TIME_GRACE_SECONDS:
-                return ExamSessionError(
-                    "Reported time exceeds the server clock.", field="time_remaining"
-                ).to_response()
+        if exam_is_over(session):
+            return ExamSessionError("Time is up. Please submit the session.").to_response()
 
-        # Moving to a new section starts that section's clock.
-        if "current_section" in data and data["current_section"] != session.current_section:
+        requested_section = data.get("current_section")
+        advancing = requested_section is not None and requested_section != session.current_section
+        if advancing and requested_section < session.current_section:
+            return ExamSessionError(
+                "You cannot go back to a previous section.",
+                field="current_section",
+            ).to_response()
+
+        section_left = section_time_remaining(session)
+        if section_left is not None and section_left <= 0 and not advancing:
+            return ExamSessionError(
+                "Time is up for this section. Move on to the next one."
+            ).to_response()
+
+        if advancing:
+            # First (and only) time this section is entered — start its clock.
             session.section_started_at = timezone.now()
-        for field in ("current_section", "current_question", "client_session_data"):
+            session.current_section = requested_section
+
+        for field in ("current_question", "client_session_data"):
             if field in data:
                 setattr(session, field, data[field])
-        if "time_remaining" in data:
-            session.time_remaining = (
-                min(data["time_remaining"], remaining)
-                if remaining is not None
-                else data["time_remaining"]
-            )
+
+        # Server-computed cache of the clock, so the stored column can never
+        # disagree with what the server would enforce.
+        session.time_remaining = server_time_remaining(session)
         session.save()
         return success_response(SessionDetailSerializer(session).data)
 
 
 class SessionPauseView(APIView):
+    """Stop the clock.
+
+    Only where the paper allows it. Pausing freezes the timer and resume shifts
+    the start timestamps forward, so on an invigilated paper pause/resume is
+    simply unlimited time with extra steps — look the answer up, come back. See
+    ExamTemplate.allow_pause.
+    """
+
     def post(self, request, pk):
         session = _owned_session(request, pk)
         if session.status != ExamSession.Status.IN_PROGRESS:
             return ExamSessionError("Only an in-progress session can be paused.").to_response()
+        if not session.exam.allow_pause:
+            return ExamSessionError("This test cannot be paused once it has started.").to_response()
         session.status = ExamSession.Status.PAUSED
         session.paused_at = timezone.now()
         session.save(update_fields=["status", "paused_at"])
@@ -179,23 +233,37 @@ class SessionResumeView(APIView):
 
 
 class SessionAnswerView(APIView):
+    """Record one answer.
+
+    The question must belong to the section the student is CURRENTLY in. Without
+    that, per-section timing means nothing: finish module 1, advance to module 2,
+    and keep answering module 1's questions with module 2's clock. Sections are
+    forward-only, so a question from an earlier section is closed for good.
+    """
+
     def post(self, request, pk):
         session = _owned_session(request, pk)
         if session.status != ExamSession.Status.IN_PROGRESS:
             return ExamSessionError("Session is not in progress.").to_response()
         if is_expired(session):
-            return ExamSessionError("Time is up. Please submit the session.").to_response()
+            return ExamSessionError("Time is up for this section.").to_response()
 
         serializer = AnswerSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         question_id = data["question"]
 
-        if not ExamQuestion.objects.filter(
+        placements = ExamQuestion.objects.filter(
             section__exam=session.exam, question_id=question_id
-        ).exists():
+        ).values_list("section__section_number", flat=True)
+        if not placements:
             return ExamSessionError(
                 "That question is not part of this exam.", field="question"
+            ).to_response()
+        if session.current_section not in set(placements):
+            return ExamSessionError(
+                "That question belongs to a section you have already finished.",
+                field="question",
             ).to_response()
 
         response, _ = ExamResponse.objects.update_or_create(
@@ -206,7 +274,7 @@ class SessionAnswerView(APIView):
                 "time_spent": data.get("time_spent"),
             },
         )
-        return success_response(ResponseSerializer(response).data)
+        return success_response(TestResponseSerializer(response).data)
 
 
 class SessionSubmitView(APIView):
@@ -275,8 +343,8 @@ class SessionReviewView(APIView):
     """GET /sessions/{id}/review/ — the post-submission answer review.
 
     Returns every question in exam order with its correct answer, the student's
-    answer, and whether they matched. Only available on a submitted session the
-    requester owns: it exposes correct answers and explanations.
+    answer, and whether they matched — right and wrong, nothing else. Only
+    available on a submitted session the requester owns, since it exposes the key.
 
     Correctness is recomputed here from the question bank's CURRENT correct
     answer (via the same `answers_match` grading uses) rather than read from the
@@ -316,8 +384,6 @@ class SessionReviewView(APIView):
                     "section_title": exam_question.section.title,
                     "question": question,
                     "correct_answer": question.correct_answer,
-                    "explanation": question.explanation,
-                    "explanation_image_url": question.explanation_image_url,
                     "chosen_answer": chosen or None,
                     "status": status,
                 }

@@ -25,8 +25,8 @@ pytestmark = pytest.mark.django_db
 SESSIONS = "/api/v1/sessions/"
 
 
-def make_exam(access_level="public", time_limit=30, answers=("A", "B", "C")):
-    exam = ExamTemplateFactory(access_level=access_level, time_limit=time_limit)
+def make_exam(access_level="public", time_limit=30, answers=("A", "B", "C"), **kwargs):
+    exam = ExamTemplateFactory(access_level=access_level, time_limit=time_limit, **kwargs)
     section = ExamSectionFactory(exam=exam, section_number=1)
     questions = []
     for i, ans in enumerate(answers, start=1):
@@ -110,20 +110,37 @@ class TestAutoSave:
         assert r.data["data"]["current_question"] == 2
         assert r.data["data"]["client_session_data"]["questions"]["x"]["flagged"] is True
 
-    def test_rejects_time_cheat(self, auth_client):
+    def test_ignores_client_reported_time(self, auth_client):
+        """The clock is not an input. A claimed time is discarded, not argued with.
+
+        This used to be a validation: the client sent time_remaining and the
+        server rejected it if it exceeded the server clock. That still let the
+        client steer a value the server stored and served back, and it only ever
+        caught claims that were too GENEROUS. The field is now ignored outright.
+        """
         exam, _ = make_exam(time_limit=30)  # ~1800s on the server clock
         sid = start(auth_client, exam).data["data"]["id"]
         r = auth_client.patch(f"{SESSIONS}{sid}/", {"time_remaining": 99999}, format="json")
-        assert r.status_code == 400
-        assert r.data["error"]["code"] == "EXAM_SESSION_ERROR"
-        assert r.data["error"]["field"] == "time_remaining"
-
-    def test_accepts_valid_time(self, auth_client):
-        exam, _ = make_exam(time_limit=30)
-        sid = start(auth_client, exam).data["data"]["id"]
-        r = auth_client.patch(f"{SESSIONS}{sid}/", {"time_remaining": 1700}, format="json")
         assert r.status_code == 200
         assert r.data["data"]["time_remaining"] <= 1800
+        assert r.data["data"]["server_time_remaining"] <= 1800
+
+    def test_writes_the_server_clock_on_every_save(self, auth_client):
+        exam, _ = make_exam(time_limit=30)
+        sid = start(auth_client, exam).data["data"]["id"]
+        r = auth_client.patch(f"{SESSIONS}{sid}/", {"current_question": 2}, format="json")
+        assert r.status_code == 200
+        assert r.data["data"]["time_remaining"] == r.data["data"]["server_time_remaining"]
+
+    def test_rejects_an_oversized_client_blob(self, auth_client):
+        exam, _ = make_exam()
+        sid = start(auth_client, exam).data["data"]["id"]
+        r = auth_client.patch(
+            f"{SESSIONS}{sid}/",
+            {"client_session_data": {"questions": {"x": {"note": "z" * 300_000}}}},
+            format="json",
+        )
+        assert r.status_code == 400
 
 
 class TestAnswer:
@@ -222,9 +239,10 @@ class TestSubmitAndResult:
 
 class TestHistory:
     def test_lists_my_sessions(self, auth_client):
-        exam, _ = make_exam()
-        start(auth_client, exam)
-        start(auth_client, exam)
+        exam_a, _ = make_exam()
+        exam_b, _ = make_exam()
+        start(auth_client, exam_a)
+        start(auth_client, exam_b)
         r = auth_client.get(SESSIONS)
         assert r.status_code == 200
         assert r.data["success"] is True
@@ -241,7 +259,7 @@ class TestHistory:
 
 class TestPauseResume:
     def test_pause_then_resume(self, auth_client):
-        exam, _ = make_exam(time_limit=30)
+        exam, _ = make_exam(time_limit=30, allow_pause=True)
         sid = start(auth_client, exam).data["data"]["id"]
         r = auth_client.post(f"{SESSIONS}{sid}/pause/", {}, format="json")
         assert r.status_code == 200
@@ -250,8 +268,16 @@ class TestPauseResume:
         assert r2.status_code == 200
         assert r2.data["data"]["status"] == "in_progress"
 
+    def test_invigilated_paper_cannot_be_paused(self, auth_client):
+        """Pause freezes the clock, so on a timed paper it IS unlimited time."""
+        exam, _ = make_exam(time_limit=30, allow_pause=False)
+        sid = start(auth_client, exam).data["data"]["id"]
+        r = auth_client.post(f"{SESSIONS}{sid}/pause/", {}, format="json")
+        assert r.status_code == 400
+        assert r.data["error"]["code"] == "EXAM_SESSION_ERROR"
+
     def test_cannot_answer_while_paused(self, auth_client):
-        exam, qs = make_exam()
+        exam, qs = make_exam(allow_pause=True)
         sid = start(auth_client, exam).data["data"]["id"]
         auth_client.post(f"{SESSIONS}{sid}/pause/", {}, format="json")
         r = auth_client.post(
@@ -263,7 +289,7 @@ class TestPauseResume:
         assert r.data["error"]["code"] == "EXAM_SESSION_ERROR"
 
     def test_cannot_pause_completed(self, auth_client):
-        exam, _ = make_exam()
+        exam, _ = make_exam(allow_pause=True)
         sid = start(auth_client, exam).data["data"]["id"]
         auth_client.post(f"{SESSIONS}{sid}/submit/", {}, format="json")
         assert auth_client.post(f"{SESSIONS}{sid}/pause/", {}, format="json").status_code == 400
@@ -400,7 +426,13 @@ class TestAnswerReview:
         assert [r["chosen_answer"] for r in rows] == ["A", "D", None]
         assert [r["correct_answer"] for r in rows] == ["A", "B", "C"]
 
-    def test_includes_choices_and_explanation(self, auth_client):
+    def test_shows_choices_but_not_the_explanation(self, auth_client):
+        """The review is right-and-wrong only: the key, the answer, the verdict.
+
+        Explanations are deliberately not in the shape — the review is a score
+        check, not a lesson, and every field here has to stay behind the
+        submitted-session gate.
+        """
         from apps.question_bank.tests.factories import ChoiceFactory
 
         exam, qs = make_exam(answers=("A",))
@@ -412,7 +444,18 @@ class TestAnswerReview:
         auth_client.post(f"{SESSIONS}{sid}/submit/", {}, format="json")
 
         row = auth_client.get(f"{SESSIONS}{sid}/review/").data["data"][0]
-        assert row["explanation"] == "Because alpha."
+        assert "explanation" not in row
+        assert "explanation_image_url" not in row
+        assert "explanation" not in row["question"]
+        assert set(row) == {
+            "number",
+            "section_number",
+            "section_title",
+            "question",
+            "correct_answer",
+            "chosen_answer",
+            "status",
+        }
         assert {c["text"] for c in row["question"]["choices"]} == {"alpha", "beta"}
 
     def test_reflects_a_live_question_edit(self, auth_client):

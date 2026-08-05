@@ -45,6 +45,11 @@ class ExamTemplate(BaseModel):
     module = models.CharField(max_length=20, choices=Module.choices, default=Module.FULL)
     time_limit = models.SmallIntegerField(null=True, blank=True)  # minutes
     is_adaptive = models.BooleanField(default=False)
+    # Pausing stops the clock, so on a timed paper it IS unlimited time: pause,
+    # look the answer up, resume. Only papers meant to be sat casually (practice,
+    # homework) may be paused; a mock/midterm/assessment/past paper runs to the
+    # bell. Off by default — a new timed template has to opt in.
+    allow_pause = models.BooleanField(default=False)
     access_level = models.CharField(
         max_length=10,
         choices=AccessLevel.choices,

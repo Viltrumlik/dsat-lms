@@ -6,12 +6,20 @@ Description: Public browsing of the question bank — list (filter/search, curso
             and the category/tag lists used to build filter UIs.
 Permissions: IsAuthenticated (global default) — any registered user may browse.
              Only PUBLISHED, non-deleted questions are ever returned.
+
+ANSWER LEAK: the study view publishes correct_answer and explanation, which is
+the whole point of it — and was also a hole straight through the test engine. The
+runner is careful to serve questions without their answers, but nothing stopped a
+student in a live exam opening a second tab and reading the key here, by the very
+question id the runner had just handed them. Questions belonging to a paper the
+requester currently has open are therefore locked (see _locked_question_ids).
 """
 
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter
 from rest_framework.generics import ListAPIView, RetrieveAPIView
 
+from common.exceptions import PermissionError as StudyLocked
 from common.responses import success_response
 
 from .filters import QuestionFilter
@@ -22,6 +30,29 @@ from .serializers import (
     QuestionListSerializer,
     TagSerializer,
 )
+
+
+def _locked_question_ids(user):
+    """Ids the given user must not see the answer to right now.
+
+    Every question in every exam they have an in-progress or paused session on.
+    Lazy import: question_bank sits BELOW assessments in the dependency order
+    (identity → question_bank → assessments), so a module-level import here would
+    invert it.
+    """
+    from apps.assessments.models import ExamQuestion, ExamSession
+
+    live_exams = ExamSession.objects.filter(
+        user=user,
+        status__in=(ExamSession.Status.IN_PROGRESS, ExamSession.Status.PAUSED),
+    ).values_list("exam_id", flat=True)
+    if not live_exams:
+        return set()
+    return set(
+        ExamQuestion.objects.filter(section__exam_id__in=live_exams).values_list(
+            "question_id", flat=True
+        )
+    )
 
 
 class QuestionListView(ListAPIView):
@@ -52,6 +83,13 @@ class QuestionDetailView(RetrieveAPIView):
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()  # 404 for missing/unpublished → enveloped NOT_FOUND
+        if instance.id in _locked_question_ids(request.user):
+            # 403, not 404: the question plainly exists — they are looking at it
+            # in the runner. Hiding it would only be confusing.
+            return StudyLocked(
+                "This question is part of a test you have open. "
+                "Finish the test to see the answer."
+            ).to_response()
         return success_response(self.get_serializer(instance).data)
 
 

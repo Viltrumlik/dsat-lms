@@ -2,7 +2,8 @@
 DSAT LMS v2 — Assessment task tests
 Domain: Assessments
 Covers: abandon_stale_sessions — expired-timed sweep, inactivity sweep for
-        paused/untimed sessions, and that live sessions are untouched.
+        paused/untimed sessions, that live sessions are untouched, and that a
+        stranded session which HAS answers is graded rather than discarded.
 """
 
 import datetime as dt
@@ -33,7 +34,7 @@ class TestAbandonStaleSessions:
         session = ExamSessionFactory(exam=exam, status=ExamSession.Status.IN_PROGRESS)
         backdate(session, started_days=2, updated_days=2)
 
-        assert abandon_stale_sessions() == 1
+        assert abandon_stale_sessions() == {"graded": 0, "abandoned": 1}
         session.refresh_from_db()
         assert session.status == ExamSession.Status.ABANDONED
 
@@ -41,7 +42,7 @@ class TestAbandonStaleSessions:
         exam = ExamTemplateFactory(time_limit=30)
         session = ExamSessionFactory(exam=exam, status=ExamSession.Status.IN_PROGRESS)
 
-        assert abandon_stale_sessions() == 0
+        assert abandon_stale_sessions() == {"graded": 0, "abandoned": 0}
         session.refresh_from_db()
         assert session.status == ExamSession.Status.IN_PROGRESS
 
@@ -56,7 +57,7 @@ class TestAbandonStaleSessions:
             paused_at=timezone.now() - dt.timedelta(days=8) + dt.timedelta(minutes=5)
         )
 
-        assert abandon_stale_sessions() == 1
+        assert abandon_stale_sessions() == {"graded": 0, "abandoned": 1}
         session.refresh_from_db()
         assert session.status == ExamSession.Status.ABANDONED
 
@@ -70,7 +71,7 @@ class TestAbandonStaleSessions:
             paused_at=timezone.now() - dt.timedelta(days=2) + dt.timedelta(minutes=5)
         )
 
-        assert abandon_stale_sessions() == 0
+        assert abandon_stale_sessions() == {"graded": 0, "abandoned": 0}
         session.refresh_from_db()
         assert session.status == ExamSession.Status.PAUSED
 
@@ -79,7 +80,7 @@ class TestAbandonStaleSessions:
         session = ExamSessionFactory(exam=exam, status=ExamSession.Status.IN_PROGRESS)
         backdate(session, started_days=8, updated_days=8)
 
-        assert abandon_stale_sessions() == 1
+        assert abandon_stale_sessions() == {"graded": 0, "abandoned": 1}
         session.refresh_from_db()
         assert session.status == ExamSession.Status.ABANDONED
 
@@ -87,6 +88,6 @@ class TestAbandonStaleSessions:
         session = ExamSessionFactory(status=ExamSession.Status.COMPLETED)
         backdate(session, started_days=30, updated_days=30)
 
-        assert abandon_stale_sessions() == 0
+        assert abandon_stale_sessions() == {"graded": 0, "abandoned": 0}
         session.refresh_from_db()
         assert session.status == ExamSession.Status.COMPLETED
