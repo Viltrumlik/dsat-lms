@@ -107,6 +107,13 @@ const config: Config = {
           yellow:      '#F9DA4A', // Close button + yellow highlight swatch
           rail:        '#F0F0F0', // notes rail background
           strip:       '#F0F0F0', // question header strip
+          // Instant-feedback marking (question-bank drills only — a real paper
+          // never renders these). Fixed like the rest of bb-*, so the verdict
+          // reads the same in light and dark mode.
+          right:       '#0B7A3E', // the key
+          rightBg:     '#E8F6EE',
+          wrong:       '#9E3038', // the student's pick, when it wasn't the key
+          wrongBg:     '#FBEAEB',
           hlYellow:    '#FBE79B',
           hlBlue:      '#E9F5FE',
           hlPink:      '#FBE6F7',

@@ -13,7 +13,7 @@ import { useI18n, plural } from '@/lib/i18n/I18nProvider'
 import { QuestionFilters, type QuestionUIFilters } from './QuestionFilters'
 import { QuestionCard } from './QuestionCard'
 
-const EMPTY_FILTERS: QuestionUIFilters = { search: '' }
+const EMPTY_FILTERS: QuestionUIFilters = { search: '', bands: [] }
 
 function useDebounced<T>(value: T, ms: number): T {
   const [debounced, setDebounced] = React.useState(value)
@@ -37,7 +37,8 @@ export function QuestionBrowser() {
 
   const params: QuestionListParams = {
     module: filters.module,
-    difficulty: filters.difficulty,
+    band: filters.bands.length > 0 ? filters.bands : undefined,
+    status: filters.status,
     answerType: filters.answerType,
     category: filters.category,
     search: debouncedSearch.trim() || undefined,
@@ -53,7 +54,8 @@ export function QuestionBrowser() {
   const items = query.data?.pages.flatMap((p) => p.data) ?? []
   const hasActiveFilters =
     !!filters.module ||
-    !!filters.difficulty ||
+    filters.bands.length > 0 ||
+    !!filters.status ||
     !!filters.answerType ||
     !!filters.category ||
     filters.search.trim() !== ''

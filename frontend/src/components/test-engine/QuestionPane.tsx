@@ -34,6 +34,7 @@ export function QuestionPane() {
   const toggleFlag = useSessionStore((s) => s.toggleFlag)
   const toggleCrossOut = useSessionStore((s) => s.toggleCrossOut)
   const syncAnswer = useAnswerSync()
+  const verdict = useSessionStore((s) => (question ? (s.verdicts[question.id] ?? null) : null))
 
   if (!question) {
     return <div className="p-8 text-neutral-600">{t('testEngine.noQuestion')}</div>
@@ -79,6 +80,7 @@ export function QuestionPane() {
             crossedOut={crossedOut}
             onSelect={handleSelect}
             onToggleCrossOut={(label: ChoiceLabel) => toggleCrossOut(question.id, label)}
+            verdict={verdict}
           />
         ) : (
           <GridIn

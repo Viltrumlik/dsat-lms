@@ -92,6 +92,25 @@ export const en = {
     removePost: 'Remove post',
     removeReply: 'Remove reply',
   },
+  bank: {
+    browseTitle: 'Browse all questions',
+    band: { easy: 'Easy', medium: 'Medium', hard: 'Hard' },
+    builder: {
+      title: 'Build a practice set',
+      subtitle: 'Pick the skills you want to drill, choose a level, and start.',
+      bankSummary: "You've answered {done} of {total} questions in the bank.",
+      doneOf: '{done}/{total}',
+      difficulty: 'Level',
+      allLevels: 'All levels',
+      skipDone: 'Skip questions I have already answered',
+      instant: 'Tell me right or wrong after each question',
+      willUse: '{willUse} of {matching} matching questions',
+      nothingMatches: 'Nothing matches that selection yet.',
+      cappedAt: 'A set is capped at {cap} questions.',
+      start: 'Start practice',
+      startFailed: "Couldn't start practice",
+    },
+  },
   modules: {
     math: 'Math',
     reading_writing: 'Reading & Writing',
@@ -292,7 +311,8 @@ export const en = {
       tipEliminate: 'Turn on the ABC button to cross out answers you have ruled out.',
       tipHighlight: 'Select any passage text to highlight it or attach a note.',
       tipNavigator: 'Open the question pill at the bottom to jump to any question.',
-    },
+    },      feedback: { correct: 'Correct', yourAnswer: 'Your answer' },
+
     shortcuts: {
       navigate: 'Previous / next question',
       choose: 'Choose an answer',
@@ -405,6 +425,14 @@ export const en = {
       type: 'Type',
       topic: 'Topic',
       allTopics: 'All topics',
+
+      progress: 'Progress',
+
+      todo: 'Not done',
+
+      done: 'Done',
+
+      allIn: 'All of {name}',
       category: 'Category',
       clear: 'Clear filters',
     },

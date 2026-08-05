@@ -93,6 +93,25 @@ export const uz: Dictionary = {
     removePost: 'Postni oʻchirish',
     removeReply: 'Javobni oʻchirish',
   },
+  bank: {
+    browseTitle: 'Barcha savollarni koʻrish',
+    band: { easy: 'Oson', medium: 'Oʻrtacha', hard: 'Qiyin' },
+    builder: {
+      title: 'Mashq toʻplamini tuzing',
+      subtitle: 'Mashq qilmoqchi boʻlgan mavzularni tanlang, darajani belgilang va boshlang.',
+      bankSummary: 'Bankdagi {total} savoldan {done} tasiga javob berdingiz.',
+      doneOf: '{done}/{total}',
+      difficulty: 'Daraja',
+      allLevels: 'Barcha darajalar',
+      skipDone: 'Allaqachon ishlagan savollarimni oʻtkazib yuborish',
+      instant: 'Har bir savoldan keyin toʻgʻri/notoʻgʻri deb ayting',
+      willUse: '{matching} mos savoldan {willUse} tasi',
+      nothingMatches: 'Bu tanlovga hozircha mos savol yoʻq.',
+      cappedAt: 'Bitta toʻplamda koʻpi bilan {cap} ta savol boʻladi.',
+      start: 'Mashqni boshlash',
+      startFailed: 'Mashqni boshlab boʻlmadi',
+    },
+  },
   modules: {
     math: 'Matematika',
     reading_writing: 'Oʻqish va Yozish',
@@ -294,7 +313,8 @@ export const uz: Dictionary = {
       tipEliminate: 'Notoʻgʻri variantlarni oʻchirish uchun ABC tugmasini yoqing.',
       tipHighlight: 'Matnni belgilash yoki eslatma qoʻshish uchun uni tanlang.',
       tipNavigator: 'Istalgan savolga oʻtish uchun pastdagi savol tugmasini bosing.',
-    },
+    },      feedback: { correct: 'Toʻgʻri', yourAnswer: 'Sizning javobingiz' },
+
     shortcuts: {
       navigate: 'Oldingi / keyingi savol',
       choose: 'Javobni tanlash',
@@ -407,6 +427,14 @@ export const uz: Dictionary = {
       type: 'Turi',
       topic: 'Mavzu',
       allTopics: 'Barcha mavzular',
+
+      progress: 'Holat',
+
+      todo: 'Ishlanmagan',
+
+      done: 'Ishlangan',
+
+      allIn: '{name} — barchasi',
       category: 'Toifa',
       clear: 'Filtrlarni tozalash',
     },

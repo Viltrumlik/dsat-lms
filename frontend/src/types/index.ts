@@ -987,6 +987,8 @@ export interface SessionResponse {
   question: string
   chosenAnswer: string
   isCorrect?: boolean | null
+  /** Only on an instant-feedback session's answer reply. */
+  correctAnswer?: string
   timeSpent: number | null
   answeredAt: string
 }
@@ -1002,6 +1004,7 @@ export interface SessionDetail {
   status: SessionStatus
   currentSection: number // 1-indexed
   currentQuestion: number // 1-indexed
+  feedbackMode: FeedbackMode
   timeRemaining: number | null // seconds — server-computed cache
   serverTimeRemaining: number | null // seconds — authoritative (tighter of the two below)
   sectionTimeRemaining: number | null // seconds left in this module
@@ -1016,6 +1019,11 @@ export interface SessionDetail {
 /** How a student's answer compared with the key (distinct from the question
  *  content-review `ReviewStatus`). */
 export type AnswerReviewStatus = 'correct' | 'incorrect' | 'skipped'
+
+/** How a session marks answers. `instant` is a question-bank drill: each answer
+ *  is marked as it is given and the key comes back with it. `none` is a paper —
+ *  the client is told nothing until submit. Set by the server at start. */
+export type FeedbackMode = 'none' | 'instant'
 
 /**
  * GET /sessions/{id}/review/ — one row of the post-submission answer review.

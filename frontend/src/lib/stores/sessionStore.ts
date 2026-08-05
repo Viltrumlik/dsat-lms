@@ -14,6 +14,7 @@ import type {
   EngineSection,
   QuestionClientState,
   ExamType,
+  FeedbackMode,
   Annotation,
 } from '@/types'
 
@@ -96,6 +97,13 @@ interface SessionState {
   setSplitRatio: (ratio: number) => void
   setNotesOpen: (open: boolean) => void
 
+  /** How this session marks answers. Fixed by the server at start; the client
+   *  only reads it to decide whether to render the verdict. */
+  feedbackMode: FeedbackMode
+  /** Per-question server verdicts on an instant-feedback drill. Empty on a paper. */
+  verdicts: Record<string, { isCorrect: boolean; correctAnswer: string }>
+  setVerdict: (questionId: string, verdict: { isCorrect: boolean; correctAnswer: string }) => void
+
   // Timer
   setTimeRemaining: (seconds: number) => void
   /** Adopt the server's clock (downward only) — see the implementation. */
@@ -136,6 +144,8 @@ export const useSessionStore = create<SessionState>()(
       currentQuestionIndex: 0,
       timeRemaining: null,
       isTimerRunning: false,
+      feedbackMode: 'none',
+      verdicts: {},
       questionStates: {},
       eliminatorOn: false,
       timerHidden: false,
@@ -155,6 +165,9 @@ export const useSessionStore = create<SessionState>()(
           currentSectionIndex: savedState?.currentSectionIndex ?? 0,
           currentQuestionIndex: savedState?.currentQuestionIndex ?? 0,
           timeRemaining: savedState?.timeRemaining ?? null,
+          feedbackMode: savedState?.feedbackMode ?? 'none',
+          // Verdicts are server truth for this run; never carried over.
+          verdicts: {},
           questionStates: savedState?.questionStates ?? {},
         })
       },
@@ -168,6 +181,8 @@ export const useSessionStore = create<SessionState>()(
           currentQuestionIndex: 0,
           timeRemaining: null,
           isTimerRunning: false,
+          feedbackMode: 'none',
+          verdicts: {},
           questionStates: {},
           eliminatorOn: false,
           timerHidden: false,
@@ -338,6 +353,9 @@ export const useSessionStore = create<SessionState>()(
       // ─────────────────────────────────────
       // Timer
       // ─────────────────────────────────────
+
+      setVerdict: (questionId, verdict) =>
+        set((state) => ({ verdicts: { ...state.verdicts, [questionId]: verdict } })),
 
       setTimeRemaining: (seconds) => set({ timeRemaining: seconds }),
 

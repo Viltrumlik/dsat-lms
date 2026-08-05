@@ -117,6 +117,7 @@ export function useSession(sessionId: string): { state: SessionLoadState } {
             currentSectionIndex: sectionIdx,
             currentQuestionIndex: questionIdx,
             timeRemaining: detail.serverTimeRemaining ?? detail.timeRemaining ?? null,
+            feedbackMode: detail.feedbackMode,
             questionStates: buildQuestionStates(detail),
           }
         )
