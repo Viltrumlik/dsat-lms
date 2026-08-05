@@ -12,7 +12,9 @@ import * as React from 'react'
 import Link from 'next/link'
 import { FilePlus2 } from 'lucide-react'
 import { useT } from '@/lib/i18n/I18nProvider'
+import { cn } from '@/lib/utils/cn'
 import { Button } from '@/components/ui/button'
+import { VocabularyPanel } from '@/components/admin/vocabulary/VocabularyPanel'
 import { QuestionListPane } from './QuestionListPane'
 import { QuestionEditorPane } from './QuestionEditorPane'
 
@@ -57,19 +59,51 @@ export function QuestionsPanel({
 
   const showEditor = creating || selectedId !== null
 
+  // Two kinds of content are authored here. Vocabulary is its own section rather
+  // than its own page because it is the same job — writing the bank — and an
+  // author moves between the two in one sitting.
+  const [tab, setTab] = React.useState<'questions' | 'vocabulary'>('questions')
+
   return (
     <div className="flex h-[calc(100dvh-8rem)] min-h-[34rem] flex-col overflow-hidden rounded-xl border border-border bg-card">
-      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-2.5">
-        <div>
-          <h1 className="text-base font-bold">{t('admin.questions.title')}</h1>
-          <p className="text-xs text-muted-foreground">{t('admin.questions.subtitle')}</p>
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-2.5">
+        <div className="flex items-center gap-4">
+          <div>
+            <h1 className="text-base font-bold">{t('admin.contentStudio')}</h1>
+            <p className="text-xs text-muted-foreground">
+              {tab === 'questions' ? t('admin.questions.subtitle') : t('admin.vocab.subtitle')}
+            </p>
+          </div>
+          <div className="flex gap-1 rounded-lg bg-muted p-1" role="tablist">
+            {(['questions', 'vocabulary'] as const).map((key) => (
+              <button
+                key={key}
+                type="button"
+                role="tab"
+                aria-selected={tab === key}
+                onClick={() => setTab(key)}
+                className={cn(
+                  'rounded-md px-3 py-1 text-sm font-medium transition-colors',
+                  tab === key
+                    ? 'bg-card text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                {t(`admin.contentTabs.${key}`)}
+              </button>
+            ))}
+          </div>
         </div>
-        <Link href="/admin/questions/taxonomy" className="text-sm text-primary hover:underline">
-          {t('admin.taxonomy.manageLink')}
-        </Link>
+        {tab === 'questions' && (
+          <Link href="/admin/questions/taxonomy" className="text-sm text-primary hover:underline">
+            {t('admin.taxonomy.manageLink')}
+          </Link>
+        )}
       </div>
 
-      <div className="flex min-h-0 flex-1">
+      {tab === 'vocabulary' && <VocabularyPanel />}
+
+      <div className={cn('flex min-h-0 flex-1', tab !== 'questions' && 'hidden')}>
         <QuestionListPane
           selectedId={selectedId}
           onSelect={select}

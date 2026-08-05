@@ -1867,3 +1867,104 @@ export interface ClassPost {
   comments: ClassComment[]
   createdAt: string
 }
+
+// ─────────────────────────────────────
+// Vocabulary
+// ─────────────────────────────────────
+
+export type VocabStatus = 'new' | 'learning' | 'mastered'
+export type PartOfSpeech = 'noun' | 'verb' | 'adjective' | 'adverb' | 'other'
+
+export interface VocabWord {
+  id: string
+  word: string
+  definition: string
+  partOfSpeech: PartOfSpeech
+  example: string
+  synonyms: string[]
+  sortOrder: number
+  /** Where this student stands on this card. Always their own. */
+  myStatus: VocabStatus
+}
+
+export interface VocabSet {
+  id: string
+  title: string
+  sortOrder: number
+  wordCount: number
+  masteredCount: number
+  /** Cleared at least once — not merely opened. */
+  isCompleted: boolean
+}
+
+export interface VocabSetDetail extends VocabSet {
+  sectionTitle: string
+  words: VocabWord[]
+}
+
+export interface VocabSection {
+  id: string
+  title: string
+  slug: string
+  description: string
+  sortOrder: number
+  setCount: number
+  wordCount: number
+  masteredCount: number
+}
+
+export interface VocabSectionDetail extends VocabSection {
+  sets: VocabSet[]
+}
+
+export interface VocabStudySession {
+  id: string
+  vocabSet: string
+  correctCount: number
+  totalCount: number
+  accuracyPct: number
+  completedAt: string | null
+  createdAt: string
+}
+
+/** One flashcard verdict, as the runner reports it. */
+export interface VocabResult {
+  word: string
+  correct: boolean
+}
+
+// Admin authoring
+
+export type VocabSectionStatus = 'draft' | 'published'
+
+export interface AdminVocabSection {
+  id: string
+  title: string
+  slug: string
+  description: string
+  status: VocabSectionStatus
+  sortOrder: number
+  setCount: number
+  wordCount: number
+  createdAt: string
+}
+
+export interface AdminVocabSet {
+  id: string
+  section: string
+  title: string
+  sortOrder: number
+  wordCount: number
+  createdAt: string
+}
+
+export interface AdminVocabWord {
+  id: string
+  vocabSet: string
+  word: string
+  definition: string
+  partOfSpeech: PartOfSpeech
+  example: string
+  synonyms: string[]
+  sortOrder: number
+}

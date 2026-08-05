@@ -7,7 +7,7 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { BarChart3, BookOpen, ClipboardList, GraduationCap, LayoutDashboard, LifeBuoy, Presentation, Settings, Shield, Users } from 'lucide-react'
+import { BarChart3, BookA, BookOpen, ClipboardList, GraduationCap, LayoutDashboard, LifeBuoy, Presentation, Settings, Shield, Users } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
 import { useT } from '@/lib/i18n/I18nProvider'
 import { useAuth } from '@/lib/auth/AuthProvider'
@@ -42,6 +42,7 @@ export const STUDENT_NAV: NavItem[] = [
   ...TEST_NAV,
   { labelKey: 'nav.classes', href: '/classes', icon: Users, academyOnly: true, section: 'study' },
   { labelKey: 'nav.questionBank', href: '/questions', icon: BookOpen, section: 'study' },
+  { labelKey: 'nav.vocabulary', href: '/vocabulary', icon: BookA, section: 'study' },
   { labelKey: 'nav.homework', href: '/homework', icon: ClipboardList, academyOnly: true, section: 'study' },
   { labelKey: 'nav.courses', href: '/courses', icon: GraduationCap, academyOnly: true, section: 'study' },
   { labelKey: 'nav.support', href: '/support', icon: LifeBuoy, academyOnly: true, section: 'study' },
