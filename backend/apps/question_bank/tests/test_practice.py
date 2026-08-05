@@ -125,6 +125,69 @@ class TestDoneFilter:
         assert str(bank["easy_a"].id) in ids
 
 
+def sit(user, question, chosen="A", *, is_correct=None, status="completed", feedback_mode="none"):
+    """Answer a question in a session, and hand the session back."""
+    exam = ExamTemplateFactory(access_level="public")
+    section = ExamSectionFactory(exam=exam, section_number=1)
+    ExamQuestionFactory(section=section, question=question, position=1)
+    session = ExamSession.objects.create(
+        user=user, exam=exam, status=status, feedback_mode=feedback_mode
+    )
+    session.responses.create(question=question, chosen_answer=chosen, is_correct=is_correct)
+    return session
+
+
+class TestMyAttempt:
+    """What you put last time, kept — except where telling you would be the key."""
+
+    def _row(self, client, question):
+        rows = client.get(QUESTIONS).data["data"]
+        return next(q for q in rows if q["id"] == str(question.id))
+
+    def test_carries_the_answer_and_the_verdict(self, auth_client, bank):
+        sit(auth_client.user, bank["easy_a"], "C", is_correct=False)
+        attempt = self._row(auth_client, bank["easy_a"])["my_attempt"]
+        assert attempt["chosen_answer"] == "C"
+        assert attempt["is_correct"] is False
+        assert attempt["answered_at"] is not None
+
+    def test_null_when_never_attempted(self, auth_client, bank):
+        assert self._row(auth_client, bank["easy_a"])["my_attempt"] is None
+
+    def test_blank_is_not_an_attempt(self, auth_client, bank):
+        sit(auth_client.user, bank["easy_a"], "")
+        assert self._row(auth_client, bank["easy_a"])["my_attempt"] is None
+
+    def test_another_students_attempt_is_not_mine(self, auth_client, bank):
+        sit(UserFactory(role="student"), bank["easy_a"], "B", is_correct=True)
+        assert self._row(auth_client, bank["easy_a"])["my_attempt"] is None
+
+    def test_the_newest_attempt_wins(self, auth_client, bank):
+        sit(auth_client.user, bank["easy_a"], "B", is_correct=False)
+        sit(auth_client.user, bank["easy_a"], "A", is_correct=True)
+        attempt = self._row(auth_client, bank["easy_a"])["my_attempt"]
+        assert attempt["chosen_answer"] == "A"
+        assert attempt["is_correct"] is True
+
+    def test_detail_carries_it_too(self, auth_client, bank):
+        sit(auth_client.user, bank["easy_a"], "D", is_correct=False)
+        r = auth_client.get(f"{QUESTIONS}{bank['easy_a'].id}/")
+        assert r.data["data"]["my_attempt"]["chosen_answer"] == "D"
+
+    def test_withheld_while_the_question_sits_in_a_live_paper(self, auth_client, bank):
+        # Answered once, correctly, in a finished sitting...
+        sit(auth_client.user, bank["easy_a"], "A", is_correct=True)
+        # ...and now it turns up in a paper they are in the middle of. Repeating
+        # "you got this right with A" would hand them the key.
+        sit(auth_client.user, bank["easy_a"], "", status="in_progress")
+        assert self._row(auth_client, bank["easy_a"])["my_attempt"] is None
+
+    def test_a_drill_does_not_withhold_it(self, auth_client, bank):
+        sit(auth_client.user, bank["easy_a"], "A", is_correct=True)
+        sit(auth_client.user, bank["easy_a"], "", status="in_progress", feedback_mode="instant")
+        assert self._row(auth_client, bank["easy_a"])["my_attempt"] is not None
+
+
 class TestPracticeOptions:
     def test_counts_roll_up_to_the_domain(self, auth_client, bank):
         r = auth_client.get(f"{PRACTICE}options/")

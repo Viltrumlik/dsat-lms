@@ -36,7 +36,35 @@ class ChoiceSerializer(serializers.ModelSerializer):
         fields = ["label", "text", "image_url", "sort_order"]
 
 
-class QuestionListSerializer(serializers.ModelSerializer):
+class MyAttemptMixin(serializers.Serializer):
+    """The requester's last answer to this question, or null if they never gave one.
+
+    Reads the `my_*` annotations from practice.attempt_annotations, so a view
+    that forgets to annotate simply reports "never attempted" rather than
+    querying per row.
+
+    WITHHELD for a question the requester currently has open in a paper: telling
+    a student mid-exam that their last attempt at this very question was correct,
+    and what they put, is the answer key by another name. Same lock as the study
+    view (question_bank.views._locked_question_ids), because it is the same leak.
+    """
+
+    my_attempt = serializers.SerializerMethodField()
+
+    def get_my_attempt(self, obj):
+        if obj.id in self.context.get("locked_ids", ()):
+            return None
+        chosen = getattr(obj, "my_chosen_answer", None)
+        if not chosen:
+            return None
+        return {
+            "chosen_answer": chosen,
+            "is_correct": getattr(obj, "my_is_correct", None),
+            "answered_at": getattr(obj, "my_answered_at", None),
+        }
+
+
+class QuestionListSerializer(MyAttemptMixin, serializers.ModelSerializer):
     """Lightweight shape for list/scan — no choices, answer, or explanation."""
 
     category = CategoryMiniSerializer(read_only=True)
@@ -53,11 +81,12 @@ class QuestionListSerializer(serializers.ModelSerializer):
             "has_math",
             "stem",
             "tags",
+            "my_attempt",
             "created_at",
         ]
 
 
-class QuestionDetailSerializer(serializers.ModelSerializer):
+class QuestionDetailSerializer(MyAttemptMixin, serializers.ModelSerializer):
     """Full study shape — includes choices, correct answer, and explanation."""
 
     category = CategoryMiniSerializer(read_only=True)
@@ -84,5 +113,6 @@ class QuestionDetailSerializer(serializers.ModelSerializer):
             "source",
             "source_ref",
             "tags",
+            "my_attempt",
             "created_at",
         ]

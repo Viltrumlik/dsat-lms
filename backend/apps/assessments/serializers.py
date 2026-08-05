@@ -67,7 +67,19 @@ class SessionSectionSerializer(serializers.ModelSerializer):
 class ExamMiniSerializer(serializers.ModelSerializer):
     class Meta:
         model = ExamTemplate
-        fields = ["id", "title", "type", "module", "time_limit", "is_adaptive", "allow_pause"]
+        fields = [
+            "id",
+            "title",
+            "type",
+            "module",
+            "time_limit",
+            "is_adaptive",
+            "allow_pause",
+            # A question-bank drill is a real template, but it is not a paper:
+            # the result surface reports it as practice rather than pretending a
+            # 19-question set scales to 1600.
+            "is_generated",
+        ]
 
 
 class ExamListSerializer(serializers.ModelSerializer):

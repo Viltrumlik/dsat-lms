@@ -24,6 +24,7 @@ from common.responses import success_response
 
 from .filters import QuestionFilter
 from .models import Question, QuestionCategory, QuestionTag
+from .practice import attempt_annotations
 from .serializers import (
     CategorySerializer,
     QuestionDetailSerializer,
@@ -72,7 +73,15 @@ class QuestionListView(ListAPIView):
             Question.objects.filter(status=Question.Status.PUBLISHED)
             .select_related("category")
             .prefetch_related("tags")
+            .annotate(**attempt_annotations(self.request.user))
         )
+
+    def get_serializer_context(self):
+        # One set for the whole page — the lock is per user, not per question.
+        return {
+            **super().get_serializer_context(),
+            "locked_ids": _locked_question_ids(self.request.user),
+        }
 
 
 class QuestionDetailView(RetrieveAPIView):
@@ -83,6 +92,7 @@ class QuestionDetailView(RetrieveAPIView):
             Question.objects.filter(status=Question.Status.PUBLISHED)
             .select_related("category")
             .prefetch_related("tags", "choices")
+            .annotate(**attempt_annotations(self.request.user))
         )
 
     def retrieve(self, request, *args, **kwargs):

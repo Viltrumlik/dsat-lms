@@ -24,6 +24,8 @@ from __future__ import annotations
 
 import random
 
+from django.db.models import OuterRef
+
 from .models import Question, QuestionCategory
 from .taxonomy import band_of, difficulties_for
 
@@ -47,6 +49,22 @@ def descendant_ids(category_ids) -> set:
     return ids | set(children)
 
 
+def _real_answers(user):
+    """Every answer this user has actually given, across every session of theirs.
+
+    A blank `chosen_answer` is a row the runner created when the student landed
+    on a question and left it — it is not an answer, and must not make the
+    question count as done.
+    """
+    from apps.assessments.models import ExamResponse
+
+    return (
+        ExamResponse.objects.filter(session__user=user)
+        .exclude(chosen_answer="")
+        .exclude(chosen_answer__isnull=True)
+    )
+
+
 def answered_question_ids(user, *, correct_only=False) -> set:
     """Questions this user has already answered, across every session of theirs.
 
@@ -54,12 +72,32 @@ def answered_question_ids(user, *, correct_only=False) -> set:
     question right in a mock has done it, and shouldn't meet it again the moment
     they open a drill.
     """
-    from apps.assessments.models import ExamResponse
-
-    responses = ExamResponse.objects.filter(session__user=user).exclude(chosen_answer="")
+    responses = _real_answers(user)
     if correct_only:
         responses = responses.filter(is_correct=True)
     return set(responses.values_list("question_id", flat=True))
+
+
+def attempt_annotations(user):
+    """Subqueries carrying this user's MOST RECENT answer to each question.
+
+    Doing a question should leave a mark you can come back to: the bank shows
+    what you put and whether it held up, months after the sitting it came from.
+    Annotated rather than looked up per row — the bank is browsed a page at a
+    time and a per-question query would be an N+1 the moment it is.
+
+    `answered_at` is auto_now, so re-answering the same question in a later
+    sitting moves that row to the front: the newest attempt wins, which is the
+    one a student means by "what did I put".
+    """
+    from django.db.models import Subquery
+
+    latest = _real_answers(user).filter(question=OuterRef("pk")).order_by("-answered_at")
+    return {
+        "my_chosen_answer": Subquery(latest.values("chosen_answer")[:1]),
+        "my_is_correct": Subquery(latest.values("is_correct")[:1]),
+        "my_answered_at": Subquery(latest.values("answered_at")[:1]),
+    }
 
 
 def available_questions(user, *, category_ids=None, bands=None, exclude_done=False):
