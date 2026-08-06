@@ -206,6 +206,13 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.analytics.tasks.generate_platform_ops_daily",
         "schedule": crontab(hour=1, minute=15),  # daily, CELERY_TIMEZONE
     },
+    # A percentile written at submit ranks a student against the cohort as it was
+    # at that second. The cohort keeps growing, so every old score card drifts
+    # until this re-ranks it.
+    "refresh-exam-percentiles": {
+        "task": "apps.analytics.tasks.refresh_exam_percentiles",
+        "schedule": crontab(hour=2, minute=30),  # daily, CELERY_TIMEZONE
+    },
     "materialize-class-sessions": {
         "task": "apps.academy.tasks.materialize_class_sessions",
         "schedule": crontab(hour=2, minute=0),  # daily, CELERY_TIMEZONE
