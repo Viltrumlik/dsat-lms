@@ -168,6 +168,27 @@ class TestClasswork:
         )
         assert [(r["kind"], r["title"]) for r in rows] == [("material", "Chapter 4 notes")]
 
+    def test_the_query_count_does_not_grow_with_the_homework(self, setup):
+        """Drawing the tab must not cost a query per row.
+
+        It did: an `attachments.count()` inside the loop made a class with a
+        term's worth of work forty-odd queries. The number below is a ceiling,
+        not a target — what matters is that TEN homeworks cost the same as one.
+        """
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+
+        for n in range(10):
+            self._homework(setup, title=f"HW {n}")
+        client = client_for(setup["teacher"])
+        url = f"{CLASSES}{setup['klass'].id}/classwork/"
+
+        client.get(url)  # warm any auth/permission lookups
+        with CaptureQueriesContext(connection) as ctx:
+            response = client.get(url)
+        assert len(response.data["data"]) == 10
+        assert len(ctx) <= 8, f"{len(ctx)} queries for 10 homeworks — an N+1 is back"
+
     def test_another_classs_homework_does_not_leak(self, setup):
         other = ClassFactory(teacher=setup["teacher"])
         Homework.objects.create(

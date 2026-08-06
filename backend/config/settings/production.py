@@ -12,6 +12,22 @@ from .base import *  # noqa: F403
 DEBUG = False
 
 # ─────────────────────────────────────
+# Static files — WhiteNoise
+# ─────────────────────────────────────
+# Django's admin and DRF's browsable API need static files served. WhiteNoise
+# does it from the app process with far-future caching and a content hash in the
+# name, which removes a whole class of "why is the admin unstyled" from the
+# deploy. Must sit immediately after SecurityMiddleware.
+MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")  # noqa: F405
+
+# `manage.py check --deploy` is the deploy gate, so it has to be READABLE.
+# drf-spectacular emits ~230 warnings because most views are plain APIViews with
+# no serializer_class — an OpenAPI-docs gap tracked separately, not a deployment
+# risk. Left unsilenced it buries the security checks that ARE the point, and a
+# gate nobody reads is not a gate.
+SILENCED_SYSTEM_CHECKS = ["drf_spectacular.W001", "drf_spectacular.W002"]
+
+# ─────────────────────────────────────
 # Security
 # ─────────────────────────────────────
 SECURE_SSL_REDIRECT = env.bool("DJANGO_SECURE_SSL_REDIRECT", default=True)
@@ -50,7 +66,12 @@ if STORAGE_BACKEND == "r2":
     AWS_S3_FILE_OVERWRITE = False
     STORAGES = {
         "default": {"BACKEND": "storages.backends.s3.S3Storage"},
-        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+        "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+    }
+else:
+    STORAGES = {
+        "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+        "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
     }
 
 # ─────────────────────────────────────

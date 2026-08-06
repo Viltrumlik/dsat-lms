@@ -7,9 +7,15 @@ from django.contrib import admin
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
+from common.health import healthz, readyz
+
 API_V1 = "api/v1/"
 
 urlpatterns = [
+    # Probes. Unversioned and outside the API: a load balancer should not have
+    # to know what version the app is on to ask whether it is up.
+    path("healthz", healthz, name="healthz"),
+    path("readyz", readyz, name="readyz"),
     # Admin
     path("admin/", admin.site.urls),
     # API Docs

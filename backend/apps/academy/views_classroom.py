@@ -134,8 +134,22 @@ class ClassworkView(APIView):
         # Lazy: academy sits below homework in the dependency order.
         from apps.homework.models import Homework, HomeworkSubmission
 
-        homeworks = Homework.objects.filter(assigned_class=klass, deleted_at__isnull=True).order_by(
-            "-due_at"
+        homeworks = (
+            Homework.objects.filter(assigned_class=klass, deleted_at__isnull=True)
+            .select_related("exam")
+            # Annotated, not counted per row: `hw.attachments.count()` inside the
+            # loop was one query per homework, which on a class with a term's
+            # worth of work meant forty-odd queries to draw one tab.
+            # distinct=True because a second Count over another relation below
+            # would otherwise multiply through the join.
+            .annotate(
+                attachment_count=Count(
+                    "attachments",
+                    filter=Q(attachments__deleted_at__isnull=True),
+                    distinct=True,
+                )
+            )
+            .order_by("-due_at")
         )
         if not staff:
             homeworks = homeworks.filter(is_published=True)
@@ -177,7 +191,7 @@ class ClassworkView(APIView):
                     "due_at": hw.due_at,
                     "is_published": hw.is_published,
                     "exam_title": hw.exam.title if hw.exam_id else None,
-                    "attachment_count": hw.attachments.filter(deleted_at__isnull=True).count(),
+                    "attachment_count": hw.attachment_count,
                     "my_status": mine[0].status if mine else None,
                     "submitted_count": getattr(hw, "submitted_count", None),
                     "created_at": hw.created_at,
@@ -188,7 +202,7 @@ class ClassworkView(APIView):
             ClassPost.objects.filter(
                 klass=klass, kind=ClassPost.Kind.MATERIAL, deleted_at__isnull=True
             )
-            .prefetch_related("attachments")
+            .annotate(attachment_count=Count("attachments"))
             .order_by("-created_at")
         )
         for post in materials:
@@ -201,7 +215,7 @@ class ClassworkView(APIView):
                     "due_at": None,
                     "is_published": True,
                     "exam_title": None,
-                    "attachment_count": post.attachments.count(),
+                    "attachment_count": post.attachment_count,
                     "my_status": None,
                     "submitted_count": None,
                     "created_at": post.created_at,
