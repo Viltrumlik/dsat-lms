@@ -169,9 +169,39 @@ services:
       - ./deploy/security_headers.conf:/etc/nginx/security_headers.conf:ro
       - certbot_conf:/etc/letsencrypt:ro
       - certbot_www:/var/www/certbot:ro
+    # Reload every 6h so a renewed certificate is actually served. Nginx reads
+    # the certificate once, at start: renewal writes a new file and the running
+    # process keeps presenting the old one until told otherwise — so the site
+    # expires on schedule while a perfectly good certificate sits on disk.
+    command: >
+      sh -c 'while :; do sleep 6h; nginx -s reload; done &
+             nginx -g "daemon off;"'
     depends_on:
       - web
       - frontend
+
+  # Renewal on a loop, for the same reason the backup runs on one: a certificate
+  # renewed by a command in a runbook is a certificate that expires. These last
+  # 90 days, so the failure arrives one quarter after the deploy, long after
+  # anyone is watching — and it takes the whole site down at once, because a
+  # browser will not proceed past an expired certificate.
+  #
+  # Twice a day: certbot only acts inside the last 30 days, so every other run
+  # is a no-op, and checking often means a transient failure has 60 more chances
+  # before anything is at risk. Nginx picks the new file up on its own reload
+  # loop above — certbot cannot signal a process in another container.
+  certbot:
+    image: certbot/certbot:latest
+    restart: unless-stopped
+    volumes:
+      - certbot_conf:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+    entrypoint: ["/bin/sh", "-c"]
+    command: >
+      'while true; do
+         certbot renew --webroot -w /var/www/certbot --quiet || echo "[certbot] renew failed" >&2;
+         sleep 12h;
+       done'
 
   # A backup that only exists as a command in a runbook is a backup nobody has
   # taken. Same Postgres image so the client version always matches the server's
