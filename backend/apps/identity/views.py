@@ -60,6 +60,23 @@ def _quota_response(exc):
     return response
 
 
+def _code_error_response(exc):
+    """A refused verification code, in a shape the client can translate.
+
+    The slug goes out as the error code (`CODE_EXPIRED`, `CODE_INVALID`, …) and
+    the attempts remaining as a number. Before this the only machine-readable
+    part was `VALIDATION_ERROR` and the detail lived in an English sentence, so
+    an Uzbek interface had nothing to render but English — or would have had to
+    parse the count back out of the prose.
+    """
+    return ValidationError(
+        exc.message,
+        field="code",
+        code=f"CODE_{exc.reason.upper()}",
+        extra=({"attempts_left": exc.attempts_left} if exc.attempts_left is not None else None),
+    ).to_response()
+
+
 def _issue_tokens(user):
     """Return (access_str, refresh_str) for a user, recording an outstanding token."""
     refresh = RefreshToken.for_user(user)
@@ -229,7 +246,7 @@ class VerifyEmailConfirmView(APIView):
                 user, VerificationCode.Purpose.VERIFY_EMAIL, serializer.validated_data["code"]
             )
         except mail_codes.CodeError as exc:
-            return ValidationError(exc.message, field="code").to_response()
+            return _code_error_response(exc)
 
         user.is_email_verified = True
         user.save(update_fields=["is_email_verified"])
@@ -292,7 +309,7 @@ class PasswordResetConfirmView(APIView):
                 user, VerificationCode.Purpose.PASSWORD_RESET, serializer.validated_data["code"]
             )
         except mail_codes.CodeError as exc:
-            return ValidationError(exc.message, field="code").to_response()
+            return _code_error_response(exc)
 
         # Strength is checked only once the code is accepted: `validate_password`
         # compares the password against the user's own name and email, so it

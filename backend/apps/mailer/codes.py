@@ -32,12 +32,19 @@ _KIND = {
 
 
 class CodeError(Exception):
-    """A code that will not do. `reason` is a stable machine-readable slug."""
+    """A code that will not do.
 
-    def __init__(self, reason: str, message: str):
+    `reason` is a stable machine-readable slug and `attempts_left` a number, so
+    the client can render this in the language it is actually running in. The
+    message is English written on the server: a fallback, not the thing to show
+    by preference.
+    """
+
+    def __init__(self, reason: str, message: str, attempts_left: int | None = None):
         super().__init__(message)
         self.reason = reason
         self.message = message
+        self.attempts_left = attempts_left
 
 
 def ttl_minutes() -> int:
@@ -142,7 +149,9 @@ def verify(user, purpose: str, code: str) -> VerificationCode:
             raise CodeError(
                 "too_many_attempts", "Too many incorrect attempts. Please request a new code."
             )
-        raise CodeError("invalid", f"That code is not correct. {left} attempts left.")
+        raise CodeError(
+            "invalid", f"That code is not correct. {left} attempts left.", attempts_left=left
+        )
 
     row.consumed_at = timezone.now()
     row.save(update_fields=["consumed_at", "updated_at"])

@@ -2365,5 +2365,14 @@ export const uz: Dictionary = {
     appBody: 'Kutilmagan xatolik yuz berdi. Qayta urinib koʻring yoki boshqaruv paneliga qayting.',
     notFoundTitle: 'Sahifa topilmadi',
     notFoundBody: 'Siz qidirayotgan sahifa mavjud emas yoki koʻchirilgan boʻlishi mumkin.',
+    api: {
+      codeNoCode: 'Bu kod yaroqsiz. Yangi kod soʻrang.',
+      codeExpired: 'Kod muddati tugagan. Yangi kod soʻrang.',
+      codeTooManyAttempts: 'Juda koʻp notoʻgʻri urinish. Yangi kod soʻrang.',
+      codeInvalid: 'Kod notoʻgʻri. {count} ta urinish qoldi.',
+      codeInvalidPlain: 'Kod notoʻgʻri.',
+      emailRateLimited: 'Yangi xat soʻrashdan oldin biroz kuting.',
+      network: 'Serverga ulanib boʻlmadi. Aloqani tekshirib, qayta urinib koʻring.',
+    },
   },
 }

@@ -9,6 +9,7 @@ import { AlertTriangle } from 'lucide-react'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils/cn'
 import { useT } from '@/lib/i18n/I18nProvider'
+import { reportClientError } from '@/lib/monitoring/report'
 
 export default function AppError({
   error,
@@ -20,8 +21,7 @@ export default function AppError({
   const t = useT()
 
   React.useEffect(() => {
-    // Surface in the console during dev; a Sentry capture can hook in here later.
-    console.error(error)
+    reportClientError(error, { boundary: 'app' })
   }, [error])
 
   return (

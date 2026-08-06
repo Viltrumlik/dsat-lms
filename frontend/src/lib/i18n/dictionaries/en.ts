@@ -2358,6 +2358,17 @@ export const en = {
     appBody: 'An unexpected error occurred. You can try again, or head back to your dashboard.',
     notFoundTitle: 'Page not found',
     notFoundBody: "The page you're looking for doesn't exist or may have moved.",
+    // Refusals the server sends as a code so they can be said in the reader's
+    // own language — see lib/api/localizeError.ts.
+    api: {
+      codeNoCode: 'That code is not valid. Please request a new one.',
+      codeExpired: 'That code has expired. Please request a new one.',
+      codeTooManyAttempts: 'Too many incorrect attempts. Please request a new code.',
+      codeInvalid: 'That code is not correct. {count} attempts left.',
+      codeInvalidPlain: 'That code is not correct.',
+      emailRateLimited: 'Please wait a moment before asking for another email.',
+      network: 'Cannot reach the server. Check your connection and try again.',
+    },
   },
 }
 

@@ -10,6 +10,7 @@ Covers: the distinction that matters — liveness never touches a dependency, so
 from unittest import mock
 
 import pytest
+from django.db.backends.base.base import BaseDatabaseWrapper
 from django.urls import reverse
 
 pytestmark = pytest.mark.django_db
@@ -28,6 +29,23 @@ class TestLiveness:
         with mock.patch("common.health.connection") as conn:
             conn.cursor.side_effect = OSError("database is gone")
             assert api_client.get("/healthz").status_code == 200
+
+    def test_it_stays_up_when_the_connection_itself_cannot_be_opened(self, api_client):
+        """The test above patches the view's own `connection`, which is not where
+        this actually broke: `ATOMIC_REQUESTS = True` is global, so Django opened
+        a transaction — and a connection — BEFORE the view ran. A probe that
+        touches nothing still 500d on a database outage, and the orchestrator
+        would have restarted every web container over it.
+
+        So this one kills the connection at the layer the request wrapper uses.
+        It fails without `@transaction.non_atomic_requests`; verified by removing
+        it."""
+        with mock.patch.object(
+            BaseDatabaseWrapper, "ensure_connection", side_effect=OSError("database is gone")
+        ):
+            response = api_client.get("/healthz")
+        assert response.status_code == 200
+        assert response.json() == {"status": "ok"}
 
     def test_it_says_nothing_useful_to_a_stranger(self, api_client):
         # An unauthenticated endpoint that reports versions or hostnames is

@@ -291,6 +291,10 @@ REST_FRAMEWORK = {
         "auth_verify_email": env("THROTTLE_AUTH_VERIFY_EMAIL", default="10/min"),
         # Admin resetting another user's password is auth-sensitive; cap it too.
         "admin_set_password": env("THROTTLE_ADMIN_SET_PASSWORD", default="10/min"),
+        # Browser crash reports (common/client_errors.py). Unauthenticated and
+        # therefore open to the internet; the cap is what keeps the worst case at
+        # "noise in a log" rather than "a log-shipping bill".
+        "client_errors": env("THROTTLE_CLIENT_ERRORS", default="10/min"),
     },
 }
 

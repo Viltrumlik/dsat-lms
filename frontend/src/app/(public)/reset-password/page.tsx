@@ -16,6 +16,7 @@ import { authAPI } from '@/lib/api/auth'
 import { useToast } from '@/components/ui/toast'
 import { useT } from '@/lib/i18n/I18nProvider'
 import { parseApiError } from '@/lib/api/errors'
+import { localizeApiError } from '@/lib/api/localizeError'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -56,7 +57,7 @@ function ResetPasswordInner() {
       if (parsed.fields.newPassword) {
         setPasswordError(parsed.fields.newPassword)
       } else {
-        setCodeError(parsed.message)
+        setCodeError(localizeApiError(t, parsed))
         setCode('')
       }
     } finally {

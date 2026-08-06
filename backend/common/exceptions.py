@@ -134,24 +134,33 @@ class DSATAPIException(Exception):
     message = "An error occurred."
     field = None
 
-    def __init__(self, message=None, field=None):
+    def __init__(self, message=None, field=None, code=None, extra=None):
+        """`code` and `extra` exist so a client can localize the refusal.
+
+        `message` is written in English on the server, and the interface may be
+        in Uzbek — so a message is something to fall back to, not something to
+        show by preference. A specific `code` gives the client a stable key to
+        translate against, and `extra` carries the numbers a translated sentence
+        needs (how many attempts are left, how long to wait) rather than leaving
+        them embedded in an English string the client would have to parse back
+        out.
+        """
         if message:
             self.message = message
         if field:
             self.field = field
+        if code:
+            self.code = code
+        self.extra = extra or {}
 
     def to_response(self):
-        return Response(
-            {
-                "success": False,
-                "error": {
-                    "code": self.code,
-                    "message": self.message,
-                    "field": self.field,
-                },
-            },
-            status=self.status_code,
-        )
+        error = {
+            "code": self.code,
+            "message": self.message,
+            "field": self.field,
+        }
+        error.update(getattr(self, "extra", {}))
+        return Response({"success": False, "error": error}, status=self.status_code)
 
 
 class NotFoundError(DSATAPIException):

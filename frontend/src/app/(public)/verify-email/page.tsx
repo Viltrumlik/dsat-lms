@@ -15,6 +15,7 @@ import { useAuth } from '@/lib/auth/AuthProvider'
 import { useToast } from '@/components/ui/toast'
 import { useT } from '@/lib/i18n/I18nProvider'
 import { parseApiError } from '@/lib/api/errors'
+import { localizeApiError } from '@/lib/api/localizeError'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -56,7 +57,7 @@ export default function VerifyEmailPage() {
         // Verifying from a device that isn't logged in is fine.
       }
     } catch (err) {
-      setError(parseApiError(err).message)
+      setError(localizeApiError(t, parseApiError(err)))
       setCode('')
     } finally {
       setSubmitting(false)
@@ -80,7 +81,7 @@ export default function VerifyEmailPage() {
       toast({
         variant: 'error',
         title: t('auth.verify.resendFailed'),
-        description: parsed.message,
+        description: localizeApiError(t, parsed),
       })
     } finally {
       setResending(false)
