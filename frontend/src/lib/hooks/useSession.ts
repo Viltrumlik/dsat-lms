@@ -15,6 +15,7 @@ import { sessionAPI } from '@/lib/api/sessions'
 import { resetAnswerQueue } from '@/lib/hooks/useAnswerSync'
 import { useSessionStore } from '@/lib/stores/sessionStore'
 import type {
+  Annotation,
   EngineSection,
   QuestionClientState,
   SessionDetail,
@@ -23,12 +24,16 @@ import type {
 
 export type SessionLoadState = 'loading' | 'ready' | 'error' | 'redirecting'
 
-function toEngineSections(detail: SessionDetail): EngineSection[] {
+/** Flatten the payload. Only the open module carries questions; the rest are
+ *  shape, and are filled in when the student reaches them. */
+export function toEngineSections(detail: SessionDetail): EngineSection[] {
   return detail.sections.map((section) => ({
     sectionNumber: section.sectionNumber,
     title: section.title,
     module: section.module,
     timeLimit: section.timeLimit,
+    breakAfterMinutes: section.breakAfterMinutes,
+    questionCount: section.questionCount,
     questions: section.questions
       .slice()
       .sort((a, b) => a.position - b.position)
@@ -43,6 +48,7 @@ function normalizeState(partial: Partial<QuestionClientState> | undefined): Ques
     note: partial?.note ?? '',
     crossedOut: (partial?.crossedOut as ChoiceLabel[] | undefined) ?? [],
     highlight: partial?.highlight ?? null,
+    annotations: (partial?.annotations as Annotation[] | undefined) ?? [],
   }
 }
 
@@ -107,6 +113,8 @@ export function useSession(sessionId: string): { state: SessionLoadState } {
             examId: detail.exam.id,
             examTitle: detail.exam.title,
             examType: detail.exam.type,
+            allowPause: detail.exam.allowPause,
+            requiresFullscreen: detail.exam.requiresFullscreen,
             assignmentId: null,
           },
           sections,
@@ -114,6 +122,7 @@ export function useSession(sessionId: string): { state: SessionLoadState } {
             currentSectionIndex: sectionIdx,
             currentQuestionIndex: questionIdx,
             timeRemaining: detail.serverTimeRemaining ?? detail.timeRemaining ?? null,
+            feedbackMode: detail.feedbackMode,
             questionStates: buildQuestionStates(detail),
           }
         )

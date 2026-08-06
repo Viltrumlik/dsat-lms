@@ -4,6 +4,7 @@
 
 import * as React from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { MailCheck } from 'lucide-react'
@@ -18,7 +19,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 
 export default function ForgotPasswordPage() {
   const t = useT()
-  const [sent, setSent] = React.useState(false)
+  const router = useRouter()
   const {
     register,
     handleSubmit,
@@ -30,25 +31,12 @@ export default function ForgotPasswordPage() {
     try {
       await authAPI.requestPasswordReset(values.email)
     } finally {
-      setSent(true)
+      // Straight to the code screen, carrying the address so the student does
+      // not retype it. Always — the request endpoint deliberately answers the
+      // same whether or not an account exists, and branching here would undo
+      // that.
+      router.push(`/reset-password?email=${encodeURIComponent(values.email)}`)
     }
-  }
-
-  if (sent) {
-    return (
-      <Card>
-        <CardHeader className="items-center text-center">
-          <MailCheck className="h-12 w-12 text-primary" />
-          <CardTitle>{t('auth.forgot.sentTitle')}</CardTitle>
-          <CardDescription>{t('auth.forgot.sentBody')}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Link href="/login" className="block text-center text-sm text-primary hover:underline">
-            {t('auth.forgot.backToLogin')}
-          </Link>
-        </CardContent>
-      </Card>
-    )
   }
 
   return (

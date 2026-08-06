@@ -1,21 +1,31 @@
 // Domain: Question Bank
-// Description: Filter controls for the question browser — search, module,
-//   difficulty, answer type, and category.
+// Description: Filter controls for the question browser.
+//
+//   Difficulty is offered as easy / medium / hard rather than the stored 1–5:
+//   nobody browses in fives, and the three bands are the terms the SAT itself
+//   uses. The category select is grouped by domain, and picking a DOMAIN means
+//   everything under it (the server resolves that — questions are tagged with a
+//   skill, so a domain on its own would match nothing).
 'use client'
 
 import { Search, X } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
 import { Input } from '@/components/ui/input'
 import { useT } from '@/lib/i18n/I18nProvider'
-import { MODULE_LABEL_KEY, ANSWER_TYPE_LABEL_KEY, DIFFICULTY_LABEL_KEY } from './labels'
+import { MODULE_LABEL_KEY, ANSWER_TYPE_LABEL_KEY } from './labels'
 import type { AnswerType, QuestionCategory, QuestionModule } from '@/types'
+
+export type DifficultyBand = 'easy' | 'medium' | 'hard'
 
 export interface QuestionUIFilters {
   search: string
   module?: QuestionModule
-  difficulty?: number
+  /** easy / medium / hard; repeatable. */
+  bands: DifficultyBand[]
   answerType?: AnswerType
   category?: string
+  /** Answered by me, or not yet. */
+  status?: 'done' | 'todo'
 }
 
 interface QuestionFiltersProps {
@@ -65,6 +75,8 @@ function FilterGroup({ label, children }: { label: string; children: React.React
 
 const MODULES: QuestionModule[] = ['math', 'reading_writing']
 const ANSWER_TYPES: AnswerType[] = ['mcq', 'grid_in']
+const BANDS: DifficultyBand[] = ['easy', 'medium', 'hard']
+const STATUSES: Array<'todo' | 'done'> = ['todo', 'done']
 
 export function QuestionFilters({
   value,
@@ -82,6 +94,7 @@ export function QuestionFilters({
   const visibleCategories = value.module
     ? categories.filter((c) => c.module === value.module)
     : categories
+  const domains = visibleCategories.filter((c) => !c.parent)
 
   return (
     <div className="space-y-4 rounded-xl border border-border bg-card p-4">
@@ -106,9 +119,27 @@ export function QuestionFilters({
       </FilterGroup>
 
       <FilterGroup label={t('questionBank.filters.difficulty')}>
-        {[1, 2, 3, 4, 5].map((d) => (
-          <Chip key={d} active={value.difficulty === d} onClick={() => toggle('difficulty', d)}>
-            {t(DIFFICULTY_LABEL_KEY[d])}
+        {BANDS.map((band) => (
+          <Chip
+            key={band}
+            active={value.bands.includes(band)}
+            onClick={() =>
+              onChange({
+                bands: value.bands.includes(band)
+                  ? value.bands.filter((b) => b !== band)
+                  : [...value.bands, band],
+              })
+            }
+          >
+            {t(`bank.band.${band}`)}
+          </Chip>
+        ))}
+      </FilterGroup>
+
+      <FilterGroup label={t('questionBank.filters.progress')}>
+        {STATUSES.map((status) => (
+          <Chip key={status} active={value.status === status} onClick={() => toggle('status', status)}>
+            {t(`questionBank.filters.${status}`)}
           </Chip>
         ))}
       </FilterGroup>
@@ -130,10 +161,20 @@ export function QuestionFilters({
             className="h-9 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
             <option value="">{t('questionBank.filters.allTopics')}</option>
-            {visibleCategories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
+            {domains.map((domain) => (
+              <optgroup key={domain.id} label={domain.name}>
+                {/* The domain itself is selectable — it means "everything in it". */}
+                <option value={domain.id}>
+                  {t('questionBank.filters.allIn', { name: domain.name })}
+                </option>
+                {visibleCategories
+                  .filter((c) => c.parent === domain.id)
+                  .map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+              </optgroup>
             ))}
           </select>
         </FilterGroup>

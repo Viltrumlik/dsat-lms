@@ -17,7 +17,12 @@ class Notification(BaseModel):
         EXAM_SCHEDULED = "exam_scheduled", "Exam Scheduled"
         HOMEWORK_ASSIGNED = "homework_assigned", "Homework Assigned"
         HOMEWORK_DUE = "homework_due", "Homework Due"
+        # Homework 2.0 — marked, or handed back for another go
+        HOMEWORK_GRADED = "homework_graded", "Homework Graded"
+        HOMEWORK_RETURNED = "homework_returned", "Homework Returned"
         ANNOUNCEMENT = "announcement", "Announcement"
+        # Classroom stream — a notice went up on a class the student is in
+        CLASS_POST = "class_post", "Class Post"
         SYSTEM = "system", "System"
         # Support Center (Phase 4) — all values ≤30 chars (max_length stays 30)
         BOOKING_REQUESTED = "booking_requested", "Booking Requested"

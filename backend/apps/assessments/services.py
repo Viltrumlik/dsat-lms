@@ -3,8 +3,22 @@ DSAT LMS v2 — Assessment Services
 Domain: Assessments
 Description: Server-authoritative timer helpers + session grading.
 
-The server clock is the source of truth: time_remaining reported by the client is
-only accepted if it does not exceed what the server computes (cheat detection).
+TIMER CONTRACT — the client never gets a say. It reports nothing about time and
+it is told nothing it could profit from lying about; every clock below is derived
+from timestamps the server stamped itself (started_at, section_started_at,
+paused_at). The browser countdown is a display of the last server figure, not an
+input to it.
+
+Two independent clocks can apply to one session and BOTH bind:
+
+    exam clock     ExamTemplate.time_limit, running from session.started_at
+    section clock  ExamSection.time_limit, running from session.section_started_at
+
+`server_time_remaining` is the tighter of the two, which is what gates every
+write. They are exposed separately as well because they mean different things
+when one runs out: a spent SECTION clock means "move on to the next module",
+while a spent EXAM clock means "the paper is over". Collapsing them is what
+previously left a student bricked — unable to answer and unable to advance.
 """
 
 from decimal import Decimal
@@ -17,6 +31,11 @@ from .scoring import scaled_section_score
 
 # Allowance for network/render latency when validating client-reported time.
 TIME_GRACE_SECONDS = 5
+
+# Ceiling on the auto-saved client blob (flags, notes, highlights, annotations).
+# It is user-controlled text that goes straight into a JSONB column, so it needs
+# a bound; ~256 KB is far more than a full 98-question paper of annotations.
+MAX_CLIENT_SESSION_BYTES = 256 * 1024
 
 
 def answers_match(chosen, correct) -> bool:
@@ -39,35 +58,71 @@ def current_section(session):
     return session.exam.sections.filter(section_number=session.current_section).first()
 
 
-def server_time_remaining(session):
-    """Seconds left per the server clock, or None for an untimed exam/section.
+def _clock_now(session):
+    """The instant the clocks are read at.
 
-    Per-section: if the current section has its own time_limit, the clock runs from
-    section_started_at (falling back to started_at). Otherwise the whole-exam limit
-    applies. While paused, the clock is frozen at paused_at; resume shifts the start
-    timestamps forward by the paused duration so paused time never counts.
+    While paused the clock is frozen at paused_at; resume shifts the start
+    timestamps forward by the paused span so paused time never counts.
     """
-    section = current_section(session)
-    if section and section.time_limit:
-        limit_seconds = section.time_limit * 60
-        start = session.section_started_at or session.started_at
-    elif session.exam.time_limit:
-        limit_seconds = session.exam.time_limit * 60
-        start = session.started_at
-    else:
-        return None
+    if session.status == ExamSession.Status.PAUSED and session.paused_at:
+        return session.paused_at
+    return timezone.now()
 
-    now = (
-        session.paused_at
-        if session.status == ExamSession.Status.PAUSED and session.paused_at
-        else timezone.now()
-    )
-    return max(0, int(limit_seconds - (now - start).total_seconds()))
+
+def _remaining(session, limit_minutes, start):
+    if not limit_minutes or start is None:
+        return None
+    return max(0, int(limit_minutes * 60 - (_clock_now(session) - start).total_seconds()))
+
+
+def exam_time_remaining(session):
+    """Seconds left on the whole-exam clock, or None if the exam is untimed."""
+    return _remaining(session, session.exam.time_limit, session.started_at)
+
+
+def section_time_remaining(session, section=None):
+    """Seconds left on the current section's clock, or None if it is untimed.
+
+    Section 1 has no section_started_at of its own — the paper's start IS its
+    start — so it falls back to started_at.
+    """
+    if section is None:
+        section = current_section(session)
+    if section is None:
+        return None
+    return _remaining(session, section.time_limit, session.section_started_at or session.started_at)
+
+
+def server_time_remaining(session):
+    """The binding clock: the tighter of the section and whole-exam clocks.
+
+    None only when neither applies (a genuinely untimed paper).
+    """
+    clocks = [
+        c for c in (section_time_remaining(session), exam_time_remaining(session)) if c is not None
+    ]
+    return min(clocks) if clocks else None
 
 
 def is_expired(session) -> bool:
     remaining = server_time_remaining(session)
     return remaining is not None and remaining <= 0
+
+
+def exam_is_over(session) -> bool:
+    """Whether the WHOLE paper is finished on the clock (not just this section)."""
+    remaining = exam_time_remaining(session)
+    return remaining is not None and remaining <= 0
+
+
+def next_section_number(session):
+    """The section a forward advance would land on, or None if this is the last."""
+    return (
+        session.exam.sections.filter(section_number__gt=session.current_section)
+        .order_by("section_number")
+        .values_list("section_number", flat=True)
+        .first()
+    )
 
 
 def grade_session(session):

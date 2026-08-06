@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
+import { AnswerReview } from '@/components/results/AnswerReview'
 import { cn } from '@/lib/utils/cn'
 import type { CategoryBreakdown } from '@/types'
 
@@ -42,6 +43,30 @@ function ScoreHero({ total, math, rw }: { total: number | null; math: number | n
             </div>
           )}
         </div>
+      </div>
+    </Card>
+  )
+}
+
+/** A drill's hero. A set of 19 questions does not scale to 1600, and printing a
+ *  number that says it does is worse than printing nothing — so practice reports
+ *  what it actually measured: how many you got right. */
+function PracticeHero({ correct, total }: { correct: number; total: number }) {
+  const t = useT()
+  const accuracy = total > 0 ? (correct / total) * 100 : 0
+  return (
+    <Card className="overflow-hidden">
+      <div className="bg-gradient-to-br from-primary-600 to-primary-800 p-8 text-center text-white">
+        <p className="text-sm font-medium uppercase tracking-wide text-primary-100">
+          {t('results.practice.scoreLabel')}
+        </p>
+        <p className="mt-2 text-6xl font-bold tabular-nums">
+          {correct}
+          <span className="text-3xl text-primary-200">/{total}</span>
+        </p>
+        <p className="mt-1 text-sm text-primary-100">
+          {t('results.practice.pctCorrect', { pct: accuracy.toFixed(0) })}
+        </p>
       </div>
     </Card>
   )
@@ -124,16 +149,26 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
   const examTitle = sessionQuery.data?.exam.title ?? t('results.defaultExamTitle')
   const categories = Object.values(result.scoreBreakdown?.categories ?? {})
   const percentile = num(result.percentile)
+  // A question-bank drill. It runs in the same engine and lands on this same
+  // page — but it is scored as practice, and a percentile against people who
+  // sat a full paper would be meaningless.
+  const isPractice = sessionQuery.data?.exam.isGenerated ?? false
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div className="text-center">
         <CheckCircle2 className="mx-auto h-10 w-10 text-success" />
-        <h1 className="mt-2 text-2xl font-bold">{t('results.complete')}</h1>
+        <h1 className="mt-2 text-2xl font-bold">
+          {isPractice ? t('results.practice.complete') : t('results.complete')}
+        </h1>
         <p className="text-muted-foreground">{examTitle}</p>
       </div>
 
-      <ScoreHero total={result.totalScore} math={result.mathScore} rw={result.rwScore} />
+      {isPractice ? (
+        <PracticeHero correct={result.totalCorrect} total={result.totalQuestions} />
+      ) : (
+        <ScoreHero total={result.totalScore} math={result.mathScore} rw={result.rwScore} />
+      )}
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <Stat icon={Target} label={t('results.accuracy')} value={pct(result.accuracyPct, 0)} tone="text-primary" />
@@ -144,7 +179,7 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
         <Stat icon={Clock} label={t('results.time')} value={formatDuration(result.timeSpentSecs)} />
       </div>
 
-      {percentile !== null && (
+      {percentile !== null && !isPractice && (
         <Card>
           <CardContent className="p-4 text-center text-sm">
             {(() => {
@@ -169,7 +204,9 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
       {categories.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>{t('results.byCategory')}</CardTitle>
+            <CardTitle>
+              {isPractice ? t('results.practice.bySkill') : t('results.byCategory')}
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {categories.map((cat, i) => (
@@ -179,13 +216,28 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
         </Card>
       )}
 
+      <AnswerReview sessionId={params.id} />
+
       <div className="flex flex-col gap-3 pb-8 sm:flex-row sm:justify-center">
-        <Link href="/dashboard" className={cn(buttonVariants({ variant: 'outline' }))}>
-          {t('common.backToDashboard')}
-        </Link>
-        <Link href="/dashboard#tests" className={cn(buttonVariants())}>
-          {t('results.takeAnother')}
-        </Link>
+        {isPractice ? (
+          <>
+            <Link href="/dashboard" className={cn(buttonVariants({ variant: 'outline' }))}>
+              {t('common.backToDashboard')}
+            </Link>
+            <Link href="/questions" className={cn(buttonVariants())}>
+              {t('results.practice.practiseAgain')}
+            </Link>
+          </>
+        ) : (
+          <>
+            <Link href="/dashboard" className={cn(buttonVariants({ variant: 'outline' }))}>
+              {t('common.backToDashboard')}
+            </Link>
+            <Link href="/dashboard#tests" className={cn(buttonVariants())}>
+              {t('results.takeAnother')}
+            </Link>
+          </>
+        )}
       </div>
     </div>
   )

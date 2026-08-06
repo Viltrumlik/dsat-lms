@@ -40,12 +40,11 @@ class QuestionAdmin(admin.ModelAdmin):
         "difficulty",
         "status",
         "answer_type",
-        "version",
         "created_at",
     )
     list_filter = ("status", "module", "difficulty", "answer_type", "source", "has_math")
     search_fields = ("stem", "source_ref")
-    autocomplete_fields = ("category", "parent", "created_by", "reviewed_by")
+    autocomplete_fields = ("category", "created_by", "reviewed_by")
     filter_horizontal = ("tags",)
     readonly_fields = ("id", "published_at", "created_at", "updated_at")
     inlines = [QuestionChoiceInline]

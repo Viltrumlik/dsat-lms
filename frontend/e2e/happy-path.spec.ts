@@ -31,7 +31,7 @@ async function register(page: Page, email: string) {
 // Answers whatever question is on screen (MCQ or grid-in), advancing through
 // section breaks, until the Review screen appears. Bounded to avoid hanging.
 async function answerUntilReview(page: Page) {
-  const reviewHeading = page.getByRole('heading', { name: /Review your answers/i })
+  const reviewHeading = page.getByRole('heading', { name: /Check Your Work/i })
   const sectionComplete = page.getByText(/Section complete/i)
   const beginNext = page.getByRole('button', { name: /Begin next section/i })
   const gridIn = page.locator('#grid-in')
@@ -84,9 +84,11 @@ test('student can register, take the demo practice test, and see results', async
   await expect(page).toHaveURL(/\/session\//)
   await expect(page.getByText(/Question 1 of/)).toBeVisible()
 
-  // Sanity-check the test engine surface: timer, flag control, and KaTeX-capable
-  // question renderer are all present.
-  await expect(page.getByRole('button', { name: /Pause test/i })).toBeVisible()
+  // Sanity-check the Bluebook exam surface: the exam-type banner, the Directions
+  // control, and the mark-for-review + eliminator controls are all present.
+  await expect(page.getByText(/This is a practice test/i)).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Directions' })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Mark for Review/i })).toBeVisible()
 
   // Work through every question across both sections.
   await answerUntilReview(page)

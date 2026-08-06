@@ -12,3 +12,10 @@ class QuestionBankConfig(AppConfig):
     name = "apps.question_bank"
     label = "question_bank"
     verbose_name = "Question Bank"
+
+    def ready(self):
+        # The taxonomy cache invalidates itself off model signals — see cache.py
+        # for why that is a signal and not a call in each admin view.
+        from . import cache
+
+        cache.connect_invalidation()

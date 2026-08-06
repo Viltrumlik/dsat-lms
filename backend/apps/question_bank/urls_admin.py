@@ -13,10 +13,8 @@ from .views_admin import (
     AdminQuestionApproveView,
     AdminQuestionDetailView,
     AdminQuestionListCreateView,
-    AdminQuestionNewVersionView,
     AdminQuestionRejectView,
     AdminQuestionReviewsView,
-    AdminQuestionRevisionsView,
     AdminQuestionSubmitView,
     AdminTagDetailView,
     AdminTagListCreateView,
@@ -38,17 +36,7 @@ urlpatterns = [
     ),
     path("questions/<uuid:pk>/reject/", AdminQuestionRejectView.as_view(), name="question-reject"),
     path(
-        "questions/<uuid:pk>/new-version/",
-        AdminQuestionNewVersionView.as_view(),
-        name="question-new-version",
-    ),
-    path(
         "questions/<uuid:pk>/reviews/", AdminQuestionReviewsView.as_view(), name="question-reviews"
-    ),
-    path(
-        "questions/<uuid:pk>/revisions/",
-        AdminQuestionRevisionsView.as_view(),
-        name="question-revisions",
     ),
     # Categories
     path("categories/", AdminCategoryListCreateView.as_view(), name="category-list"),

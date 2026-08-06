@@ -79,7 +79,7 @@ test('homework notification deep-links and the linked test auto-submits the home
   await expect(page).toHaveURL(/\/session\//)
   await expect(page.getByText(/Question 1 of/)).toBeVisible()
 
-  const reviewHeading = page.getByRole('heading', { name: /Review your answers/i })
+  const reviewHeading = page.getByRole('heading', { name: /Check Your Work/i })
   const sectionComplete = page.getByText(/Section complete/i)
   const gridIn = page.locator('#grid-in')
   for (let i = 0; i < 40; i++) {

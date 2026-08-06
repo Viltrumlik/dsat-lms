@@ -80,7 +80,17 @@ export default function RegisterPage() {
         <CardDescription>{t('auth.register.subtitle')}</CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+        {/* method="post" matters even though onSubmit handles the real thing:
+            if the page ever fails to hydrate, a form with no method does a
+            native GET to the same URL and puts the password in the address bar,
+            the history and the referrer. A POST to a route that won't accept it
+            simply fails, which is the right outcome. */}
+        <form
+          method="post"
+          onSubmit={handleSubmit(onSubmit)}
+          className="space-y-4"
+          noValidate
+        >
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label htmlFor="firstName">{t('auth.register.firstName')}</Label>

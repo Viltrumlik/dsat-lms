@@ -1,20 +1,33 @@
 // Domain: Test Engine
-// Description: Between-section interstitial. Advances to the next section.
+// Description: Between-module interstitial. Two different screens, really: a
+//   plain "next module" hand-off, and — where the paper says so — a TIMED break.
+//
+// The countdown is a display that auto-advances, not a rule the server enforces.
+// It does not need to be: each module is timed separately from the moment the
+// advance lands server-side, so resting longer never buys module time. What the
+// break must not do is COST time, and it does not — a full mock deliberately has
+// no whole-paper clock, only per-module ones.
 'use client'
 
 import * as React from 'react'
 import { ArrowRight, CheckCircle2 } from 'lucide-react'
 import { useSessionStore } from '@/lib/stores/sessionStore'
 import { sessionAPI } from '@/lib/api/sessions'
+import { toEngineSections } from '@/lib/hooks/useSession'
 import { useT } from '@/lib/i18n/I18nProvider'
+import { parseApiError } from '@/lib/api/errors'
 import { Button } from '@/components/ui/button'
+import { useToast } from '@/components/ui/toast'
+import { sectionLabel } from './examLabels'
 
 export function BreakScreen() {
   const t = useT()
+  const { toast } = useToast()
   const sectionIndex = useSessionStore((s) => s.currentSectionIndex)
   const sections = useSessionStore((s) => s.sections)
   const questionStates = useSessionStore((s) => s.questionStates)
   const navigateTo = useSessionStore((s) => s.navigateTo)
+  const loadSections = useSessionStore((s) => s.loadSections)
   const setStatus = useSessionStore((s) => s.setStatus)
   const setTimeRemaining = useSessionStore((s) => s.setTimeRemaining)
 
@@ -22,6 +35,8 @@ export function BreakScreen() {
 
   const finished = sections[sectionIndex]
   const next = sections[sectionIndex + 1]
+  const breakMinutes = finished?.breakAfterMinutes ?? null
+  const [secondsLeft, setSecondsLeft] = React.useState(() => (breakMinutes ?? 0) * 60)
 
   const progress = React.useMemo(() => {
     if (!finished) return { answered: 0, total: 0 }
@@ -29,7 +44,7 @@ export function BreakScreen() {
       const a = questionStates[q.id]?.answer
       return a != null && a !== ''
     }).length
-    return { answered, total: finished.questions.length }
+    return { answered, total: finished.questionCount }
   }, [finished, questionStates])
 
   // Persist the section change BEFORE activating, then adopt the server's
@@ -37,7 +52,15 @@ export function BreakScreen() {
   // with per-section time_limit: the PATCH starts the new section's clock
   // (section_started_at) server-side, and we reset the display timer from the
   // server instead of carrying over the previous section's countdown.
-  const begin = async () => {
+  //
+  // This PATCH is the ONLY way a section advances — the server refuses backward
+  // moves and stamps the new module's clock here — so a refusal has to be
+  // honoured. If the server says no on a rule (the whole-exam clock has run
+  // out), walking into the next section locally would just leave the student in
+  // a module where every write is rejected; send them to submit instead. A bare
+  // network hiccup still falls through to local navigation, and the next
+  // autosave re-syncs.
+  const begin = React.useCallback(async () => {
     const nextIndex = sectionIndex + 1
     const meta = useSessionStore.getState().meta
     setStarting(true)
@@ -48,47 +71,96 @@ export function BreakScreen() {
           currentQuestion: 1,
           clientSessionData: { questions: useSessionStore.getState().questionStates },
         })
+        // The response carries the module being walked into — the server ships
+        // one at a time, so this IS the questions arriving.
+        loadSections(toEngineSections(detail))
         setTimeRemaining(detail.serverTimeRemaining ?? detail.timeRemaining ?? 0)
-      } catch {
-        // Network hiccup — fall back to local navigation; the next autosave
-        // re-syncs and the timer stays server-authoritative on reload.
+      } catch (err) {
+        const { code, message } = parseApiError(err)
+        if (code === 'EXAM_SESSION_ERROR') {
+          toast({ variant: 'error', title: t('testEngine.break.cannotContinue'), description: message })
+          setStarting(false)
+          setStatus('review')
+          return
+        }
       }
     }
     navigateTo(nextIndex, 0)
     setStatus('active')
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sectionIndex, navigateTo, loadSections, setStatus, setTimeRemaining, t, toast])
+
+  // Tick the rest down, and walk into the next module when it runs out — a
+  // break the student has to remember to end is a break that swallows the exam.
+  React.useEffect(() => {
+    if (breakMinutes === null || !next) return
+    if (secondsLeft <= 0) {
+      void begin()
+      return
+    }
+    const id = setTimeout(() => setSecondsLeft((n) => n - 1), 1000)
+    return () => clearTimeout(id)
+  }, [breakMinutes, next, secondsLeft, begin])
+
+  const clock = `${Math.floor(Math.max(0, secondsLeft) / 60)}:${String(Math.max(0, secondsLeft) % 60).padStart(2, '0')}`
 
   return (
-    <div className="flex flex-1 items-center justify-center p-6">
-      <div className="w-full max-w-md rounded-xl border border-border bg-card p-8 text-center shadow-sm">
-        <CheckCircle2 className="mx-auto h-12 w-12 text-success" />
-        <h2 className="mt-4 text-xl font-bold">{t('testEngine.break.heading')}</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
+    <div className="flex flex-1 items-center justify-center bg-white p-6">
+      <div className="w-full max-w-xl text-center">
+        <CheckCircle2 className="mx-auto h-14 w-14 text-bb-blue" />
+        <h2 className="mt-5 text-[28px] font-bold text-bb-ink">
+          {breakMinutes !== null && next
+            ? t('testEngine.break.restHeading')
+            : t('testEngine.break.heading')}
+        </h2>
+        {breakMinutes !== null && next && (
+          <>
+            <p className="mt-6 font-mono text-[64px] font-bold leading-none tabular-nums text-bb-ink">
+              {clock}
+            </p>
+            <p className="mt-1 text-[15px] text-neutral-700">
+              {t('testEngine.break.restBody', { minutes: breakMinutes })}
+            </p>
+          </>
+        )}
+        <p className="mt-2 font-exam text-[19px] text-bb-ink">
           {t('testEngine.break.summary', {
             answered: progress.answered,
             total: progress.total,
-            section: finished?.title || t('testEngine.section', { number: finished?.sectionNumber ?? '' }),
+            section: sectionLabel(sections, sectionIndex, t),
           })}
         </p>
         {next ? (
           <>
-            <div className="mt-6 rounded-lg bg-muted p-4 text-left">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+            <div className="mx-auto mt-8 max-w-sm rounded-lg border border-bb-choice bg-bb-strip px-5 py-4 text-left">
+              <p className="text-xs font-semibold uppercase tracking-wide text-neutral-600">
                 {t('testEngine.break.upNext')}
               </p>
-              <p className="font-semibold">
-                {next.title || t('testEngine.section', { number: next.sectionNumber })}
+              <p className="mt-0.5 text-[19px] font-bold text-bb-ink">
+                {sectionLabel(sections, sectionIndex + 1, t)}
               </p>
-              <p className="text-sm text-muted-foreground">
-                {t('testEngine.questionsCount', { count: next.questions.length })}
+              <p className="text-[15px] text-neutral-700">
+                {/* questionCount, not questions.length — the module has not
+                    been handed over yet, and its array is empty until it is. */}
+                {t('testEngine.questionsCount', { count: next.questionCount })}
               </p>
             </div>
-            <Button className="mt-6 w-full" onClick={begin} loading={starting}>
-              {t('testEngine.break.beginNext')} <ArrowRight className="h-4 w-4" />
+            <Button
+              className="mt-8 rounded-full bg-bb-blue px-10 py-3 text-[17px] font-bold text-white hover:bg-bb-blueDark"
+              onClick={begin}
+              loading={starting}
+            >
+              {breakMinutes !== null
+                ? t('testEngine.break.resumeEarly')
+                : t('testEngine.break.beginNext')}{' '}
+              <ArrowRight className="h-4 w-4" />
             </Button>
           </>
         ) : (
-          <Button className="mt-6 w-full" onClick={() => setStatus('review')}>
+          <Button
+            className="mt-8 rounded-full bg-bb-blue px-10 py-3 text-[17px] font-bold text-white hover:bg-bb-blueDark"
+            onClick={() => setStatus('review')}
+          >
             {t('testEngine.break.reviewAnswers')} <ArrowRight className="h-4 w-4" />
           </Button>
         )}

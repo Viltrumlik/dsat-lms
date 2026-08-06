@@ -21,6 +21,10 @@ environ.Env.read_env(BASE_DIR.parent / ".env")
 # ─────────────────────────────────────
 # Security
 # ─────────────────────────────────────
+# Product identity. One place, so a rebrand is one edit — emails, the OpenAPI
+# title and the Django admin header all read it.
+PRODUCT_NAME = env("PRODUCT_NAME", default="SATFergana")
+
 SECRET_KEY = env("DJANGO_SECRET_KEY")
 DEBUG = env("DJANGO_DEBUG")
 ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["localhost"])
@@ -63,6 +67,8 @@ LOCAL_APPS = [
     "apps.courses",
     "apps.crm",
     "apps.automation",
+    "apps.vocabulary",
+    "apps.mailer",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -104,7 +110,14 @@ AUTH_PASSWORD_VALIDATORS = [
 # ─────────────────────────────────────
 DATABASES = {"default": env.db("DATABASE_URL")}
 DATABASES["default"]["ATOMIC_REQUESTS"] = True
-DATABASES["default"]["CONN_MAX_AGE"] = 60
+# Persistent connections: reconnecting per request is a measurable cost against
+# Postgres. The ceiling is not comfort — every gunicorn worker holds one, so
+# workers × replicas must stay under max_connections (see deploy/README.md).
+DATABASES["default"]["CONN_MAX_AGE"] = env.int("DB_CONN_MAX_AGE", default=60)
+# Without this, the first request after a database restart or a failover gets
+# handed a dead socket from the pool and dies — one free 500 per worker, every
+# time. Django pings the connection instead.
+DATABASES["default"]["CONN_HEALTH_CHECKS"] = True
 
 # ─────────────────────────────────────
 # Cache (Redis)
@@ -135,12 +148,16 @@ CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 CELERY_TASK_ROUTES = {
     "apps.analytics.tasks.*": {"queue": "analytics"},
     "apps.notifications.tasks.*": {"queue": "notifications"},
-    "apps.identity.tasks.*": {"queue": "email"},
+    "apps.mailer.tasks.*": {"queue": "email"},
 }
 
 # django_celery_beat's DatabaseScheduler installs these entries into the DB on
 # beat startup, so the schedule ships with the code (still editable in admin).
 CELERY_BEAT_SCHEDULE = {
+    "purge-expired-verification-codes": {
+        "task": "apps.mailer.tasks.purge_expired_codes",
+        "schedule": crontab(hour=3, minute=20),
+    },
     "send-homework-due-reminders": {
         "task": "apps.notifications.tasks.send_homework_due_reminders",
         "schedule": crontab(hour=8, minute=0),  # daily, CELERY_TIMEZONE
@@ -148,6 +165,18 @@ CELERY_BEAT_SCHEDULE = {
     "abandon-stale-sessions": {
         "task": "apps.assessments.tasks.abandon_stale_sessions",
         "schedule": crontab(hour=3, minute=30),  # daily, CELERY_TIMEZONE
+    },
+    # Answers are POSTed as they are chosen; this is the net under a write that
+    # failed, sweeping the auto-save blob into ExamResponse so nothing a student
+    # actually answered can score as omitted. Runs often because a live session
+    # is the only thing it can help.
+    "reconcile-session-answers": {
+        "task": "apps.assessments.tasks.reconcile_session_answers",
+        "schedule": crontab(minute="*/10"),
+    },
+    "cleanup-generated-exams": {
+        "task": "apps.assessments.tasks.cleanup_generated_exams",
+        "schedule": crontab(hour=3, minute=45),  # daily, after the stale sweep
     },
     "purge-soft-deleted-attachments": {
         "task": "apps.files.tasks.purge_soft_deleted_attachments",
@@ -177,6 +206,13 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.analytics.tasks.generate_platform_ops_daily",
         "schedule": crontab(hour=1, minute=15),  # daily, CELERY_TIMEZONE
     },
+    # A percentile written at submit ranks a student against the cohort as it was
+    # at that second. The cohort keeps growing, so every old score card drifts
+    # until this re-ranks it.
+    "refresh-exam-percentiles": {
+        "task": "apps.analytics.tasks.refresh_exam_percentiles",
+        "schedule": crontab(hour=2, minute=30),  # daily, CELERY_TIMEZONE
+    },
     "materialize-class-sessions": {
         "task": "apps.academy.tasks.materialize_class_sessions",
         "schedule": crontab(hour=2, minute=0),  # daily, CELERY_TIMEZONE
@@ -194,6 +230,31 @@ CELERY_BEAT_SCHEDULE = {
 # ─────────────────────────────────────
 # DRF
 # ─────────────────────────────────────
+# ─────────────────────────────────────
+# Email quotas (apps.mailer)
+# ─────────────────────────────────────
+# Counted off the OUTBOX, not off HTTP requests: a per-IP throttle does not stop
+# one address being mailed from a dozen IPs, and does not see a Celery task or a
+# management command sending with no request at all.
+#
+#   COOLDOWN  the impatient resend — one email, not six.
+#   RECIPIENT one address being farmed for codes all afternoon.
+#   PER_DAY   the runaway: a bug must not burn the month's allowance overnight.
+#
+# Defaults suit a small academy on a modest plan; raise them with the plan.
+MAIL_COOLDOWN_SECONDS = env.int("MAIL_COOLDOWN_SECONDS", default=60)
+MAIL_MAX_PER_RECIPIENT_PER_DAY = env.int("MAIL_MAX_PER_RECIPIENT_PER_DAY", default=10)
+# Codes are counted separately from broadcast mail: a class that got ten
+# announcements this morning must still be able to reset a password this
+# afternoon.
+MAIL_MAX_CODES_PER_RECIPIENT_PER_DAY = env.int("MAIL_MAX_CODES_PER_RECIPIENT_PER_DAY", default=5)
+MAIL_MAX_PER_DAY = env.int("MAIL_MAX_PER_DAY", default=2000)
+# Bulk mail stops this many sends before the global cap, so the end of the day's
+# allowance is still there for someone locked out of their account.
+MAIL_RESERVE_FOR_CODES = env.int("MAIL_RESERVE_FOR_CODES", default=200)
+# How long a six-digit code stays usable.
+MAIL_CODE_TTL_MINUTES = env.int("MAIL_CODE_TTL_MINUTES", default=15)
+
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework_simplejwt.authentication.JWTAuthentication",
@@ -230,6 +291,10 @@ REST_FRAMEWORK = {
         "auth_verify_email": env("THROTTLE_AUTH_VERIFY_EMAIL", default="10/min"),
         # Admin resetting another user's password is auth-sensitive; cap it too.
         "admin_set_password": env("THROTTLE_ADMIN_SET_PASSWORD", default="10/min"),
+        # Browser crash reports (common/client_errors.py). Unauthenticated and
+        # therefore open to the internet; the cap is what keeps the worst case at
+        # "noise in a log" rather than "a log-shipping bill".
+        "client_errors": env("THROTTLE_CLIENT_ERRORS", default="10/min"),
     },
 }
 
@@ -296,7 +361,7 @@ CORS_ALLOW_CREDENTIALS = True
 # Spectacular (OpenAPI)
 # ─────────────────────────────────────
 SPECTACULAR_SETTINGS = {
-    "TITLE": "DSAT LMS v2 API",
+    "TITLE": f"{PRODUCT_NAME} API",
     "DESCRIPTION": "Digital SAT Learning Management System API",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,

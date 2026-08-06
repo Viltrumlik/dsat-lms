@@ -6,11 +6,11 @@ Covers: register, login, me, refresh (rotation/blacklist), logout, email
 """
 
 import pytest
-from django.contrib.auth.tokens import default_token_generator
 
 from apps.identity.models import User
 from apps.identity.tests.factories import DEFAULT_PASSWORD, UserFactory
-from apps.identity.tokens import email_verification_token, encode_uid
+from apps.mailer import codes as mail_codes
+from apps.mailer.models import VerificationCode
 
 pytestmark = pytest.mark.django_db
 
@@ -139,24 +139,38 @@ class TestLogout:
 
 
 class TestEmailVerification:
-    def test_confirm_marks_verified_and_token_is_single_use(self, api_client):
+    def test_confirm_marks_verified_and_the_code_is_single_use(self, api_client):
         user = UserFactory(email="verify@dsat.local", is_email_verified=False)
-        body = {"uid": encode_uid(user), "token": email_verification_token.make_token(user)}
+        _, code = mail_codes.issue(user, VerificationCode.Purpose.VERIFY_EMAIL)
+        body = {"email": user.email, "code": code}
 
         r = api_client.post(VERIFY_CONFIRM, body, format="json")
         assert r.status_code == 200
         user.refresh_from_db()
         assert user.is_email_verified is True
 
-        # Token self-invalidates once verified.
-        assert api_client.post(VERIFY_CONFIRM, body, format="json").status_code == 400
+        # Already verified — a replay is a no-op, not a second verification.
+        again = api_client.post(VERIFY_CONFIRM, body, format="json")
+        assert again.status_code == 200
+        assert "already" in again.data["data"]["detail"].lower()
 
-    def test_bad_token_rejected(self, api_client):
-        user = UserFactory()
+    def test_bad_code_rejected(self, api_client):
+        user = UserFactory(is_email_verified=False)
+        mail_codes.issue(user, VerificationCode.Purpose.VERIFY_EMAIL)
+        r = api_client.post(VERIFY_CONFIRM, {"email": user.email, "code": "000000"}, format="json")
+        assert r.status_code == 400
+        user.refresh_from_db()
+        assert user.is_email_verified is False
+
+    def test_an_unknown_address_never_says_there_is_no_account(self, api_client):
         r = api_client.post(
-            VERIFY_CONFIRM, {"uid": encode_uid(user), "token": "bad"}, format="json"
+            VERIFY_CONFIRM, {"email": "nobody@dsat.local", "code": "000000"}, format="json"
         )
         assert r.status_code == 400
+        message = r.data["error"]["message"].lower()
+        assert "not valid" in message
+        for leak in ("no account", "not found", "does not exist", "unknown"):
+            assert leak not in message
 
 
 class TestPasswordReset:
@@ -167,13 +181,10 @@ class TestPasswordReset:
         assert r1.status_code == r2.status_code == 200
         assert r1.data == r2.data  # identical body either way
 
-    def test_confirm_sets_password_and_invalidates_token(self, api_client):
+    def test_confirm_sets_password_and_the_code_is_single_use(self, api_client):
         user = UserFactory(email="reset@dsat.local")
-        body = {
-            "uid": encode_uid(user),
-            "token": default_token_generator.make_token(user),
-            "new_password": "BrandNewPass456!",
-        }
+        _, code = mail_codes.issue(user, VerificationCode.Purpose.PASSWORD_RESET)
+        body = {"email": user.email, "code": code, "new_password": "BrandNewPass456!"}
         assert api_client.post(RESET_CONFIRM, body, format="json").status_code == 200
 
         # New password works...
@@ -185,7 +196,7 @@ class TestPasswordReset:
             ).status_code
             == 200
         )
-        # ...and the reset token is now dead (password changed).
+        # ...and the code is spent.
         assert api_client.post(RESET_CONFIRM, body, format="json").status_code == 400
 
 

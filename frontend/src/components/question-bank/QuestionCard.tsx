@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useT } from '@/lib/i18n/I18nProvider'
 import { MarkdownMath } from '@/components/test-engine/MarkdownMath'
+import { AttemptBadge } from './AttemptBadge'
 import { DifficultyDots } from './DifficultyDots'
 import { MODULE_LABEL_KEY, ANSWER_TYPE_LABEL_KEY, moduleBadgeVariant } from './labels'
 import type { QuestionListItem } from '@/types'
@@ -22,7 +23,10 @@ export function QuestionCard({ q }: { q: QuestionListItem }) {
       <Card className="h-full transition-colors group-hover:border-primary/50">
         <CardContent className="flex h-full flex-col gap-3 p-5">
           <div className="flex items-center justify-between gap-2">
-            <Badge variant={moduleBadgeVariant(q.module)}>{t(MODULE_LABEL_KEY[q.module])}</Badge>
+            <span className="flex flex-wrap items-center gap-1.5">
+              <Badge variant={moduleBadgeVariant(q.module)}>{t(MODULE_LABEL_KEY[q.module])}</Badge>
+              {q.myAttempt && <AttemptBadge attempt={q.myAttempt} />}
+            </span>
             <DifficultyDots level={q.difficulty} />
           </div>
 

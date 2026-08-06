@@ -26,7 +26,7 @@ async function register(page: Page, email: string) {
 
 // Answer whatever is on screen until the Review screen, advancing section breaks.
 async function answerUntilReview(page: Page) {
-  const reviewHeading = page.getByRole('heading', { name: /Review your answers/i })
+  const reviewHeading = page.getByRole('heading', { name: /Check Your Work/i })
   const sectionComplete = page.getByText(/Section complete/i)
   const gridIn = page.locator('#grid-in')
   for (let i = 0; i < 40; i++) {

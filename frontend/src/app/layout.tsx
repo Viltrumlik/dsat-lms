@@ -13,10 +13,10 @@ import { DEFAULT_LOCALE, LOCALE_COOKIE, isLocale } from '@/lib/i18n/config'
 
 export const metadata: Metadata = {
   title: {
-    default: 'DSAT LMS',
-    template: '%s · DSAT LMS',
+    default: 'SATFergana',
+    template: '%s · SATFergana',
   },
-  description: 'Digital SAT Learning Management System',
+  description: 'SATFergana — Digital SAT preparation for the Fergana academy.',
 }
 
 export const viewport: Viewport = {

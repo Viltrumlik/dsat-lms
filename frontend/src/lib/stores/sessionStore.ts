@@ -9,7 +9,14 @@
 
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { SessionQuestion, EngineSection, QuestionClientState, ExamType } from '@/types'
+import type {
+  SessionQuestion,
+  EngineSection,
+  QuestionClientState,
+  ExamType,
+  FeedbackMode,
+  Annotation,
+} from '@/types'
 
 // ─────────────────────────────────────
 // Types
@@ -22,6 +29,11 @@ interface SessionMeta {
   examId: string
   examTitle: string
   examType: ExamType
+  /** Whether the clock may be stopped. The server refuses pause on invigilated
+   *  papers, so the engine must not offer it there either. */
+  allowPause: boolean
+  /** Sat in full screen — the runner gates the paper behind a Begin screen. */
+  requiresFullscreen: boolean
   assignmentId: string | null
 }
 
@@ -43,12 +55,34 @@ interface SessionState {
   questionStates: Record<string, QuestionClientState>
 
   // ─────────────────────────────────────
+  // Bluebook exam-surface preferences (session-scoped, persisted locally)
+  // ─────────────────────────────────────
+  /** "ABC" answer-eliminator mode — shows the cross-out column. */
+  eliminatorOn: boolean
+  /** Timer collapsed via the "Hide" pill. */
+  timerHidden: boolean
+  /** Split-pane divider position, as a fraction of the body width. */
+  splitRatio: number
+  /** Highlights & Notes rail open. */
+  notesOpen: boolean
+  /** The Desmos calculator window. */
+  calculatorOpen: boolean
+  /** Which calculator it is showing. Both stay alive behind the tabs, so a
+   *  graph you drew is still there when you come back from the scientific. */
+  calculatorTab: 'graphing' | 'scientific'
+
+  // ─────────────────────────────────────
   // Actions
   // ─────────────────────────────────────
 
   // Initialize
   initSession: (meta: SessionMeta, sections: EngineSection[], savedState?: Partial<SessionState>) => void
   resetSession: () => void
+
+  /** Fill in a module the server has just handed over.
+   *  The paper arrives one module at a time, so the section the student is
+   *  walking into has to be merged in before they walk. */
+  loadSections: (sections: EngineSection[]) => void
 
   // Navigation
   navigateTo: (sectionIndex: number, questionIndex: number) => void
@@ -64,8 +98,30 @@ interface SessionState {
   setNote: (questionId: string, note: string) => void
   setHighlight: (questionId: string, highlight: QuestionClientState['highlight']) => void
 
+  // Annotations (Highlights & Notes)
+  addAnnotation: (questionId: string, annotation: Annotation) => void
+  updateAnnotation: (questionId: string, id: string, patch: Partial<Annotation>) => void
+  removeAnnotation: (questionId: string, id: string) => void
+
+  // Exam-surface preferences
+  toggleEliminator: () => void
+  toggleTimerHidden: () => void
+  setSplitRatio: (ratio: number) => void
+  setNotesOpen: (open: boolean) => void
+  setCalculatorOpen: (open: boolean) => void
+  setCalculatorTab: (tab: 'graphing' | 'scientific') => void
+
+  /** How this session marks answers. Fixed by the server at start; the client
+   *  only reads it to decide whether to render the verdict. */
+  feedbackMode: FeedbackMode
+  /** Per-question server verdicts on an instant-feedback drill. Empty on a paper. */
+  verdicts: Record<string, { isCorrect: boolean; correctAnswer: string }>
+  setVerdict: (questionId: string, verdict: { isCorrect: boolean; correctAnswer: string }) => void
+
   // Timer
   setTimeRemaining: (seconds: number) => void
+  /** Adopt the server's clock (downward only) — see the implementation. */
+  syncServerTime: (seconds: number | null) => void
   tickTimer: () => void
   pauseTimer: () => void
   resumeTimer: () => void
@@ -84,6 +140,7 @@ const defaultQuestionState = (): QuestionClientState => ({
   note: '',
   crossedOut: [],
   highlight: null,
+  annotations: [],
 })
 
 // ─────────────────────────────────────
@@ -101,7 +158,15 @@ export const useSessionStore = create<SessionState>()(
       currentQuestionIndex: 0,
       timeRemaining: null,
       isTimerRunning: false,
+      feedbackMode: 'none',
+      verdicts: {},
       questionStates: {},
+      eliminatorOn: false,
+      timerHidden: false,
+      splitRatio: 0.5,
+      notesOpen: false,
+      calculatorOpen: false,
+      calculatorTab: 'graphing',
 
       // ─────────────────────────────────────
       // Initialize
@@ -116,6 +181,9 @@ export const useSessionStore = create<SessionState>()(
           currentSectionIndex: savedState?.currentSectionIndex ?? 0,
           currentQuestionIndex: savedState?.currentQuestionIndex ?? 0,
           timeRemaining: savedState?.timeRemaining ?? null,
+          feedbackMode: savedState?.feedbackMode ?? 'none',
+          // Verdicts are server truth for this run; never carried over.
+          verdicts: {},
           questionStates: savedState?.questionStates ?? {},
         })
       },
@@ -129,13 +197,35 @@ export const useSessionStore = create<SessionState>()(
           currentQuestionIndex: 0,
           timeRemaining: null,
           isTimerRunning: false,
+          feedbackMode: 'none',
+          verdicts: {},
           questionStates: {},
+          eliminatorOn: false,
+          timerHidden: false,
+          splitRatio: 0.5,
+          notesOpen: false,
+          calculatorOpen: false,
+          calculatorTab: 'graphing',
         })
       },
 
       // ─────────────────────────────────────
       // Navigation
       // ─────────────────────────────────────
+
+      loadSections: (incoming) => {
+        // Keep whatever we already hold: an earlier module comes back EMPTY
+        // once it is closed, and dropping its questions would break the
+        // answered-count and the store's own view of the paper.
+        const held = get().sections
+        set({
+          sections: incoming.map((section, index) => {
+            const before = held[index]
+            if (section.questions.length > 0 || !before) return section
+            return { ...section, questions: before.questions }
+          }),
+        })
+      },
 
       navigateTo: (sectionIndex, questionIndex) => {
         set({ currentSectionIndex: sectionIndex, currentQuestionIndex: questionIndex })
@@ -236,10 +326,89 @@ export const useSessionStore = create<SessionState>()(
       },
 
       // ─────────────────────────────────────
+      // Annotations (Highlights & Notes)
+      // ─────────────────────────────────────
+
+      addAnnotation: (questionId, annotation) => {
+        const { questionStates } = get()
+        const current = questionStates[questionId] ?? defaultQuestionState()
+        set({
+          questionStates: {
+            ...questionStates,
+            [questionId]: {
+              ...current,
+              annotations: [...(current.annotations ?? []), annotation],
+            },
+          },
+        })
+      },
+
+      updateAnnotation: (questionId, id, patch) => {
+        const { questionStates } = get()
+        const current = questionStates[questionId] ?? defaultQuestionState()
+        set({
+          questionStates: {
+            ...questionStates,
+            [questionId]: {
+              ...current,
+              annotations: (current.annotations ?? []).map((a) =>
+                a.id === id ? { ...a, ...patch } : a
+              ),
+            },
+          },
+        })
+      },
+
+      removeAnnotation: (questionId, id) => {
+        const { questionStates } = get()
+        const current = questionStates[questionId] ?? defaultQuestionState()
+        set({
+          questionStates: {
+            ...questionStates,
+            [questionId]: {
+              ...current,
+              annotations: (current.annotations ?? []).filter((a) => a.id !== id),
+            },
+          },
+        })
+      },
+
+      // ─────────────────────────────────────
+      // Exam-surface preferences
+      // ─────────────────────────────────────
+
+      toggleEliminator: () => set({ eliminatorOn: !get().eliminatorOn }),
+      toggleTimerHidden: () => set({ timerHidden: !get().timerHidden }),
+      setSplitRatio: (ratio) => set({ splitRatio: Math.min(0.8, Math.max(0.2, ratio)) }),
+      setNotesOpen: (open) => set({ notesOpen: open }),
+      setCalculatorOpen: (open) => set({ calculatorOpen: open }),
+      setCalculatorTab: (tab) => set({ calculatorTab: tab }),
+
+      // ─────────────────────────────────────
       // Timer
       // ─────────────────────────────────────
 
+      setVerdict: (questionId, verdict) =>
+        set((state) => ({ verdicts: { ...state.verdicts, [questionId]: verdict } })),
+
       setTimeRemaining: (seconds) => set({ timeRemaining: seconds }),
+
+      /**
+       * Re-seat the countdown on the server's figure.
+       *
+       * The local countdown is a setInterval, and browsers throttle those hard
+       * in a hidden tab — so a student who tabs away comes back with a clock
+       * that ran slow and shows them time they no longer have. Every server
+       * reply carries the real number; this adopts it. Only ever DOWNWARD, so a
+       * late or reordered response can't hand time back.
+       */
+      syncServerTime: (seconds) => {
+        if (seconds === null) return
+        const { timeRemaining } = get()
+        if (timeRemaining === null || seconds < timeRemaining) {
+          set({ timeRemaining: Math.max(0, seconds) })
+        }
+      },
 
       tickTimer: () => {
         const { timeRemaining, isTimerRunning } = get()
@@ -270,6 +439,12 @@ export const useSessionStore = create<SessionState>()(
         currentQuestionIndex: state.currentQuestionIndex,
         timeRemaining: state.timeRemaining,
         questionStates: state.questionStates,
+        eliminatorOn: state.eliminatorOn,
+        timerHidden: state.timerHidden,
+        splitRatio: state.splitRatio,
+        notesOpen: state.notesOpen,
+        calculatorOpen: state.calculatorOpen,
+        calculatorTab: state.calculatorTab,
         // sections server'dan re-fetch qilamiz (versioning uchun)
       }),
     }
@@ -289,6 +464,16 @@ export const selectCurrentQuestion = (state: SessionState): SessionQuestion | nu
 export const selectCurrentQuestionState = (state: SessionState, questionId: string): QuestionClientState => {
   return state.questionStates[questionId] ?? defaultQuestionState()
 }
+
+/** Annotations for the current question, always an array. */
+export const selectCurrentAnnotations = (state: SessionState): Annotation[] => {
+  const question = selectCurrentQuestion(state)
+  if (!question) return EMPTY_ANNOTATIONS
+  return state.questionStates[question.id]?.annotations ?? EMPTY_ANNOTATIONS
+}
+
+// Stable identity — a fresh [] on every read would loop useSyncExternalStore.
+const EMPTY_ANNOTATIONS: Annotation[] = []
 
 export const selectSectionProgress = (state: SessionState, sectionIndex: number) => {
   const section = state.sections[sectionIndex]

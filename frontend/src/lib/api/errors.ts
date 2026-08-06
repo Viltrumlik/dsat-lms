@@ -14,7 +14,16 @@ export interface ParsedApiError {
   message: string
   /** Field-level validation errors, keyed by camelCase field name. */
   fields: Record<string, string>
+  /**
+   * Extra keys the server put alongside `code` — currently `attemptsLeft` on a
+   * refused verification code. They exist so a translated sentence can be built
+   * client-side instead of parsing numbers back out of an English one.
+   */
+  extra: Record<string, unknown>
 }
+
+/** Reserved envelope keys; anything else in `error` is caller-supplied detail. */
+const ENVELOPE_KEYS = new Set(['code', 'message', 'field', 'fields'])
 
 function isApiErrorBody(body: unknown): body is APIError {
   return (
@@ -31,6 +40,7 @@ export function parseApiError(err: unknown): ParsedApiError {
     code: 'UNKNOWN_ERROR',
     message: 'Something went wrong. Please try again.',
     fields: {},
+    extra: {},
   }
 
   if (err instanceof AxiosError) {
@@ -42,10 +52,20 @@ export function parseApiError(err: unknown): ParsedApiError {
           fields[snakeToCamel(key)] = Array.isArray(msgs) ? msgs[0] : String(msgs)
         }
       }
+      // snakeToCamel here for the same reason it is used on `fields` above: the
+      // response interceptor camelizes SUCCESS bodies only, so an error envelope
+      // reaches us exactly as Django wrote it — `attempts_left`, not
+      // `attemptsLeft`. Without this the callers below look up a key that is
+      // never there and silently render the sentence without its number.
+      const extra: Record<string, unknown> = {}
+      for (const [key, value] of Object.entries(body.error)) {
+        if (!ENVELOPE_KEYS.has(key)) extra[snakeToCamel(key)] = value
+      }
       return {
         code: body.error.code ?? fallback.code,
         message: body.error.message ?? fallback.message,
         fields,
+        extra,
       }
     }
     if (err.code === 'ERR_NETWORK') {

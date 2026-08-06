@@ -60,13 +60,29 @@ def _deliver_in_app(announcement, user):
 
 
 def _deliver_email(announcement, user):
+    """Through the mailer, never `send_mail` directly.
+
+    An announcement is the single biggest way to waste an email allowance —
+    one click, one row per student, and a suppressed or bounced address written
+    to again for every announcement forever. Routing it through the outbox gets
+    it the suppression list and the daily cap for free.
+
+    `send_quietly` because nobody is waiting on a broadcast: a recipient over
+    quota is a suppressed row to look at later, not an exception that aborts the
+    fan-out for everyone after them.
+    """
     if not user.email:
         raise ValueError("no email address")
-    from django.core.mail import send_mail
+    from apps.mailer import service
+    from apps.mailer.models import EmailMessage
 
-    from apps.identity.emails import _from_email
-
-    send_mail(announcement.title, announcement.body, _from_email(), [user.email])
+    service.send_quietly(
+        user.email,
+        announcement.title,
+        announcement.body,
+        kind=EmailMessage.Kind.ANNOUNCEMENT,
+        user=user,
+    )
 
 
 # The pluggable channel registry — add "sms"/"telegram"/"push" here later.

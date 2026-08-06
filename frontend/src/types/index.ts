@@ -428,6 +428,16 @@ export interface QuestionChoice {
   sortOrder: number
 }
 
+/** The last answer this student gave to a question, in any sitting.
+ *  Null when they have never answered it — or when it sits in a paper they
+ *  currently have open, where repeating it would be the answer key. */
+export interface MyAttempt {
+  chosenAnswer: string
+  /** Null while the sitting it came from is still ungraded. */
+  isCorrect: boolean | null
+  answeredAt: string
+}
+
 /** Question list item (browsing) — no correct answer / explanation. */
 export interface QuestionListItem {
   id: string
@@ -438,7 +448,7 @@ export interface QuestionListItem {
   hasMath: boolean
   stem: string
   tags: string[] // slugs
-  version: number
+  myAttempt: MyAttempt | null
   createdAt: string
 }
 
@@ -461,7 +471,7 @@ export interface QuestionDetail {
   source: 'official' | 'custom' | 'imported'
   sourceRef: string | null
   tags: QuestionTag[]
-  version: number
+  myAttempt: MyAttempt | null
   createdAt: string
 }
 
@@ -491,8 +501,6 @@ export interface AdminQuestionListItem {
   status: QuestionStatus
   stem: string
   tags: string[] // slugs
-  version: number
-  parent: string | null
   createdAt: string
   updatedAt: string
 }
@@ -500,8 +508,6 @@ export interface AdminQuestionListItem {
 /** GET /admin/questions/{id}/ — full admin authoring shape. */
 export interface AdminQuestion {
   id: string
-  version: number
-  parent: string | null
   module: QuestionModule
   category: QuestionCategoryRef
   difficulty: 1 | 2 | 3 | 4 | 5
@@ -935,6 +941,16 @@ export interface ExamSummary {
   module: ExamModule
   timeLimit: number | null // minutes
   isAdaptive: boolean
+  /** Whether the clock may be stopped. Off for invigilated papers — pausing a
+   *  timed test is unlimited time, so the server refuses it there. */
+  allowPause: boolean
+  /** Sat in full screen. A browser only grants fullscreen from a user gesture,
+   *  so the runner gates the paper behind a Begin screen and blocks it whenever
+   *  the student leaves. */
+  requiresFullscreen: boolean
+  /** Built by the question bank rather than authored. A drill is scored as a
+   *  drill: accuracy and a per-skill breakdown, not a scaled SAT total. */
+  isGenerated: boolean
 }
 
 /** GET /exams/ — a startable exam template for the dashboard. */
@@ -971,6 +987,12 @@ export interface SessionSectionRaw {
   title: string
   module: QuestionModule
   timeLimit: number | null // minutes
+  /** A timed rest AFTER this module. Null = straight on to the next. */
+  breakAfterMinutes: number | null
+  /** Always present. `questions` is EMPTY for every module but the one being
+   *  sat — the paper is served a module at a time so a student cannot read
+   *  ahead during the break. */
+  questionCount: number
   questions: Array<{ position: number; question: SessionQuestion }>
 }
 
@@ -980,13 +1002,22 @@ export interface EngineSection {
   title: string
   module: QuestionModule
   timeLimit: number | null
+  breakAfterMinutes: number | null
+  /** How many questions the module HAS — `questions` is only filled for the
+   *  module currently open (the server ships one at a time). */
+  questionCount: number
   questions: SessionQuestion[]
 }
 
+/** A saved answer. `isCorrect` is absent entirely while the paper is open —
+ *  the server withholds correctness until submit so the answer endpoint can't
+ *  be used as an oracle — and present once the session is completed. */
 export interface SessionResponse {
   question: string
   chosenAnswer: string
-  isCorrect: boolean | null
+  isCorrect?: boolean | null
+  /** Only on an instant-feedback session's answer reply. */
+  correctAnswer?: string
   timeSpent: number | null
   answeredAt: string
 }
@@ -1002,13 +1033,40 @@ export interface SessionDetail {
   status: SessionStatus
   currentSection: number // 1-indexed
   currentQuestion: number // 1-indexed
-  timeRemaining: number | null // seconds
-  serverTimeRemaining: number | null // seconds — authoritative
+  feedbackMode: FeedbackMode
+  timeRemaining: number | null // seconds — server-computed cache
+  serverTimeRemaining: number | null // seconds — authoritative (tighter of the two below)
+  sectionTimeRemaining: number | null // seconds left in this module
+  examTimeRemaining: number | null // seconds left on the whole paper
   startedAt: string
   submittedAt: string | null
   clientSessionData: ClientSessionData
   sections: SessionSectionRaw[]
   responses: SessionResponse[]
+}
+
+/** How a student's answer compared with the key (distinct from the question
+ *  content-review `ReviewStatus`). */
+export type AnswerReviewStatus = 'correct' | 'incorrect' | 'skipped'
+
+/** How a session marks answers. `instant` is a question-bank drill: each answer
+ *  is marked as it is given and the key comes back with it. `none` is a paper —
+ *  the client is told nothing until submit. Set by the server at start. */
+export type FeedbackMode = 'none' | 'instant'
+
+/**
+ * GET /sessions/{id}/review/ — one row of the post-submission answer review.
+ * Unlike the in-test shapes this DOES carry the correct answer + explanation,
+ * and the question content is read live from the question bank.
+ */
+export interface SessionReviewItem {
+  number: number
+  sectionNumber: number
+  sectionTitle: string
+  question: SessionQuestion
+  correctAnswer: string
+  chosenAnswer: string | null
+  status: AnswerReviewStatus
 }
 
 /** GET /sessions/ — history list item. */
@@ -1025,9 +1083,34 @@ export interface SessionListItem {
 export interface QuestionClientState {
   answer: string | null
   flagged: boolean
+  /** Legacy free-text note. Superseded by `annotations`; kept so older
+   *  client_session_data blobs still round-trip. */
   note: string
   crossedOut: ChoiceLabel[]
   highlight: HighlightData | null
+  /** Bluebook "Highlights & Notes" — a highlight optionally carrying a note. */
+  annotations: Annotation[]
+}
+
+export type HighlightColor = 'yellow' | 'blue' | 'pink'
+
+/** Which text block an annotation is anchored to. */
+export type AnnotationTarget = 'stimulus' | 'stem'
+
+/**
+ * A user highlight over the rendered plain text of a target block.
+ * `start`/`end` are character offsets into that block's textContent, so an
+ * annotation survives a reload as long as the question content is unchanged.
+ */
+export interface Annotation {
+  id: string
+  target: AnnotationTarget
+  start: number
+  end: number
+  text: string
+  color: HighlightColor
+  underline: boolean
+  note: string
 }
 
 export interface HighlightData {
@@ -1248,12 +1331,44 @@ export type TeacherStudentRow = ClassOverviewRosterEntry
 // Homework
 // ─────────────────────────────────────
 
-export type HomeworkStatus = 'assigned' | 'submitted' | 'graded'
+export type HomeworkStatus = 'assigned' | 'submitted' | 'returned' | 'graded'
+
+/** A file attached to a brief or handed in with a submission. */
+export interface HomeworkFile {
+  id: string
+  originalName: string
+  contentType: string
+  size: number
+  attemptNumber?: number
+}
+
+export type HomeworkEventKind = 'submitted' | 'returned' | 'graded'
+
+/** One entry in a submission's trail. */
+export interface HomeworkEvent {
+  id: string
+  kind: HomeworkEventKind
+  actorName: string | null
+  note: string
+  attemptNumber: number
+  createdAt: string
+}
 
 /** The requesting student's own submission, embedded in homework payloads. */
 export interface HomeworkMySubmission {
+  id: string
   status: HomeworkStatus
   submittedAt: string | null
+  responseText: string
+  isLate: boolean
+  attemptNumber: number
+  returnedAt: string | null
+  grade: string | null
+  gradeScale: number
+  feedback: string
+  gradedAt: string | null
+  files: HomeworkFile[]
+  events: HomeworkEvent[]
 }
 
 export interface Homework {
@@ -1266,6 +1381,8 @@ export interface Homework {
   examTitle: string | null
   dueAt: string
   isPublished: boolean
+  /** Materials the teacher attached to the brief. */
+  attachments: HomeworkFile[]
   mySubmission: HomeworkMySubmission | null // null for teachers and for students with no submission yet
   createdAt: string
 }
@@ -1276,6 +1393,15 @@ export interface HomeworkSubmission {
   student: StudentMini
   status: HomeworkStatus
   submittedAt: string | null
+  responseText: string
+  isLate: boolean
+  attemptNumber: number
+  returnedAt: string | null
+  grade: string | null
+  gradeScale: number
+  feedback: string
+  gradedAt: string | null
+  files: HomeworkFile[]
   createdAt: string
 }
 
@@ -1552,6 +1678,9 @@ export type NotificationType =
   | 'exam_scheduled'
   | 'homework_assigned'
   | 'homework_due'
+  | 'homework_graded'
+  | 'homework_returned'
+  | 'class_post'
   | 'announcement'
   | 'system'
   | 'booking_requested'
@@ -1705,4 +1834,206 @@ export interface AutomationSweepResult {
   students: number
   matched: number
   acted: number
+}
+
+// ─────────────────────────────────────
+// Classroom stream
+// ─────────────────────────────────────
+
+/** A class the current user is in (GET /classes/). */
+/** What a member may do in a class. Derived server-side and published, so the
+ *  client never decides by comparing role strings — it would drift from what
+ *  the API actually enforces. */
+export interface ClassCapabilities {
+  isStaff: boolean
+  isStudent: boolean
+  canPost: boolean
+  canModerate: boolean
+  canManageRoster: boolean
+  canGrade: boolean
+  canSeeSubmissions: boolean
+}
+
+export interface MyClass {
+  id: string
+  name: string
+  teacherName: string | null
+  teacherEmail: string | null
+  isActive: boolean
+  myRole: 'staff' | 'student'
+  capabilities: ClassCapabilities
+  studentCount: number
+}
+
+export interface ClassPerson {
+  id: string
+  fullName: string
+  /** Null for a student looking at a classmate. */
+  email: string | null
+  enrolledAt?: string
+}
+
+export interface ClassPeople {
+  teacher: ClassPerson | null
+  students: ClassPerson[]
+}
+
+export interface ClassworkItem {
+  kind: 'homework' | 'material'
+  id: string
+  title: string
+  description: string
+  dueAt: string | null
+  isPublished: boolean
+  examTitle: string | null
+  attachmentCount: number
+  /** The student's own standing. Null for staff. */
+  myStatus: HomeworkStatus | null
+  /** How many handed in. Null for a student. */
+  submittedCount: number | null
+  createdAt: string
+}
+
+export interface ClassMeeting {
+  id: string
+  title: string
+  startsAt: string
+  endsAt: string | null
+  location: string
+  status: 'scheduled' | 'completed' | 'canceled'
+}
+
+export interface StreamAuthor {
+  id: string
+  fullName: string
+  role: UserRole
+}
+
+export interface StreamAttachment {
+  id: string
+  originalName: string
+  contentType: string
+  size: number
+}
+
+export interface ClassComment {
+  id: string
+  author: StreamAuthor
+  body: string
+  createdAt: string
+}
+
+export type ClassPostKind = 'post' | 'announcement' | 'material'
+
+export interface ClassPost {
+  id: string
+  kind: ClassPostKind
+  author: StreamAuthor
+  body: string
+  isPinned: boolean
+  allowComments: boolean
+  attachments: StreamAttachment[]
+  comments: ClassComment[]
+  createdAt: string
+}
+
+// ─────────────────────────────────────
+// Vocabulary
+// ─────────────────────────────────────
+
+export type VocabStatus = 'new' | 'learning' | 'mastered'
+export type PartOfSpeech = 'noun' | 'verb' | 'adjective' | 'adverb' | 'other'
+
+export interface VocabWord {
+  id: string
+  word: string
+  definition: string
+  partOfSpeech: PartOfSpeech
+  example: string
+  synonyms: string[]
+  sortOrder: number
+  /** Where this student stands on this card. Always their own. */
+  myStatus: VocabStatus
+}
+
+export interface VocabSet {
+  id: string
+  title: string
+  sortOrder: number
+  wordCount: number
+  masteredCount: number
+  /** Cleared at least once — not merely opened. */
+  isCompleted: boolean
+}
+
+export interface VocabSetDetail extends VocabSet {
+  sectionTitle: string
+  words: VocabWord[]
+}
+
+export interface VocabSection {
+  id: string
+  title: string
+  slug: string
+  description: string
+  sortOrder: number
+  setCount: number
+  wordCount: number
+  masteredCount: number
+}
+
+export interface VocabSectionDetail extends VocabSection {
+  sets: VocabSet[]
+}
+
+export interface VocabStudySession {
+  id: string
+  vocabSet: string
+  correctCount: number
+  totalCount: number
+  accuracyPct: number
+  completedAt: string | null
+  createdAt: string
+}
+
+/** One flashcard verdict, as the runner reports it. */
+export interface VocabResult {
+  word: string
+  correct: boolean
+}
+
+// Admin authoring
+
+export type VocabSectionStatus = 'draft' | 'published'
+
+export interface AdminVocabSection {
+  id: string
+  title: string
+  slug: string
+  description: string
+  status: VocabSectionStatus
+  sortOrder: number
+  setCount: number
+  wordCount: number
+  createdAt: string
+}
+
+export interface AdminVocabSet {
+  id: string
+  section: string
+  title: string
+  sortOrder: number
+  wordCount: number
+  createdAt: string
+}
+
+export interface AdminVocabWord {
+  id: string
+  vocabSet: string
+  word: string
+  definition: string
+  partOfSpeech: PartOfSpeech
+  example: string
+  synonyms: string[]
+  sortOrder: number
 }

@@ -1,13 +1,12 @@
 # apps/question_bank/views_admin.py
 # Domain: Question Bank
 # Description: Admin content studio — question authoring (CRUD, all statuses, inline
-#             choices), the review lifecycle (submit / approve / reject), versioning
-#             (new-version + revision chain), and category/tag management.
-#             Mounted at /api/v1/admin/.
-# Permissions: IsAdmin on every endpoint. §9 lifecycle: edit only in DRAFT; a
-#             published question is revised via new-version (never edited in place).
+#             choices), the review lifecycle (submit / approve / reject), and
+#             category/tag management. Mounted at /api/v1/admin/.
+# Permissions: IsAdmin on every endpoint. Questions are NOT versioned: an edit
+#             applies in place at any status and is live wherever the question is
+#             used (every exam template, every exam type).
 
-from django.db.models import Q
 from rest_framework.exceptions import NotFound
 from rest_framework.views import APIView
 
@@ -18,6 +17,7 @@ from common.permissions import IsAdmin
 from common.responses import created_response, no_content_response, success_response
 
 from .models import Question, QuestionCategory, QuestionReview, QuestionTag
+from .search import search_questions
 from .serializers_admin import (
     AdminCategorySerializer,
     AdminQuestionDetailSerializer,
@@ -27,7 +27,6 @@ from .serializers_admin import (
     QuestionReviewSerializer,
     RejectSerializer,
 )
-from .services import create_new_version, version_chain
 
 
 def _get_question(pk):
@@ -72,13 +71,9 @@ class AdminQuestionListCreateView(APIView):
         if tag:
             qs = qs.filter(tags__slug__iexact=tag)
 
-        search = (request.query_params.get("search") or "").strip()
-        if search:
-            qs = qs.filter(
-                Q(stem__icontains=search)
-                | Q(passage__icontains=search)
-                | Q(source_ref__icontains=search)
-            )
+        # Shared with the student bank so the two can never search different
+        # fields — "I can find it in the studio but not in the bank" starts here.
+        qs = search_questions(qs, request.query_params.get("search"))
 
         qs = qs.distinct().order_by("-created_at")
         paginator = CursorPagination()
@@ -93,7 +88,12 @@ class AdminQuestionListCreateView(APIView):
 
 
 class AdminQuestionDetailView(APIView):
-    """GET / PATCH (draft only) / DELETE (soft) a single question."""
+    """GET / PATCH / DELETE (soft) a single question.
+
+    PATCH edits in place at ANY status — including PUBLISHED. Exams reference
+    questions by FK and nothing snapshots their content, so an edit is live
+    immediately in every exam template and every exam type that uses it.
+    """
 
     permission_classes = [IsAdmin]
 
@@ -102,11 +102,6 @@ class AdminQuestionDetailView(APIView):
 
     def patch(self, request, pk):
         question = _get_question(pk)
-        if question.status != Question.Status.DRAFT:
-            return ValidationError(
-                "Only draft questions can be edited. Create a new version to revise a "
-                "published question."
-            ).to_response()
         serializer = AdminQuestionWriteSerializer(
             question, data=request.data, partial=True, context={"request": request}
         )
@@ -140,10 +135,6 @@ class AdminQuestionApproveView(APIView):
             question.approve(request.user)
         except ValueError as exc:
             return ValidationError(str(exc)).to_response()
-        # A revision supersedes the published question it was cloned from.
-        if question.parent_id and question.parent.status == Question.Status.PUBLISHED:
-            question.parent.status = Question.Status.ARCHIVED
-            question.parent.save(update_fields=["status"])
         # approve() (unlike reject()) records no review row — add one for the history.
         QuestionReview.objects.create(
             question=question, reviewer=request.user, status=QuestionReview.Status.APPROVED
@@ -180,18 +171,6 @@ class AdminQuestionRejectView(APIView):
         return success_response(AdminQuestionDetailSerializer(_get_question(pk)).data)
 
 
-class AdminQuestionNewVersionView(APIView):
-    permission_classes = [IsAdmin]
-
-    def post(self, request, pk):
-        question = _get_question(pk)
-        try:
-            revision = create_new_version(question, request.user)
-        except ValueError as exc:
-            return ValidationError(str(exc)).to_response()
-        return created_response(AdminQuestionDetailSerializer(revision).data)
-
-
 class AdminQuestionReviewsView(APIView):
     permission_classes = [IsAdmin]
 
@@ -199,16 +178,6 @@ class AdminQuestionReviewsView(APIView):
         question = _get_question(pk)
         reviews = question.reviews.select_related("reviewer").all()
         return success_response(QuestionReviewSerializer(reviews, many=True).data)
-
-
-class AdminQuestionRevisionsView(APIView):
-    permission_classes = [IsAdmin]
-
-    def get(self, request, pk):
-        question = _get_question(pk)
-        return success_response(
-            AdminQuestionListSerializer(version_chain(question), many=True).data
-        )
 
 
 # ─────────────────────────────────────

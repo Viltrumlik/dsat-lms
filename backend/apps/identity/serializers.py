@@ -7,12 +7,9 @@ Permissions: RegisterSerializer/LoginSerializer are used by AllowAny auth views;
 """
 
 from django.contrib.auth.password_validation import validate_password
-from django.contrib.auth.tokens import default_token_generator
-from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
 from .models import User
-from .tokens import email_verification_token, get_user_from_uidb64
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -105,17 +102,16 @@ class LoginSerializer(serializers.Serializer):
 
 
 class EmailVerifyConfirmSerializer(serializers.Serializer):
-    """uid + token from the verification link → resolves the user to verify."""
+    """The six-digit code from the verification email, plus the address it went to.
 
-    uid = serializers.CharField()
-    token = serializers.CharField()
+    A code, not a link: a link only works in the browser that opened it, and a
+    student who signs up on a laptop and reads mail on a phone has neither. The
+    code is checked against the DB in the view (apps.mailer.codes) — this only
+    shapes the input.
+    """
 
-    def validate(self, attrs):
-        user = get_user_from_uidb64(attrs["uid"])
-        if user is None or not email_verification_token.check_token(user, attrs["token"]):
-            raise serializers.ValidationError("Invalid or expired verification link.")
-        attrs["user"] = user
-        return attrs
+    email = serializers.EmailField()
+    code = serializers.CharField(min_length=4, max_length=10, trim_whitespace=True)
 
 
 class PasswordResetRequestSerializer(serializers.Serializer):
@@ -125,22 +121,16 @@ class PasswordResetRequestSerializer(serializers.Serializer):
 
 
 class PasswordResetConfirmSerializer(serializers.Serializer):
-    """uid + token from the reset link + the new password."""
+    """The emailed code plus the new password.
 
-    uid = serializers.CharField()
-    token = serializers.CharField()
+    Password strength is validated in the view, once the code has been accepted
+    and the user is known — `validate_password` wants the user to compare the
+    password against their own name and email.
+    """
+
+    email = serializers.EmailField()
+    code = serializers.CharField(min_length=4, max_length=10, trim_whitespace=True)
     new_password = serializers.CharField(write_only=True, min_length=8)
-
-    def validate(self, attrs):
-        user = get_user_from_uidb64(attrs["uid"])
-        if user is None or not default_token_generator.check_token(user, attrs["token"]):
-            raise serializers.ValidationError("Invalid or expired reset link.")
-        try:
-            validate_password(attrs["new_password"], user)
-        except DjangoValidationError as exc:
-            raise serializers.ValidationError({"new_password": list(exc.messages)}) from exc
-        attrs["user"] = user
-        return attrs
 
 
 class PasswordChangeSerializer(serializers.Serializer):

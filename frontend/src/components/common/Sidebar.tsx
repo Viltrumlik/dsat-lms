@@ -4,12 +4,14 @@
 //   academyOnly (hidden from public users — the API enforces server-side too).
 'use client'
 
+import * as React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { BarChart3, BookOpen, ClipboardList, GraduationCap, LayoutDashboard, LifeBuoy, ListChecks, Presentation, Settings, Shield } from 'lucide-react'
+import { BarChart3, BookA, BookOpen, ClipboardList, GraduationCap, LayoutDashboard, LifeBuoy, Presentation, Settings, Shield, Users } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
 import { useT } from '@/lib/i18n/I18nProvider'
 import { useAuth } from '@/lib/auth/AuthProvider'
+import { EXAM_TYPES } from '@/components/tests/examTypes'
 
 export interface NavItem {
   labelKey: string
@@ -23,15 +25,29 @@ export interface NavItem {
   section?: string
 }
 
+/** One nav entry per exam type. Mocks, midterms, past papers and assessments
+ *  all existed in the backend and the admin, but the student shell only ever
+ *  offered "Practice tests" — a single dashboard list hard-filtered to
+ *  type=practice — so there was no route to any of the others. */
+const TEST_NAV: NavItem[] = EXAM_TYPES.map((meta) => ({
+  labelKey: `tests.types.${meta.key}.nav`,
+  href: `/tests/${meta.slug}`,
+  icon: meta.icon,
+  academyOnly: meta.academyOnly,
+  section: 'tests',
+}))
+
 export const STUDENT_NAV: NavItem[] = [
   { labelKey: 'nav.dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { labelKey: 'nav.practiceTests', href: '/dashboard#tests', icon: ListChecks },
-  { labelKey: 'nav.questionBank', href: '/questions', icon: BookOpen },
-  { labelKey: 'nav.homework', href: '/homework', icon: ClipboardList, academyOnly: true },
-  { labelKey: 'nav.courses', href: '/courses', icon: GraduationCap, academyOnly: true },
-  { labelKey: 'nav.support', href: '/support', icon: LifeBuoy, academyOnly: true },
-  { labelKey: 'nav.analytics', href: '/analytics', icon: BarChart3 },
-  { labelKey: 'nav.settings', href: '/settings', icon: Settings },
+  ...TEST_NAV,
+  { labelKey: 'nav.classes', href: '/classes', icon: Users, academyOnly: true, section: 'study' },
+  { labelKey: 'nav.questionBank', href: '/questions', icon: BookOpen, section: 'study' },
+  { labelKey: 'nav.vocabulary', href: '/vocabulary', icon: BookA, section: 'study' },
+  { labelKey: 'nav.homework', href: '/homework', icon: ClipboardList, academyOnly: true, section: 'study' },
+  { labelKey: 'nav.courses', href: '/courses', icon: GraduationCap, academyOnly: true, section: 'study' },
+  { labelKey: 'nav.support', href: '/support', icon: LifeBuoy, academyOnly: true, section: 'study' },
+  { labelKey: 'nav.analytics', href: '/analytics', icon: BarChart3, section: 'you' },
+  { labelKey: 'nav.settings', href: '/settings', icon: Settings, section: 'you' },
 ]
 
 /** Role-aware filter shared by the sidebar and the mobile drawer. */
@@ -74,7 +90,7 @@ export function Sidebar() {
             <div className="my-2 h-px bg-border" />
           </>
         )}
-        {items.map((item) => {
+        {items.map((item, index) => {
           // In-page anchors (href contains '#') share a pathname with the page
           // they scroll within, so they must not compete for the active state —
           // only the real page link (no hash) highlights. Nested routes (e.g.
@@ -85,36 +101,49 @@ export function Sidebar() {
             !item.href.includes('#') &&
             (pathname === base || pathname.startsWith(base + '/'))
           const Icon = item.icon
+          // A heading whenever the group changes — the list is long enough now
+          // (five test types plus study and account items) to need the breaks.
+          const heading =
+            item.section && item.section !== items[index - 1]?.section ? (
+              <p
+                key={`${item.section}-heading`}
+                className="px-3 pb-1 pt-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+              >
+                {t(`nav.sections.${item.section}`)}
+              </p>
+            ) : null
           if (item.soon) {
             return (
-              <span
-                key={item.href}
-                className="flex cursor-not-allowed items-center justify-between rounded-md px-3 py-2 text-sm text-muted-foreground/60"
-              >
-                <span className="flex items-center gap-3">
-                  <Icon className="h-5 w-5" />
-                  {t(item.labelKey)}
+              <React.Fragment key={item.href}>
+                {heading}
+                <span className="flex cursor-not-allowed items-center justify-between rounded-md px-3 py-2 text-sm text-muted-foreground/60">
+                  <span className="flex items-center gap-3">
+                    <Icon className="h-5 w-5" />
+                    {t(item.labelKey)}
+                  </span>
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide">
+                    {t('nav.soon')}
+                  </span>
                 </span>
-                <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide">
-                  {t('nav.soon')}
-                </span>
-              </span>
+              </React.Fragment>
             )
           }
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-                active
-                  ? 'bg-primary-50 text-primary-700 dark:bg-primary-800/40 dark:text-primary-100'
-                  : 'text-foreground hover:bg-muted'
-              )}
-            >
-              <Icon className="h-5 w-5" />
-              {t(item.labelKey)}
-            </Link>
+            <React.Fragment key={item.href}>
+              {heading}
+              <Link
+                href={item.href}
+                className={cn(
+                  'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                  active
+                    ? 'bg-primary-50 text-primary-700 dark:bg-primary-800/40 dark:text-primary-100'
+                    : 'text-foreground hover:bg-muted'
+                )}
+              >
+                <Icon className="h-5 w-5" />
+                {t(item.labelKey)}
+              </Link>
+            </React.Fragment>
           )
         })}
       </nav>

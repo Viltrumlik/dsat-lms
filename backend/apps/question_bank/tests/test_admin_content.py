@@ -3,15 +3,15 @@ DSAT LMS v2 — Admin content-studio tests
 Domain: Question Bank
 Covers: permission gate, question CRUD (+ MCQ/grid-in validation), draft-only edit,
         the review lifecycle (submit / approve / reject + invalid transitions),
-        versioning (new-version clone + parent archival on approve), reviews +
-        revisions, and category/tag management (+ in-use guards).
+        in-place editing at ANY status (questions are NOT versioned), reviews,
+        and category/tag management (+ in-use guards).
 """
 
 import pytest
 from rest_framework.test import APIClient
 
 from apps.identity.tests.factories import AdminUserFactory, UserFactory
-from apps.question_bank.models import Question, QuestionReview
+from apps.question_bank.models import QuestionReview
 from apps.question_bank.tests.factories import (
     CategoryFactory,
     ChoiceFactory,
@@ -71,7 +71,6 @@ class TestQuestionCreate:
         assert r.status_code == 201
         data = r.data["data"]
         assert data["status"] == "draft"
-        assert data["version"] == 1
         assert len(data["choices"]) == 4
         assert data["correct_answer"] == "B"
         assert data["created_by"]["id"] == str(client.user.id)
@@ -188,11 +187,35 @@ class TestQuestionUpdate:
         assert r.status_code == 200
         assert {c["text"] for c in r.data["data"]["choices"]} == {"new-a", "new-b"}
 
-    def test_cannot_edit_published(self):
+    def test_edit_published_in_place(self):
+        """No versioning — a published question is edited directly and stays published."""
         client = admin_client()
-        q = QuestionFactory(status="published")
-        r = client.patch(f"{ADMIN}questions/{q.id}/", {"stem": "x"}, format="json")
-        assert r.status_code == 400
+        q = QuestionFactory(status="published", stem="old")
+        r = client.patch(f"{ADMIN}questions/{q.id}/", {"stem": "new stem"}, format="json")
+        assert r.status_code == 200
+        assert r.data["data"]["stem"] == "new stem"
+        assert r.data["data"]["status"] == "published"
+        q.refresh_from_db()
+        assert q.stem == "new stem"
+
+    def test_edit_published_answer_key_in_place(self):
+        """The correct answer can be corrected without cloning the question."""
+        client = admin_client()
+        q = QuestionFactory(status="published", answer_type="mcq", correct_answer="A")
+        for label in ("A", "B", "C", "D"):
+            ChoiceFactory(question=q, label=label, text=label.lower())
+        r = client.patch(f"{ADMIN}questions/{q.id}/", {"correct_answer": "C"}, format="json")
+        assert r.status_code == 200
+        q.refresh_from_db()
+        assert q.correct_answer == "C"
+
+    def test_edit_archived_in_place(self):
+        client = admin_client()
+        q = QuestionFactory(status="archived", stem="old")
+        assert (
+            client.patch(f"{ADMIN}questions/{q.id}/", {"stem": "new"}, format="json").status_code
+            == 200
+        )
 
     def test_soft_delete(self):
         client = admin_client()
@@ -250,42 +273,31 @@ class TestLifecycle:
         assert client.post(f"{ADMIN}questions/{q.id}/submit-for-review/").status_code == 400
 
 
-class TestVersioning:
-    def test_new_version_clones_to_draft(self):
-        client = admin_client()
-        q = QuestionFactory(status="published", version=1, answer_type="mcq", correct_answer="A")
-        ChoiceFactory(question=q, label="A", text="alpha")
-        ChoiceFactory(question=q, label="B", text="beta")
-        r = client.post(f"{ADMIN}questions/{q.id}/new-version/")
-        assert r.status_code == 201
-        data = r.data["data"]
-        assert data["status"] == "draft"
-        assert data["version"] == 2
-        assert str(data["parent"]) == str(q.id)
-        assert len(data["choices"]) == 2
+class TestNoVersioning:
+    """Versioning was removed — the endpoints are gone and edits are live."""
 
-    def test_cannot_version_a_draft(self):
+    def test_new_version_endpoint_is_gone(self):
         client = admin_client()
-        q = QuestionFactory(status="draft")
-        assert client.post(f"{ADMIN}questions/{q.id}/new-version/").status_code == 400
+        q = QuestionFactory(status="published")
+        assert client.post(f"{ADMIN}questions/{q.id}/new-version/").status_code == 404
 
-    def test_approving_revision_archives_parent(self):
+    def test_revisions_endpoint_is_gone(self):
         client = admin_client()
-        parent = QuestionFactory(status="published", version=1)
-        rev_id = client.post(f"{ADMIN}questions/{parent.id}/new-version/").data["data"]["id"]
-        client.post(f"{ADMIN}questions/{rev_id}/submit-for-review/")
-        client.post(f"{ADMIN}questions/{rev_id}/approve/")
-        parent.refresh_from_db()
-        assert parent.status == "archived"
-        assert Question.objects.get(id=rev_id).status == "published"
+        q = QuestionFactory(status="published")
+        assert client.get(f"{ADMIN}questions/{q.id}/revisions/").status_code == 404
 
-    def test_revisions_chain(self):
+    def test_approving_does_not_archive_anything(self):
         client = admin_client()
-        parent = QuestionFactory(status="published", version=1)
-        client.post(f"{ADMIN}questions/{parent.id}/new-version/")
-        rows = client.get(f"{ADMIN}questions/{parent.id}/revisions/").data["data"]
-        assert [r["version"] for r in rows] == [1, 2]
+        published = QuestionFactory(status="published")
+        other = QuestionFactory(status="review")
+        client.post(f"{ADMIN}questions/{other.id}/approve/")
+        published.refresh_from_db()
+        other.refresh_from_db()
+        assert published.status == "published"
+        assert other.status == "published"
 
+
+class TestReviewHistory:
     def test_reviews_history(self):
         client = admin_client()
         q = QuestionFactory(status="review")

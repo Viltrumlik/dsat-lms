@@ -17,6 +17,7 @@ import { MarkdownMath } from '@/components/test-engine/MarkdownMath'
 import { cn } from '@/lib/utils/cn'
 import { answersMatch } from '@/lib/utils/answers'
 import { useT } from '@/lib/i18n/I18nProvider'
+import { AttemptBadge } from './AttemptBadge'
 import { DifficultyDots } from './DifficultyDots'
 import { MODULE_LABEL_KEY, ANSWER_TYPE_LABEL_KEY, DIFFICULTY_LABEL_KEY, moduleBadgeVariant } from './labels'
 import type { QuestionChoice } from '@/types'
@@ -106,6 +107,22 @@ export function QuestionStudy({ id }: { id: string }) {
     setRevealed(false)
   }, [id])
 
+  // Then seat whatever the student put last time. Coming back to a question you
+  // have done and finding the box blank is the bank forgetting on your behalf —
+  // the answer is on the server, so it belongs on screen. Deliberately NOT
+  // revealed: seeing your own answer again is not being handed the key.
+  //
+  // Seeded once per question id (the ref), so a refetch can't stomp on an answer
+  // the student has since changed.
+  const seededFor = React.useRef<string | null>(null)
+  React.useEffect(() => {
+    if (!q || seededFor.current === id) return
+    seededFor.current = id
+    if (!q.myAttempt) return
+    if (q.answerType === 'mcq') setSelected(q.myAttempt.chosenAnswer)
+    else setGridAnswer(q.myAttempt.chosenAnswer)
+  }, [id, q])
+
   if (isLoading) return <FullPageSpinner label={t('questionBank.loadingQuestion')} />
 
   if (isError || !q) {
@@ -139,7 +156,16 @@ export function QuestionStudy({ id }: { id: string }) {
         {q.category?.name && (
           <span className="text-sm text-muted-foreground">· {q.category.name}</span>
         )}
+        {q.myAttempt && <AttemptBadge attempt={q.myAttempt} />}
       </div>
+
+      {q.myAttempt && (
+        <p className="text-sm text-muted-foreground">
+          {t('questionBank.attempt.lastTime')}{' '}
+          <strong className="font-mono text-foreground">{q.myAttempt.chosenAnswer}</strong> ·{' '}
+          {t('questionBank.attempt.tryAgain')}
+        </p>
+      )}
 
       {/* Passage */}
       {q.passage && (

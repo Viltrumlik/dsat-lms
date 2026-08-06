@@ -25,7 +25,7 @@ export function queueAnswer(sessionId: string, question: string, chosenAnswer: s
   const prev = chains.get(question) ?? Promise.resolve()
   const next = prev
     .catch(() => {})
-    .then(() => sessionAPI.answer(sessionId, { question, chosenAnswer }).catch(() => {}))
+    .then(() => sessionAPI.answer(sessionId, { question, chosenAnswer }).catch(() => undefined))
   chains.set(question, next)
   return next
 }
@@ -42,12 +42,30 @@ export function resetAnswerQueue(): void {
 
 export function useAnswerSync() {
   const sessionId = useSessionStore((s) => s.meta?.sessionId)
+  const setVerdict = useSessionStore((s) => s.setVerdict)
+  const feedbackMode = useSessionStore((s) => s.feedbackMode)
 
   return React.useCallback(
     (question: string, chosenAnswer: string) => {
       if (!sessionId) return
-      queueAnswer(sessionId, question, chosenAnswer)
+      const write = queueAnswer(sessionId, question, chosenAnswer)
+      // On a drill the reply carries the verdict. It is only ever read from the
+      // server — the client is never told the key on a real paper, so there is
+      // nothing to mark with there and nothing to leak.
+      if (feedbackMode === 'instant') {
+        void write.then((response) => {
+          const marked = response as
+            | { isCorrect?: boolean | null; correctAnswer?: string }
+            | undefined
+          if (marked && typeof marked.isCorrect === 'boolean' && marked.correctAnswer) {
+            setVerdict(question, {
+              isCorrect: marked.isCorrect,
+              correctAnswer: marked.correctAnswer,
+            })
+          }
+        })
+      }
     },
-    [sessionId]
+    [sessionId, feedbackMode, setVerdict]
   )
 }

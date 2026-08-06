@@ -87,6 +87,23 @@ apiClient.interceptors.request.use(
     }
     if (config.params && typeof config.params === 'object') {
       config.params = decamelizeKeys(config.params)
+      // Repeat array params as `band=easy&band=hard`. Axios's default writes
+      // `band[]=easy`, which Django's QueryDict.getlist('band') does not read —
+      // so a multi-select filter would silently match nothing.
+      config.paramsSerializer = {
+        serialize: (params: Record<string, unknown>) => {
+          const search = new URLSearchParams()
+          for (const [key, value] of Object.entries(params)) {
+            if (value === undefined || value === null || value === '') continue
+            if (Array.isArray(value)) {
+              value.forEach((item) => search.append(key, String(item)))
+            } else {
+              search.append(key, String(value))
+            }
+          }
+          return search.toString()
+        },
+      }
     }
     return config
   },

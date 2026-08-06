@@ -6,12 +6,20 @@ Description: Questions, Categories, Tags — platformaning asosi
 Status lifecycle:
     DRAFT → REVIEW → PUBLISHED
                    ↘ DRAFT (rejected with note)
-    PUBLISHED → (edit) → new version → ARCHIVED (old), PUBLISHED (new)
+    PUBLISHED → (edit in place) → PUBLISHED
+
+There is no question versioning: a question row IS the question. Editing one
+takes effect immediately everywhere it is used — every exam template, every
+exam type, and any session that renders it — because exams reference questions
+by FK and nothing snapshots their content.
 """
 
+from django.contrib.postgres.indexes import GinIndex
 from django.db import models
 
 from common.models import BaseModel
+
+from .search import question_search_vector
 
 
 class QuestionCategory(BaseModel):
@@ -69,10 +77,8 @@ class Question(BaseModel):
     """
     Savol — platformaning asosiy content birligi.
 
-    Versioning:
-        - parent = None → original savol
-        - parent = <Question> → revision (yangi versiya)
-        - Versiya yaratilib PUBLISHED bo'lganda, parent ARCHIVED bo'ladi
+    No versioning — edits apply in place and are live everywhere the question is
+    used (see the module docstring).
 
     Math support:
         - has_math = True → frontend KaTeX bilan render qiladi
@@ -101,16 +107,6 @@ class Question(BaseModel):
         OFFICIAL = "official", "Official SAT"
         CUSTOM = "custom", "Custom"
         IMPORTED = "imported", "Imported"
-
-    # Versioning
-    version = models.SmallIntegerField(default=1)
-    parent = models.ForeignKey(
-        "self",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="versions",
-    )
 
     # Classification
     module = models.CharField(max_length=20, choices=Module.choices, db_index=True)
@@ -181,6 +177,12 @@ class Question(BaseModel):
             models.Index(fields=["status", "module"]),
             models.Index(fields=["status", "category"]),
             models.Index(fields=["status", "difficulty"]),
+            # Full-text search over stem/passage/source_ref. Postgres only — the
+            # migration that adds it no-ops elsewhere, and search.py falls back
+            # to LIKE on a backend that has no tsvector. The expression MUST stay
+            # `question_search_vector()`: the planner only reaches for a
+            # functional index when the query builds the same expression.
+            GinIndex(question_search_vector(), name="questions_search_gin"),
         ]
 
     def __str__(self):

@@ -35,7 +35,7 @@ export function Navbar() {
           <span className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
             <GraduationCap className="h-5 w-5" />
           </span>
-          <span className="text-lg font-bold tracking-tight">DSAT LMS</span>
+          <span className="text-lg font-bold tracking-tight">{t('common.appName')}</span>
         </Link>
       </div>
 

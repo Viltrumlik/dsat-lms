@@ -86,6 +86,7 @@ class AdminExamDetailSerializer(serializers.ModelSerializer):
             "module",
             "time_limit",
             "is_adaptive",
+            "allow_pause",
             "access_level",
             "sections",
             "created_by",
@@ -104,6 +105,7 @@ class AdminExamWriteSerializer(serializers.ModelSerializer):
             "module",
             "time_limit",
             "is_adaptive",
+            "allow_pause",
             "access_level",
         ]
 

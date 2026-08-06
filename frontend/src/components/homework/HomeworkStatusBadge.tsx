@@ -13,8 +13,11 @@ export function homeworkStatusOf(homework: Homework): HomeworkStatus {
 }
 
 export function isOverdue(homework: Homework): boolean {
+  // A returned piece is outstanding work too — if it is past due it reads as
+  // overdue, same as one never handed in.
+  const status = homeworkStatusOf(homework)
   return (
-    homeworkStatusOf(homework) === 'assigned' &&
+    (status === 'assigned' || status === 'returned') &&
     new Date(homework.dueAt).getTime() < Date.now()
   )
 }
@@ -22,6 +25,9 @@ export function isOverdue(homework: Homework): boolean {
 const VARIANT: Record<HomeworkStatus, BadgeProps['variant']> = {
   assigned: 'warning',
   submitted: 'success',
+  // Handed back: action is on the student again, so it reads like a warning
+  // rather than a completion.
+  returned: 'warning',
   graded: 'default',
 }
 

@@ -1,17 +1,19 @@
 // Domain: Homework
-// Description: Homework detail — instructions, due date, and the student
-//   actions: start the linked test (exam-backed) and/or submit the homework
-//   (confirm dialog). Submitted/graded homework shows a read-only status panel.
+// Description: Homework detail — the brief (instructions, due date, the
+//   teacher's materials), then either the hand-in form or, once work has gone
+//   in, the submission panel (what was handed over, the mark, the teacher's
+//   words, the trail). A RETURNED piece shows both: the note explaining the
+//   hand-back, and the form to have another go.
 'use client'
 
 import * as React from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { AxiosError } from 'axios'
-import { format, formatDistanceToNow } from 'date-fns'
+import { format } from 'date-fns'
 import { uz as uzDate } from 'date-fns/locale'
-import { ArrowLeft, CalendarClock, CheckCircle2, GraduationCap, Play, Users } from 'lucide-react'
+import { ArrowLeft, CalendarClock, Play, Users } from 'lucide-react'
 import { homeworkAPI } from '@/lib/api/homework'
 import { useSessionStore } from '@/lib/stores/sessionStore'
 import { useI18n } from '@/lib/i18n/I18nProvider'
@@ -19,15 +21,10 @@ import { parseApiError } from '@/lib/api/errors'
 import { useToast } from '@/components/ui/toast'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import { HomeworkStatusBadge, homeworkStatusOf } from './HomeworkStatusBadge'
+import { FileList } from './FileList'
+import { SubmissionForm } from './SubmissionForm'
+import { SubmissionPanel } from './SubmissionPanel'
 import type { Locale } from '@/lib/i18n/config'
 import type { Homework } from '@/types'
 
@@ -41,13 +38,14 @@ function dateLocale(locale: Locale) {
 
 function Actions({ homework }: { homework: Homework }) {
   const router = useRouter()
-  const queryClient = useQueryClient()
   const { toast } = useToast()
-  const { t, locale } = useI18n()
+  const t = useI18n().t
   const resetSession = useSessionStore((s) => s.resetSession)
-  const [confirmOpen, setConfirmOpen] = React.useState(false)
 
   const status = homeworkStatusOf(homework)
+  // Handing in and handing in AGAIN are the same action; a returned piece is
+  // simply open for work with a note attached to it.
+  const canWork = status === 'assigned' || status === 'returned'
 
   const startTest = useMutation({
     // Homework-aware start: binds the session to the submission so submitting
@@ -66,90 +64,22 @@ function Actions({ homework }: { homework: Homework }) {
     },
   })
 
-  const submit = useMutation({
-    mutationFn: () => homeworkAPI.submit(homework.id),
-    onSuccess: () => {
-      setConfirmOpen(false)
-      queryClient.invalidateQueries({ queryKey: ['homework'] })
-      toast({
-        variant: 'success',
-        title: t('homework.submitSuccessTitle'),
-        description: t('homework.submitSuccessDesc'),
-      })
-    },
-    onError: (err) => {
-      toast({
-        variant: 'error',
-        title: t('homework.submitFailed'),
-        description: parseApiError(err).message,
-      })
-    },
-  })
-
-  if (status !== 'assigned') {
-    const submittedAt = homework.mySubmission?.submittedAt
-    return (
-      <Card>
-        <CardContent className="flex items-center gap-3 p-5">
-          {status === 'graded' ? (
-            <GraduationCap className="h-5 w-5 shrink-0 text-primary" />
-          ) : (
-            <CheckCircle2 className="h-5 w-5 shrink-0 text-success" />
-          )}
-          <p className="text-sm">
-            {status === 'graded'
-              ? t('homework.gradedNote')
-              : t('homework.submittedAt', {
-                  time: submittedAt
-                    ? formatDistanceToNow(new Date(submittedAt), {
-                        addSuffix: true,
-                        locale: dateLocale(locale),
-                      })
-                    : '',
-                })}
-          </p>
-        </CardContent>
-      </Card>
-    )
-  }
+  if (!canWork) return null
 
   return (
     <Card>
       <CardContent className="space-y-4 p-5">
         {homework.exam && (
-          <p className="text-sm text-muted-foreground">{t('homework.testHint')}</p>
-        )}
-        <div className="flex flex-col gap-3 sm:flex-row">
-          {homework.exam && (
+          <>
+            <p className="text-sm text-muted-foreground">{t('homework.testHint')}</p>
             <Button loading={startTest.isPending} onClick={() => startTest.mutate()}>
               <Play className="h-4 w-4" /> {t('homework.startTest')}
             </Button>
-          )}
-          <Button
-            variant={homework.exam ? 'outline' : 'default'}
-            onClick={() => setConfirmOpen(true)}
-          >
-            {t('homework.submit')}
-          </Button>
-        </div>
+            <div className="h-px bg-border" />
+          </>
+        )}
+        <SubmissionForm homework={homework} />
       </CardContent>
-
-      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('homework.confirm.title')}</DialogTitle>
-            <DialogDescription>{t('homework.confirm.desc')}</DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmOpen(false)}>
-              {t('homework.confirm.cancel')}
-            </Button>
-            <Button loading={submit.isPending} onClick={() => submit.mutate()}>
-              {t('homework.submit')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </Card>
   )
 }
@@ -241,10 +171,18 @@ export function HomeworkDetail({ id }: { id: string }) {
         </div>
       )}
 
+      {data.attachments.length > 0 && (
+        <FileList files={data.attachments} label={t('homework.materials')} />
+      )}
+
       {data.exam && data.examTitle && (
         <p className="text-sm text-muted-foreground">
           {t('homework.linkedTest')}: <span className="font-medium text-foreground">{data.examTitle}</span>
         </p>
+      )}
+
+      {data.mySubmission && data.mySubmission.status !== 'assigned' && (
+        <SubmissionPanel submission={data.mySubmission} />
       )}
 
       <Actions homework={data} />

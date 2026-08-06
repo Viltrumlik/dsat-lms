@@ -1,6 +1,7 @@
 // Domain: E2E
-// Description: Phase 3B admin content studio — an admin opens a published question,
-//   creates a new version (§9), then drives it draft → review → published.
+// Description: The question authoring workspace — the bank list and the editor
+//   side by side, the formula toolbar, and in-place editing of a published
+//   question (questions are not versioned, so a save is live everywhere).
 //
 // Prerequisites (webServer starts the frontend; backend must be running + seeded):
 //   python manage.py seed_demo_admin && seed_demo_exam   (admin@dsat.local / DevAdmin123!)
@@ -17,26 +18,91 @@ async function login(page: Page, email: string, password: string) {
   // and race the role guard.
 }
 
-test('admin versions and re-publishes a question', async ({ page }) => {
-  await login(page, 'admin@dsat.local', 'DevAdmin123!')
-
+async function openQuestions(page: Page) {
   await page.getByRole('link', { name: 'Admin panel' }).click()
   await expect(page).toHaveURL(/\/admin\/users/)
   await page.getByRole('link', { name: 'Questions', exact: true }).click()
   await expect(page).toHaveURL(/\/admin\/questions/)
   await expect(page.getByRole('heading', { name: 'Questions' })).toBeVisible()
+}
 
-  // Open the first (seeded, published) question → read-only editor.
-  await page.locator('table tbody tr').first().locator('a').first().click()
-  await expect(page.getByText('Published questions are read-only')).toBeVisible()
+/** The bank rows are buttons carrying a status badge and the stem. */
+function questionRows(page: Page) {
+  return page.locator('button[aria-current]')
+}
 
-  // Create a new version → editable draft (v2).
-  await page.getByRole('button', { name: 'New version' }).click()
-  await expect(page.getByText('Draft', { exact: true })).toBeVisible()
+test('the bank and the editor sit side by side — selecting never leaves the page', async ({
+  page,
+}) => {
+  await login(page, 'admin@dsat.local', 'DevAdmin123!')
+  await openQuestions(page)
 
-  // Draft → review → published.
-  await page.getByRole('button', { name: 'Submit for review' }).click()
-  await expect(page.getByRole('button', { name: 'Approve' })).toBeVisible()
-  await page.getByRole('button', { name: 'Approve' }).click()
-  await expect(page.getByText('Published questions are read-only')).toBeVisible()
+  // Empty state until something is picked.
+  await expect(page.getByText('No question selected')).toBeVisible()
+
+  await questionRows(page).first().click()
+  await expect(page.getByText('Editing question')).toBeVisible()
+  // The bank is still on screen — this is a panel, not a page change.
+  await expect(page.getByPlaceholder(/Search/i)).toBeVisible()
+  // The live student-view preview renders beside the form.
+  await expect(page.getByRole('main').getByText('Student view')).toBeVisible()
+})
+
+test('the formula toolbar inserts at the cursor of the focused field', async ({ page }) => {
+  await login(page, 'admin@dsat.local', 'DevAdmin123!')
+  await openQuestions(page)
+  await page.getByRole('button', { name: 'New question' }).first().click()
+
+  const stem = page.getByLabel('Question', { exact: true })
+  await stem.click()
+  await stem.fill('Solve ')
+  await page.getByRole('button', { name: 'Square root' }).click()
+
+  await expect(stem).toHaveValue('Solve \\sqrt{}')
+
+  // The checklist tells the author what is still missing.
+  await expect(page.getByText(/left before this can be published/i)).toBeVisible()
+})
+
+test('a published question is editable in place — no versioning', async ({ page }) => {
+  await login(page, 'admin@dsat.local', 'DevAdmin123!')
+  await openQuestions(page)
+
+  await page.getByLabel('Status').click()
+  await page.getByRole('option', { name: 'Published', exact: true }).click()
+  // Wait for the filtered list to land — clicking during the refetch can select
+  // a row that the incoming page then replaces.
+  await expect(questionRows(page).first()).toContainText('Published')
+  await expect(questionRows(page).filter({ hasText: 'Draft' })).toHaveCount(0)
+  await questionRows(page).first().click()
+  await expect(page.getByText('Editing question')).toBeVisible()
+
+  // Editable, with the live-edit warning — and no "New version" escape hatch.
+  await expect(page.getByText(/Saving updates it immediately everywhere/i)).toBeVisible()
+  await expect(page.getByRole('button', { name: 'New version' })).toHaveCount(0)
+
+  const stem = page.getByLabel('Question', { exact: true })
+  await expect(stem).toBeEditable()
+
+  // Editing marks the draft dirty; saving PATCHes the SAME question with the new
+  // text — an in-place update, not a clone.
+  const original = await stem.inputValue()
+  await stem.fill(`${original} [e2e]`)
+  await expect(page.getByText('Unsaved changes')).toBeVisible()
+
+  const patched = page.waitForRequest(
+    (r) => r.url().includes('/admin/questions/') && r.method() === 'PATCH'
+  )
+  await page.getByRole('button', { name: 'Save', exact: true }).click()
+  const request = await patched
+  expect(request.postDataJSON()?.stem).toBe(`${original} [e2e]`)
+  await expect(page.getByText('All changes saved')).toBeVisible()
+
+  // Restore so re-runs start from the same content.
+  await stem.fill(original)
+  const restored = page.waitForRequest(
+    (r) => r.url().includes('/admin/questions/') && r.method() === 'PATCH'
+  )
+  await page.getByRole('button', { name: 'Save', exact: true }).click()
+  await restored
 })
