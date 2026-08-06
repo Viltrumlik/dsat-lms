@@ -545,7 +545,7 @@ The existing `lib/api` was written against an assumed API and drifted. Fix befor
 TanStack Query for server state; **Zustand only** for the session engine. shadcn/ui + Radix (installed), **KaTeX** (not MathJax), React Hook Form + Zod, Recharts lazy (Phase 2). TypeScript strict, no `any`, `@/*` → `src/*`. Timer is **server-authoritative** (client display only). Route groups: `(public)` `(student)` `(session)`; `(teacher)`/`(admin)` = Phase 2.
 
 ### Verification (end-to-end)
-1. Backend: `cd backend && source .venv/bin/activate && python manage.py runserver` (dev = Celery eager + SQLite, no Redis/Postgres). Seed a public `ExamTemplate` (type=practice) with a section + a few published questions via `/admin/`.
+1. Backend: `cd backend && source .venv/bin/activate && python manage.py runserver` (dev = Celery eager + SQLite, no Redis/Postgres). Seed a public `ExamTemplate` (type=practice) with a section + a few published questions via `/django-admin/` (Django's admin moved off `/admin/`, which the Next app owns — see the deployment note).
 2. Frontend: `cd frontend && npm install && npm run dev` → http://localhost:3000.
 3. Flow: register → verify (dev prints the link to the backend console) → dashboard → start practice test → answer (KaTeX renders) → timer counts down → flag/cross-out work → auto-save PATCH every 30s → **refresh mid-test and confirm recovery** → submit → results screen.
 4. `npm run type-check` + `npm run lint` clean. Add vitest tests for the API reconciliation + a couple store/hook tests; Playwright e2e for the happy path (stretch).

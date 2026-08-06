@@ -20,8 +20,18 @@ urlpatterns = [
     # Browser crash reports. Unauthenticated on purpose — the errors most worth
     # seeing are the ones that happen instead of a working session.
     path(API_V1 + "client-errors/", ClientErrorView.as_view(), name="client-errors"),
-    # Admin
-    path("admin/", admin.site.urls),
+    # Django's admin, at /django-admin/ rather than the conventional /admin/,
+    # because the FRONTEND owns /admin/ — the whole (admin) route group lives
+    # there: /admin/users, /admin/questions, /admin/exams and the rest of the
+    # control center. In development nothing collides (Next on :3000, Django on
+    # :8000); behind one domain they land on the same prefix, and whichever the
+    # proxy routes first wins. It was Django, so every page of the control
+    # center answered 404 in production while working perfectly in dev.
+    #
+    # The frontend keeps /admin/ because that is what its links, its navigation
+    # and its tests all say. This is the one line that has to move, and Django's
+    # admin is the secondary surface here — a staff tool, not the product.
+    path("django-admin/", admin.site.urls),
     # API Docs
     path(API_V1 + "schema/", SpectacularAPIView.as_view(), name="schema"),
     path(API_V1 + "docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger"),
