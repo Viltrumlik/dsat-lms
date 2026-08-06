@@ -10,16 +10,47 @@ git clone git@github.com:Viltrumlik/dsat-lms.git && cd dsat-lms
 cp .env.example .env && $EDITOR .env      # see "What must be set" below
 ```
 
-Get a certificate before the first `up` — Nginx will not start without one:
+Nginx will not start without a certificate, so one has to exist first. Which
+route depends on whether DNS already points here.
+
+**DNS is live** — take the real certificate straight away, with port 80 free
+because Nginx is not running yet:
 
 ```bash
 docker run --rm -p 80:80 \
   -v dsat-lms_certbot_conf:/etc/letsencrypt \
   -v dsat-lms_certbot_www:/var/www/certbot \
   certbot/certbot certonly --standalone \
-  -d app.yourdomain.com --cert-name satfergana \
+  -d yourdomain.com -d www.yourdomain.com --cert-name satfergana \
   --agree-tos -m you@yourdomain.com --no-eff-email
 ```
+
+**DNS is not live yet** (a fresh domain can take a day) — do not sit and wait.
+Put a placeholder in so Nginx starts, and bring the site up behind it:
+
+```bash
+docker volume create dsat-lms_certbot_conf
+docker run --rm -v dsat-lms_certbot_conf:/etc/letsencrypt alpine \
+  mkdir -p /etc/letsencrypt/live/satfergana
+docker run --rm -v dsat-lms_certbot_conf:/etc/letsencrypt alpine/openssl \
+  req -x509 -nodes -newkey rsa:2048 -days 3 \
+  -keyout /etc/letsencrypt/live/satfergana/privkey.pem \
+  -out /etc/letsencrypt/live/satfergana/fullchain.pem \
+  -subj "/CN=yourdomain.com"
+```
+
+Browsers will refuse it, which is correct — it exists so the stack can be
+verified end to end (routing, headers, static files) while DNS propagates. When
+the domain resolves, swap it for the real one **without stopping Nginx**:
+
+```bash
+./deploy/obtain-cert.sh yourdomain.com you@yourdomain.com
+```
+
+That uses the webroot Nginx already serves, deletes the placeholder first (or
+certbot treats it as a lineage it issued), and refuses to run at all until the
+domain resolves to this machine — a request against DNS that has not propagated
+just spends one of five hourly attempts Let's Encrypt allows.
 
 Then:
 
@@ -134,10 +165,22 @@ public to "fix" a broken image.
 
 ## Renewing TLS
 
+Automatic. The `certbot` service renews twice a day and Nginx reloads every six
+hours to pick the new file up — certbot cannot signal a process in another
+container, and Nginx reads the certificate once at start, so without that reload
+the site would expire on schedule with a valid certificate sitting on disk.
+
+Both loops exist because a certificate renewed by a command in a runbook is a
+certificate that expires: these last 90 days, so the failure lands a quarter
+after the deploy, and it takes the whole site down at once.
+
+Check it is working — long before you need it to have worked:
+
 ```bash
-docker run --rm \
-  -v dsat-lms_certbot_conf:/etc/letsencrypt \
-  -v dsat-lms_certbot_www:/var/www/certbot \
-  certbot/certbot renew --webroot -w /var/www/certbot
-docker compose -f docker-compose.prod.yml exec nginx nginx -s reload
+docker compose -f docker-compose.prod.yml logs certbot | tail -20
+docker compose -f docker-compose.prod.yml run --rm --entrypoint certbot certbot certificates
 ```
+
+`certificates` prints the expiry date. If it is ever inside 30 days and not
+moving, renewal is failing silently — check that port 80 still reaches
+`/.well-known/acme-challenge/` from outside.
