@@ -312,6 +312,8 @@ export const uz: Dictionary = {
     goToQuestion: '{number}-savolga oʻtish',
     goToReviewPage: 'Koʻrib chiqish sahifasiga oʻtish',
     answerPreview: 'Javob koʻrinishi:',
+    check: 'Tekshirish',
+    correctAnswerIs: 'Toʻgʻri javob:',
     legend: {
       current: 'Joriy',
       unanswered: 'Javob berilmagan',

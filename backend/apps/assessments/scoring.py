@@ -14,6 +14,12 @@ for an official per-form table when one is available (the call site is unchanged
 SECTION_FLOOR = 200
 SECTION_CEIL = 800
 
+# The real test reports section scores in steps of ten — 520, 530, never 527.
+# Interpolating between the anchors below lands anywhere, so the result is
+# snapped before it is returned. A score card that reads 437 is wrong in a way
+# every student who has seen a real one will notice immediately.
+SCORE_STEP = 10
+
 # (fraction_correct, scaled_score) anchors, ascending. Scores between anchors are
 # linearly interpolated. Endpoints pin the 200 floor and the 800 ceiling.
 CURVE = [
@@ -31,6 +37,16 @@ CURVE = [
 ]
 
 
+def _to_step(score: float) -> int:
+    """Snap to the reported scale: multiples of ten, inside 200–800.
+
+    Clamping after rounding rather than before, so a curve that ever anchors
+    above 800 or below 200 still cannot emit a score off the scale.
+    """
+    stepped = int(round(score / SCORE_STEP) * SCORE_STEP)
+    return max(SECTION_FLOOR, min(SECTION_CEIL, stepped))
+
+
 def scaled_section_score(correct: int, total: int) -> int:
     """Map a raw section result to the 200–800 SAT scale (representative curve)."""
     if total <= 0:
@@ -40,5 +56,5 @@ def scaled_section_score(correct: int, total: int) -> int:
         if ratio <= x1:
             span = x1 - x0
             t = 0.0 if span == 0 else (ratio - x0) / span
-            return round(y0 + t * (y1 - y0))
+            return _to_step(y0 + t * (y1 - y0))
     return SECTION_CEIL
