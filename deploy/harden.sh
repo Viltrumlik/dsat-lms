@@ -64,7 +64,12 @@ cat > /etc/fail2ban/filter.d/dsat-nginx-probe.conf <<'EOF'
 [Definition]
 # 444 is only ever returned by the scanner-path block in deploy/nginx.conf, and
 # 401/403 in volume is someone working through credentials or ids.
-failregex = ^<HOST> \S+ \S+ \[[^]]+\] "[^"]*" (444|401|403) 
+#
+# The `.*` where the timestamp belongs is not laziness: fail2ban finds and
+# STRIPS the date before applying this, so a pattern that expects
+# `\[[^]]+\]` meets an empty pair of brackets and never matches — a filter
+# that loads, runs, reports the jail as enabled and bans nobody.
+failregex = ^<HOST> \S+ \S+ .*"(?:GET|POST|HEAD|PUT|DELETE|OPTIONS|PATCH)[^"]*" (?:444|401|403) 
 ignoreregex =
 EOF
 
