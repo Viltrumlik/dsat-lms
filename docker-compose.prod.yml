@@ -88,6 +88,14 @@ services:
       --concurrency=${CELERY_CONCURRENCY:-4}
       --max-tasks-per-child=200
       -Q celery,analytics,notifications
+    # The same media volume as `web`, and not for symmetry: apps.files.tasks
+    # .purge_soft_deleted_attachments runs HERE (it is unrouted, so it lands on
+    # the default queue) and deletes blobs off disk. Without the mount under
+    # STORAGE_BACKEND=local it deletes the row, fails to find the file, and
+    # FileSystemStorage swallows the error — the database forgets an attachment
+    # the disk keeps forever. A leak that only shows up as a full disk.
+    volumes:
+      - media_data:/app/media
     depends_on:
       postgres: {condition: service_healthy}
       redis: {condition: service_healthy}
