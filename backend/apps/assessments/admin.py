@@ -15,6 +15,7 @@ from .models import (
     ExamSection,
     ExamSession,
     ExamTemplate,
+    SessionModuleRouting,
 )
 
 
@@ -104,6 +105,28 @@ class ExamResultAdmin(admin.ModelAdmin):
     search_fields = ("user__email", "exam__title")
     autocomplete_fields = ("session", "user", "exam")
     readonly_fields = ("computed_at",)
+
+
+@admin.register(SessionModuleRouting)
+class SessionModuleRoutingAdmin(admin.ModelAdmin):
+    """Which form of an adaptive module a student was given, and on what.
+
+    Read-only: the decision is made once, during the exam, and editing it after
+    the fact would disagree with the questions the student was actually shown —
+    which is what grading counts. This is here to ANSWER "why did they get the
+    easier module 2", not to change the answer.
+    """
+
+    list_display = ("session", "section", "variant", "decided_on_accuracy", "decided_at")
+    list_filter = ("variant",)
+    search_fields = ("session__user__email", "session__exam__title")
+    readonly_fields = ("session", "section", "variant", "decided_on_accuracy", "decided_at")
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(ExamAssignment)

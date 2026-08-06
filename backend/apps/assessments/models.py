@@ -8,6 +8,8 @@ from django.db import models
 
 from common.models import BaseModel
 
+from .adaptive import Routing
+
 
 class ExamTemplate(BaseModel):
     """
@@ -121,6 +123,16 @@ class ExamQuestion(models.Model):
         related_name="exam_appearances",
     )
     position = models.SmallIntegerField()
+    # Which form of an adaptive module this question belongs to. `standard` is
+    # served to everyone and is the only value a non-adaptive paper ever holds,
+    # which is why adding this changed no existing exam. See adaptive.py for why
+    # the variants live on the QUESTION and not on a second section.
+    routing = models.CharField(
+        max_length=10,
+        choices=Routing.choices,
+        default=Routing.STANDARD,
+        db_index=True,
+    )
 
     class Meta:
         db_table = "exam_questions"
@@ -247,6 +259,46 @@ class ExamResponse(models.Model):
             # the bank gets slower with every answer anyone ever gives.
             models.Index(fields=["question", "-answered_at"]),
         ]
+
+
+class SessionModuleRouting(models.Model):
+    """Which form of an adaptive module a session was routed to, and on what.
+
+    Written once, on the advance into the module, and never revised. Recomputing
+    it on read would let a late write — the `reconcile_session_answers` sweep
+    picking an answer out of the auto-save blob — move a student between forms
+    while they were sitting one of them, and would let grading mark them on
+    questions they were never shown.
+
+    `decided_on_accuracy` is kept so the decision can be explained rather than
+    just asserted: a teacher asking why a student got the lower form has the
+    number in front of them.
+    """
+
+    session = models.ForeignKey(
+        ExamSession,
+        on_delete=models.CASCADE,
+        related_name="routings",
+    )
+    section = models.ForeignKey(
+        ExamSection,
+        on_delete=models.CASCADE,
+        related_name="+",
+    )
+    variant = models.CharField(max_length=10, choices=Routing.choices)
+    # Percentage correct on the module that decided this. Null when there was no
+    # preceding module of the subject to judge.
+    decided_on_accuracy = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    decided_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "exam_session_routings"
+        # One decision per module per session. The constraint is the thing that
+        # makes "decided once" true rather than merely intended.
+        unique_together = [("session", "section")]
+
+    def __str__(self):
+        return f"Routing<{self.session_id}> s{self.section_id} → {self.variant}"
 
 
 class ExamResult(models.Model):

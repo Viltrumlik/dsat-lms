@@ -125,14 +125,42 @@ class TestOnlyTheOpenModuleIsServed:
 
     def test_a_reload_mid_paper_gets_only_the_module_in_hand(self, auth_client, sitting):
         _, detail = sitting
-        auth_client.patch(
+        # One module at a time — a jump is refused (see TestAdvanceIsOneStep).
+        for section in (2, 3):
+            auth_client.patch(
+                f"{SESSIONS}{detail['id']}/",
+                {"current_section": section, "current_question": 1},
+                format="json",
+            )
+        reloaded = auth_client.get(f"{SESSIONS}{detail['id']}/")
+        served = [len(s["questions"]) for s in reloaded.data["data"]["sections"]]
+        assert served == [0, 0, 1, 0]
+
+
+class TestAdvanceIsOneStep:
+    """Forward-only stopped a student going BACK; it did nothing about going too
+    far forward. A client could name any later section and land there, skipping
+    whole modules — every question in them graded as omitted, and no way back."""
+
+    def test_a_jump_past_the_next_module_is_refused(self, auth_client, sitting):
+        _, detail = sitting
+        response = auth_client.patch(
             f"{SESSIONS}{detail['id']}/",
             {"current_section": 3, "current_question": 1},
             format="json",
         )
-        reloaded = auth_client.get(f"{SESSIONS}{detail['id']}/")
-        served = [len(s["questions"]) for s in reloaded.data["data"]["sections"]]
-        assert served == [0, 0, 1, 0]
+        assert response.status_code == 400
+        assert auth_client.get(f"{SESSIONS}{detail['id']}/").data["data"]["current_section"] == 1
+
+    def test_the_next_module_is_allowed(self, auth_client, sitting):
+        _, detail = sitting
+        response = auth_client.patch(
+            f"{SESSIONS}{detail['id']}/",
+            {"current_section": 2, "current_question": 1},
+            format="json",
+        )
+        assert response.status_code == 200
+        assert response.data["data"]["current_section"] == 2
 
 
 class TestBreakDoesNotCostTime:
@@ -149,12 +177,25 @@ class TestBreakDoesNotCostTime:
         assert after.data["data"]["section_time_remaining"] == pytest.approx(35 * 60, abs=5)
 
 
+def seed_bank():
+    """Enough published questions for the paper the seed builds.
+
+    Module 2 of each subject is adaptive, so it needs TWO forms: 22+22+22 math
+    and 27+27+27 reading & writing. Spread across the difficulty range, because
+    the seed draws the lower form from the easy end and the upper from the hard
+    one — a flat bank would make the two forms indistinguishable.
+    """
+    UserFactory(role="admin", is_staff=True)
+    for module, needed in (("math", 66), ("reading_writing", 81)):
+        for index in range(needed):
+            QuestionFactory(
+                module=module, status=Question.Status.PUBLISHED, difficulty=(index % 5) + 1
+            )
+
+
 class TestSeedCommand:
     def test_it_builds_the_paper_the_runner_expects(self):
-        UserFactory(role="admin", is_staff=True)
-        for module in ("math", "reading_writing"):
-            for _ in range(60):
-                QuestionFactory(module=module, status=Question.Status.PUBLISHED)
+        seed_bank()
 
         call_command("seed_full_mock")
         exam = ExamTemplate.objects.get(title="Full Mock Exam 1")
@@ -171,13 +212,43 @@ class TestSeedCommand:
             "reading_writing",
         ]
         assert [s.break_after_minutes for s in sections] == [None, 10, None, None]
-        assert [s.exam_questions.count() for s in sections] == [22, 22, 27, 27]
+        # Module 2 of each subject carries BOTH forms; a student is served one.
+        assert [s.exam_questions.count() for s in sections] == [22, 44, 27, 54]
+
+    def test_the_second_module_of_each_subject_is_routed(self):
+        """The paper is adaptive like the real thing: module 1 is the same for
+        everyone and is what the routing decision is made FROM, so it is never
+        itself routed."""
+        seed_bank()
+        call_command("seed_full_mock")
+        exam = ExamTemplate.objects.get(title="Full Mock Exam 1")
+        assert exam.is_adaptive is True
+
+        forms = [
+            sorted(set(s.exam_questions.values_list("routing", flat=True)))
+            for s in exam.sections.order_by("section_number")
+        ]
+        assert forms == [["standard"], ["lower", "upper"], ["standard"], ["lower", "upper"]]
+
+    def test_the_two_forms_are_the_same_length_and_do_not_overlap(self):
+        """Two forms of one module, not two different modules — and no question
+        may sit in both, or its difficulty would say nothing about the form."""
+        seed_bank()
+        call_command("seed_full_mock")
+        exam = ExamTemplate.objects.get(title="Full Mock Exam 1")
+
+        for section in exam.sections.filter(section_number__in=(2, 4)):
+            lower = set(
+                section.exam_questions.filter(routing="lower").values_list("question_id", flat=True)
+            )
+            upper = set(
+                section.exam_questions.filter(routing="upper").values_list("question_id", flat=True)
+            )
+            assert len(lower) == len(upper)
+            assert not lower & upper
 
     def test_re_running_refills_rather_than_duplicating(self):
-        UserFactory(role="admin", is_staff=True)
-        for module in ("math", "reading_writing"):
-            for _ in range(60):
-                QuestionFactory(module=module, status=Question.Status.PUBLISHED)
+        seed_bank()
 
         call_command("seed_full_mock")
         call_command("seed_full_mock")
@@ -185,10 +256,7 @@ class TestSeedCommand:
         assert ExamSection.objects.filter(exam__title="Full Mock Exam 1").count() == 4
 
     def test_a_module_never_reuses_another_modules_questions(self):
-        UserFactory(role="admin", is_staff=True)
-        for module in ("math", "reading_writing"):
-            for _ in range(60):
-                QuestionFactory(module=module, status=Question.Status.PUBLISHED)
+        seed_bank()
 
         call_command("seed_full_mock")
         exam = ExamTemplate.objects.get(title="Full Mock Exam 1")

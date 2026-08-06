@@ -25,8 +25,7 @@ import re
 
 from django.contrib.postgres.search import SearchQuery, SearchVector
 from django.db import connection
-from django.db.models import Q, TextField, Value
-from django.db.models.functions import Coalesce
+from django.db.models import Q
 
 SEARCH_CONFIG = "english"
 
@@ -45,18 +44,18 @@ def question_search_vector():
 
     Returns a fresh expression each call: Django expressions carry per-query
     state, so a shared module-level instance is a bug waiting for a second
-    caller. COALESCE because `passage` and `source_ref` are nullable, and one
-    NULL makes the whole concatenated vector NULL.
+    caller.
 
-    `output_field` is not decoration: `stem`/`passage` are TextField and
-    `source_ref` is CharField, and Postgres refuses to resolve a COALESCE across
-    the two on its own ("Expression contains mixed types"). SQLite never sees the
-    expression at all, so this fails nowhere but production.
+    Bare field names, no explicit COALESCE. SearchVector already wraps each
+    field in `COALESCE(field, '')` — a NULL `passage` would otherwise make the
+    whole concatenated vector NULL — so adding our own only doubled it, and it
+    doubled it in a way that could not survive `makemigrations --check`: an
+    explicit Coalesce across a TextField and a CharField needs `output_field`,
+    `output_field` needs a `TextField()` instance, and Django compares field
+    instances by creation counter. A new instance every call meant the
+    autodetector saw the index change on every run, forever.
     """
-    return SearchVector(
-        *(Coalesce(field, Value(""), output_field=TextField()) for field in SEARCH_FIELDS),
-        config=SEARCH_CONFIG,
-    )
+    return SearchVector(*SEARCH_FIELDS, config=SEARCH_CONFIG)
 
 
 def query_plan(term: str) -> tuple[str, str]:
