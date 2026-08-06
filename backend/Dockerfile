@@ -48,6 +48,15 @@ RUN pip install --no-index --find-links=/wheels -r requirements/production.txt \
 
 COPY --chown=app:app . .
 
+# MEDIA_ROOT has to exist in the IMAGE, owned by the user that runs, before the
+# named volume is mounted over it. Docker creates a missing mount point as
+# root:root, and the container runs as uid 10001 — so with STORAGE_BACKEND=local
+# every upload died on "Permission denied" while looking like a plain 500:
+# homework hand-ins, avatars, ticket attachments, teacher materials, all of it.
+# An empty volume takes its ownership from the image directory, which is what
+# makes this the durable fix rather than a chown somebody has to remember.
+RUN mkdir -p /app/media && chown app:app /app/media
+
 # Collected at BUILD time, not on boot: an image that has to reach the network
 # to become servable is an image that fails to start on a bad day. The dummy
 # values exist only because collectstatic imports settings, which reads env.

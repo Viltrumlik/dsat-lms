@@ -85,10 +85,15 @@ export function QuestionPane() {
         ) : (
           <GridIn
             value={answer}
-            onChange={(v) => {
-              setAnswer(question.id, v)
-              syncAnswer(question.id, v)
+            // Typing only touches the store. Sending every keystroke meant a
+            // drill marked "15.2" four times on the way in, judging "1" wrong
+            // before the student had finished the number.
+            onChange={(v) => setAnswer(question.id, v)}
+            onCommit={() => {
+              const current = (answer ?? '').trim()
+              if (current) syncAnswer(question.id, current)
             }}
+            verdict={verdict}
           />
         )}
       </div>

@@ -6,7 +6,8 @@
 
 import * as React from 'react'
 import { ChevronUp } from 'lucide-react'
-import { useSessionStore } from '@/lib/stores/sessionStore'
+import { selectCurrentQuestion, useSessionStore } from '@/lib/stores/sessionStore'
+import { useAnswerSync } from '@/lib/hooks/useAnswerSync'
 import { useAuth } from '@/lib/auth/AuthProvider'
 import { useT } from '@/lib/i18n/I18nProvider'
 import { QuestionNavigator } from './QuestionNavigator'
@@ -23,6 +24,23 @@ export function BottomBar() {
 
   const [navOpen, setNavOpen] = React.useState(false)
   const popoverRef = React.useRef<HTMLDivElement>(null)
+
+  // Check exists for the drill, and really for the grid-in on it. A multiple
+  // choice marks itself the moment it is picked — there is a click to hang the
+  // verdict on. Typing has no such moment, so without this button a
+  // student-produced answer on an instant-feedback session is the one question
+  // type that can never be checked.
+  const feedbackMode = useSessionStore((s) => s.feedbackMode)
+  const question = useSessionStore(selectCurrentQuestion)
+  const answer = useSessionStore((s) => (question ? (s.questionStates[question.id]?.answer ?? null) : null))
+  const verdict = useSessionStore((s) => (question ? (s.verdicts[question.id] ?? null) : null))
+  const syncAnswer = useAnswerSync()
+
+  const canCheck =
+    feedbackMode === 'instant' &&
+    question?.answerType === 'grid_in' &&
+    verdict === null &&
+    Boolean((answer ?? '').trim())
 
   const section = sections[sectionIndex]
   // The module's real size, not the array's — the paper is served a module
@@ -96,6 +114,17 @@ export function BottomBar() {
         </div>
 
         <div className="flex flex-1 items-center justify-end gap-3">
+          {canCheck && (
+            <button
+              type="button"
+              onClick={() => {
+                if (question) syncAnswer(question.id, (answer ?? '').trim())
+              }}
+              className="rounded-full border-2 border-bb-blue bg-white px-7 py-2.5 text-[17px] font-bold text-bb-blue transition-colors hover:bg-bb-blue/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bb-blue focus-visible:ring-offset-2"
+            >
+              {t('testEngine.check')}
+            </button>
+          )}
           <button
             type="button"
             onClick={prevQuestion}

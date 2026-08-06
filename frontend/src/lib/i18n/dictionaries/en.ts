@@ -310,6 +310,8 @@ export const en = {
     goToQuestion: 'Go to question {number}',
     goToReviewPage: 'Go to Review Page',
     answerPreview: 'Answer preview:',
+    check: 'Check',
+    correctAnswerIs: 'Correct answer:',
     legend: {
       current: 'Current',
       unanswered: 'Unanswered',
