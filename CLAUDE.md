@@ -433,9 +433,20 @@ R2_ACCESS_KEY_ID=
 R2_SECRET_ACCESS_KEY=
 R2_BUCKET_NAME=
 
-# Email
-EMAIL_BACKEND=resend    # or ses
-RESEND_API_KEY=
+# Email — Mailgun SMTP (Resend/SES speak the same protocol)
+EMAIL_HOST=smtp.mailgun.org        # smtp.eu.mailgun.org for an EU domain
+EMAIL_PORT=587                     # STARTTLS. 465 needs EMAIL_USE_SSL instead
+EMAIL_HOST_USER=postmaster@mg.yourdomain.com
+EMAIL_HOST_PASSWORD=               # domain SMTP password, NOT the API key
+EMAIL_FROM=noreply@yourdomain.com
+
+# Email limits (apps.mailer) — counted off the outbox, not per-IP
+MAIL_COOLDOWN_SECONDS=60
+MAIL_MAX_PER_RECIPIENT_PER_DAY=10        # broadcast mail
+MAIL_MAX_CODES_PER_RECIPIENT_PER_DAY=5   # verification / reset codes
+MAIL_MAX_PER_DAY=2000
+MAIL_RESERVE_FOR_CODES=200               # bulk stops this far short of the cap
+MAIL_CODE_TTL_MINUTES=15
 
 # Sentry (optional in dev)
 SENTRY_DSN=
@@ -869,3 +880,25 @@ Access is unchanged and shared with the stream — `_member_class_or_404`: class
 - **"Check Your Work" is the CURRENT module only.** A grid spanning the whole paper was already offering jumps back into modules where every write bounces (the server refuses a backward section move), so scoping it fixed a standing bug as well as matching Bluebook, which reviews per module.
 
 **Verified:** 867 pytest (4 new — start ships module 1 only, every module still reports its size + shape, advancing hands over the next, a reload gets only the module in hand) + ruff/black; frontend type-check + lint + 142 vitest + `next build`; **browser-verified in UZ** — Begin → module 2 → Finish section → break correctly says "27 savol" up next → Resume → module 3 opens *with its questions* on a fresh 32-min clock → module 4 → review shows that module alone → submit dialog still counts all 86.*
+
+***Mailer — one door out, with limits** (commits 5c05edc backend, b342a58 frontend). Email was `send_mail()` called from wherever it was needed, with no record of what went, no way to stop writing to a dead address, and a DRF per-IP throttle as the only brake. New app **`apps/mailer`**.
+
+**SMTP is Mailgun** (`config/settings/production.py`): 587/STARTTLS, `EMAIL_HOST_USER` = the domain's SMTP login (`postmaster@mg.…`), `EMAIL_HOST_PASSWORD` = the domain's **SMTP password, not the API key**; `smtp.eu.mailgun.org` for an EU domain; `EMAIL_TIMEOUT` so a hung handshake can't hold a worker; and it raises at import if both TLS flags are set rather than guessing.
+
+**One door.** `mailer.service.send()` writes an `EmailMessage` outbox row, calls `quota.check`, then hands delivery to `tasks.deliver_email` (3 retries, then FAILED where someone can see it). There is **no `send_mail()` left in the apps** — including `notifications/announcements.py`, which fans out to every student and was the single biggest way to waste an allowance. `send_quietly()` is the variant for callers with nobody waiting: a refusal becomes a SUPPRESSED row instead of an exception that aborts a fan-out.
+
+**Four limits, each a different failure** (`quota.py`, all env-tunable, all counted off the outbox so Celery tasks and management commands are inside the gate too):
+`EmailSuppression` — a dead address is never queued again (the provider charges for the attempt and the domain pays for the bounce); re-checked at delivery, since an address can be listed between queue and send · **cooldown** (60 s per recipient *per kind*) — the impatient resend · **per-recipient daily** · **global daily** — the runaway.
+**Transactional is counted separately from broadcast**, and bulk stops `MAIL_RESERVE_FOR_CODES` short of the global cap. Otherwise a class that got ten announcements this morning could not reset a password this afternoon, and the reason would be invisible to everyone involved. A SUPPRESSED row never reached the provider, so it does not consume quota.
+
+**Codes replace links.** `VerificationCode` — six digits, **HMAC-hashed with SECRET_KEY at rest** (it is a credential for fifteen minutes; a DB dump must not verify addresses or reset passwords), constant-time compared, single-use, 15-min TTL, 5 attempts, and issuing retires every earlier live code. `codes.issue()` is atomic, so a quota refusal leaves no live code nobody was told about. Daily beat `purge_expired_codes` hard-deletes them — the outbox already records that a code was sent. A link only works in the browser that opened it; a student who signs up on a laptop and reads mail on a phone has neither.
+
+**Endpoints keep their paths**, bodies change: `verify-email/confirm` and `password/reset/confirm` take `{email, code}`. Resend answers **429 + `Retry-After`** (`EMAIL_RATE_LIMITED`) — a refusal a student can act on. The reset REQUEST endpoint still answers identically for known and unknown addresses, and swallows its own quota refusal for the same reason: a 429 there would turn the cooldown into an account oracle. `apps/identity/tasks.py` is gone — codes are issued synchronously (one insert) so the refusal reaches the user; only SMTP is async.
+
+**Frontend:** `CodeInput` (one field, `inputMode="numeric"` + `autoComplete="one-time-code"` — six boxes fight paste and OS autofill), `useResendCooldown` seeded from the server's `Retry-After`, rewritten `/verify-email` + `/reset-password`, and `/forgot-password` hands off carrying the address.
+
+**Two real bugs found and fixed while verifying:** an unbounded per-recipient cap that let announcements starve password resets (above); and a "have we fired" latch in `CodeInput` that meant the right code entered **after** a wrong one never auto-submitted — the parent's clear never went through the handler that reset the flag, which is exactly the path a student takes after a typo. Both pinned by tests.
+
+**Known gap:** code-error messages come from the server in English while the UI may be in Uzbek (`CodeError.reason` is a stable slug, so mapping them into the i18n catalogs is the obvious next step).
+
+**Verified:** 887 pytest (23 new mailer: quota families, reserve, suppression before *and* after queueing, outbox records a provider failure rather than raising, code hashed/single-use/expiring/attempt-capped/purpose-scoped/per-user) + ruff/black/makemigrations; frontend type-check + lint + **146 vitest** (4 new `CodeInput.test.tsx`) + `next build`; **browser-verified in UZ** — register → code screen with the resend already counting down 51s → wrong code shows "4 attempts left" → right code verifies; and over HTTP: 429 + `Retry-After: 60` on an immediate resend, one outbox row for two reset requests in a row, identical reply for a known and an unknown address.*
