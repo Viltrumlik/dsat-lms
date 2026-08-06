@@ -621,6 +621,12 @@ class Command(BaseCommand):
                         # and a paper-wide one would also be running during a break.
                         "time_limit": None,
                         "access_level": "public",
+                        # Migration 0005 requires full screen on the invigilated
+                        # types, past_paper among them — but a data migration
+                        # only reaches the rows that existed when it ran. Set it
+                        # here too, or every paper imported after that date sits
+                        # outside the rule the rest of them follow.
+                        "requires_fullscreen": True,
                         "created_by": self.author,
                         "deleted_at": None,
                     },
