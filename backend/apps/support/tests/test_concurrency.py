@@ -180,9 +180,14 @@ class TestTwoStudentsBookingAtOnce:
         refused = [r for r in results if isinstance(r, ValueError)]
         assert len(booked) == 1, f"expected one winner, got {results}"
         assert len(refused) == len(students) - 1
-        # Refused with the code the API turns into a 400 the student can read —
-        # not an IntegrityError leaking out as a 500.
-        assert {str(r) for r in refused} == {"slot_taken"}
+        # Both refusals are legitimate and which one a loser gets depends on
+        # where the race caught it: a thread that reached the freshness check
+        # after the winner committed sees no free slot ("slot_unavailable"),
+        # while one that got past the check before either commit is stopped by
+        # the unique constraint ("slot_taken"). What matters is that BOTH are
+        # ValueErrors the view turns into a readable 400 — not an IntegrityError
+        # escaping as a 500.
+        assert {str(r) for r in refused} <= {"slot_taken", "slot_unavailable"}
         assert (
             SupportBooking.objects.filter(
                 teacher=teacher,
@@ -190,6 +195,32 @@ class TestTwoStudentsBookingAtOnce:
                 status__in=[BookingStatus.PENDING, BookingStatus.CONFIRMED],
             ).count()
             == 1
+        )
+
+    def test_the_constraint_path_really_is_reachable(self):
+        """The freshness check alone would make the unique index look redundant.
+
+        It is not: two threads can both pass `generate_slots` before either
+        commits, and then only the database can decide. Forced here by letting
+        every thread through the check and racing the INSERT directly."""
+        teacher = teacher_with_hours()
+        slot = free_slot(teacher)
+        students = [UserFactory(role="student") for _ in range(6)]
+
+        def insert(index):
+            return SupportBooking.objects.create(
+                student=students[index],
+                teacher=teacher,
+                subject="math",
+                scheduled_at=slot,
+                duration_minutes=30,
+                status=BookingStatus.PENDING,
+            )
+
+        results = run_together(insert, len(students))
+        assert len([r for r in results if isinstance(r, SupportBooking)]) == 1
+        assert all(
+            isinstance(r, IntegrityError) for r in results if not isinstance(r, SupportBooking)
         )
 
 

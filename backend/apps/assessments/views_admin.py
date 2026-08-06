@@ -191,7 +191,7 @@ class AdminSectionQuestionsView(APIView):
     def post(self, request, exam_id, section_id):
         exam = _get_exam(exam_id)
         section = _get_section(exam, section_id)
-        serializer = AddSectionQuestionSerializer(data=request.data)
+        serializer = AddSectionQuestionSerializer(data=request.data, context={"exam": exam})
         serializer.is_valid(raise_exception=True)
         question = Question.objects.filter(pk=serializer.validated_data["question"]).first()
         if question is None:
@@ -206,7 +206,10 @@ class AdminSectionQuestionsView(APIView):
             ).to_response()
         next_position = (section.exam_questions.aggregate(m=Max("position"))["m"] or 0) + 1
         exam_question = ExamQuestion.objects.create(
-            section=section, question=question, position=next_position
+            section=section,
+            question=question,
+            position=next_position,
+            routing=serializer.validated_data["routing"],
         )
         return created_response(SectionQuestionSerializer(exam_question).data)
 

@@ -11,6 +11,7 @@ from apps.academy.models import Class
 from apps.identity.models import User
 from apps.question_bank.models import Question
 
+from .adaptive import Routing
 from .models import ExamAssignment, ExamQuestion, ExamSection, ExamSession, ExamTemplate
 from .serializers import ExamMiniSerializer
 
@@ -41,7 +42,7 @@ class SectionQuestionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ExamQuestion
-        fields = ["id", "position", "question"]
+        fields = ["id", "position", "question", "routing"]
 
 
 class AdminSectionSerializer(serializers.ModelSerializer):
@@ -117,6 +118,25 @@ class AdminExamWriteSerializer(serializers.ModelSerializer):
 
 class AddSectionQuestionSerializer(serializers.Serializer):
     question = serializers.UUIDField()
+    # Which form of an adaptive module this question belongs to (see
+    # apps/assessments/adaptive.py). Defaults to `standard`, which is what every
+    # question on a non-adaptive paper is.
+    routing = serializers.ChoiceField(choices=Routing.choices, default=Routing.STANDARD)
+
+    def validate_routing(self, value):
+        """A variant only means something on a paper that routes.
+
+        Refused rather than ignored: a silently-dropped `upper` would leave the
+        author looking at a module holding both forms at once, with no
+        indication of why.
+        """
+        exam = self.context.get("exam")
+        if value != Routing.STANDARD and exam is not None and not exam.is_adaptive:
+            raise serializers.ValidationError(
+                "This exam is not adaptive. Turn on `is_adaptive` before adding "
+                "lower/upper form questions."
+            )
+        return value
 
 
 class ReorderSerializer(serializers.Serializer):

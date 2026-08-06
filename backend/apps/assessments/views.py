@@ -19,6 +19,7 @@ from common.exceptions import ExamSessionError
 from common.pagination import CursorPagination
 from common.responses import created_response, success_response
 
+from .adaptive import routing_for
 from .eligibility import NotEligibleError, check_can_start, live_session_for
 from .models import ExamQuestion, ExamResponse, ExamSession, ExamTemplate
 from .serializers import (
@@ -35,9 +36,11 @@ from .serializers import (
 )
 from .services import (
     answers_match,
+    current_section,
     exam_is_over,
     grade_session,
     is_expired,
+    next_section_number,
     section_time_remaining,
     server_time_remaining,
 )
@@ -173,6 +176,18 @@ class SessionDetailView(APIView):
                 "You cannot go back to a previous section.",
                 field="current_section",
             ).to_response()
+        if advancing:
+            # An advance goes to the NEXT module, not to whichever number the
+            # client names. Forward-only alone allowed a jump from 1 to 4, which
+            # skipped two modules outright — and on an adaptive paper would have
+            # been a way to choose your own form. The server decides where the
+            # next step lands.
+            expected = next_section_number(session)
+            if expected is None or requested_section != expected:
+                return ExamSessionError(
+                    "You can only move on to the next section.",
+                    field="current_section",
+                ).to_response()
 
         section_left = section_time_remaining(session)
         if section_left is not None and section_left <= 0 and not advancing:
@@ -184,6 +199,14 @@ class SessionDetailView(APIView):
             # First (and only) time this section is entered — start its clock.
             session.section_started_at = timezone.now()
             session.current_section = requested_section
+            session.save()
+            # Then choose the form, if this module has two. It has to happen HERE
+            # and only here: the decision reads module 1's answers, which are
+            # frozen the moment this advance lands, and it must be written before
+            # the response below serves the questions it selects.
+            entered = current_section(session)
+            if entered is not None:
+                routing_for(session, entered)
 
         for field in ("current_question", "client_session_data"):
             if field in data:
@@ -267,6 +290,18 @@ class SessionAnswerView(APIView):
                 "That question belongs to a section you have already finished.",
                 field="question",
             ).to_response()
+        if session.exam.is_adaptive:
+            # Belonging to the current SECTION is not enough on an adaptive
+            # paper: the other form's questions are in that section too. Answers
+            # to them would never be graded (grading counts what was served), so
+            # they would sit in the responses table as work that silently did
+            # not count.
+            from .adaptive import routed_question_ids
+
+            if question_id not in set(routed_question_ids(session)):
+                return ExamSessionError(
+                    "That question is not part of your test.", field="question"
+                ).to_response()
 
         chosen = data.get("chosen_answer", "")
         instant = session.feedback_mode == ExamSession.FeedbackMode.INSTANT

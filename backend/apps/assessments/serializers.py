@@ -12,6 +12,7 @@ from rest_framework import serializers
 
 from apps.question_bank.models import Question, QuestionChoice
 
+from .adaptive import Routing, decided_routing, section_is_routed, served_exam_questions
 from .models import ExamResponse, ExamResult, ExamSection, ExamSession, ExamTemplate
 from .services import (
     MAX_CLIENT_SESSION_BYTES,
@@ -76,16 +77,51 @@ class SessionSectionSerializer(serializers.ModelSerializer):
             "questions",
         ]
 
+    def _served(self, obj):
+        """The ExamQuestions this session gets for this module.
+
+        On a non-adaptive paper that is every row, because every row is
+        `standard`. On an adaptive one it is the standard rows plus the form the
+        student was routed to — and, for a module they have not reached, the
+        standard rows only, since the form has not been chosen yet.
+        """
+        session = self.context.get("session")
+        if session is None or not session.exam.is_adaptive:
+            return list(obj.exam_questions.all())
+        return served_exam_questions(session, obj, variant=decided_routing(session, obj))
+
     def get_question_count(self, obj):
+        """How many questions this module holds FOR THIS STUDENT.
+
+        The runner numbers the paper and sizes the break screen off this, so a
+        routed module the student has NOT reached yet cannot report only its
+        standard rows — that is a module which looks nearly empty, or entirely
+        so. It reports the size of one form instead: both forms are the same
+        length by construction, so either is the honest answer, and the student
+        is told the truth about a module before being routed into it.
+        """
+        session = self.context.get("session")
+        undecided_routed = (
+            session is not None
+            and session.exam.is_adaptive
+            and decided_routing(session, obj) is None
+            and section_is_routed(obj)
+        )
+        if undecided_routed:
+            counts = {Routing.STANDARD: 0, Routing.LOWER: 0}
+            for eq in obj.exam_questions.all():
+                if eq.routing in counts:
+                    counts[eq.routing] += 1
+            return counts[Routing.STANDARD] + counts[Routing.LOWER]
         # len() over the prefetch, not .count() — one query for the whole paper.
-        return len(obj.exam_questions.all())
+        return len(self._served(obj))
 
     def get_questions(self, obj):
         if obj.section_number != self.context.get("current_section"):
             return []
         return [
             {"position": eq.position, "question": TestQuestionSerializer(eq.question).data}
-            for eq in obj.exam_questions.all()
+            for eq in self._served(obj)
         ]
 
 
@@ -231,7 +267,12 @@ class SessionDetailSerializer(serializers.ModelSerializer):
         """Shape for every module, questions for the one being sat."""
         sections = obj.exam.sections.prefetch_related("exam_questions__question__choices")
         return SessionSectionSerializer(
-            sections, many=True, context={"current_section": obj.current_section}
+            sections,
+            many=True,
+            # The session goes in so an adaptive module serves the form THIS
+            # student was routed to. Serializing must not itself decide a
+            # routing — see adaptive.decided_routing.
+            context={"current_section": obj.current_section, "session": obj},
         ).data
 
     def get_responses(self, obj):

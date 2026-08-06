@@ -8,9 +8,8 @@ while production still gets the index.
 
 import django.contrib.postgres.indexes
 import django.contrib.postgres.search
-import django.db.models.functions.comparison
 from django.conf import settings
-from django.db import migrations, models
+from django.db import migrations
 
 from common.migration_ops import AddIndexPostgresOnly
 
@@ -27,16 +26,7 @@ class Migration(migrations.Migration):
             model_name="question",
             index=django.contrib.postgres.indexes.GinIndex(
                 django.contrib.postgres.search.SearchVector(
-                    django.db.models.functions.comparison.Coalesce(
-                        "stem", models.Value(""), output_field=models.TextField()
-                    ),
-                    django.db.models.functions.comparison.Coalesce(
-                        "passage", models.Value(""), output_field=models.TextField()
-                    ),
-                    django.db.models.functions.comparison.Coalesce(
-                        "source_ref", models.Value(""), output_field=models.TextField()
-                    ),
-                    config="english",
+                    "stem", "passage", "source_ref", config="english"
                 ),
                 name="questions_search_gin",
             ),

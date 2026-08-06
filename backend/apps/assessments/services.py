@@ -130,10 +130,19 @@ def grade_session(session):
 
     Scaled SAT scores (total/math/rw) are left null — they require official scaling
     tables and are computed in a later phase. Raw counts + accuracy are authoritative.
+
+    On an adaptive paper this grades the questions the student was SHOWN, not
+    every row on the template. Counting both forms of a routed module would mark
+    them as having omitted an entire module that was never selected for them —
+    roughly halving the score of anyone who sat the paper as designed.
     """
     exam_questions = ExamQuestion.objects.filter(section__exam=session.exam).select_related(
         "question", "question__category"
     )
+    if session.exam.is_adaptive:
+        from .adaptive import routed_question_ids
+
+        exam_questions = exam_questions.filter(question_id__in=routed_question_ids(session))
     responses = {r.question_id: r for r in session.responses.all()}
 
     correct = incorrect = skipped = total = 0
