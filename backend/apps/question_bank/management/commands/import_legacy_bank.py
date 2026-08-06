@@ -25,6 +25,7 @@ sides are the College Board's published tree, so the names line up; the two that
 do not are listed in _SKILL_ALIASES with the reason.
 """
 
+import ast
 import csv
 import re
 import sqlite3
@@ -84,18 +85,65 @@ _MATH_DELIMITERS = (
 )
 
 
+ANSWER_MAX = 10  # Question.correct_answer's column width.
+
+# "1,680" — one number, not two answers.
+_GROUPED_NUMBER = re.compile(r"-?\d{1,3}(?:,\d{3})+")
+
+
 def _clean(value):
     return (value or "").strip()
 
 
-# An unescaped $ with no partner. The renderer will pair it with the next one it
-# finds and treat everything between as a formula, so these are worth a look
-# even though there is no rule that reliably fixes them.
-_UNBALANCED = re.compile(r"(?<!\\)\$")
+def _canonical_answer(raw):
+    """One answer out of what the legacy system stored, which is often several.
 
+    Grid-in keys arrive as every form the old grader would accept, in two
+    spellings — `['-1/3', -0.333, -0.3333]` and `35/12,2.916,2.917` — because it
+    compared answers as strings and so had to enumerate them. Ours compares them
+    as rationals (services.answers_match, via Fraction), so it needs exactly one
+    and it needs the EXACT one.
 
-def _has_odd_dollars(text):
-    return bool(text) and len(_UNBALANCED.findall(text)) % 2 == 1
+    Which is why the fraction wins over whatever came first. `.4827, 0.4827,
+    14/29` lists the rounding before the value: store `.4827` and a student who
+    works out 14/29 and enters it is marked wrong — the exact answer failing
+    against an approximation, which is the worst way round. Store `14/29` and
+    every equivalent form a student can type still compares equal.
+
+    Postgres enforces the column width SQLite ignores, which is how a key forty
+    characters long got as far as production before anything noticed.
+    """
+    answer = _clean(raw)
+    if not answer:
+        return answer
+
+    # A single number written with thousands separators, not a list of two.
+    # Exactly one key in the export is `1,680`, and splitting it on the comma
+    # would store `1` — a key no correct student could ever match. The separator
+    # comes off because the grader parses the value as a Fraction.
+    if _GROUPED_NUMBER.fullmatch(answer):
+        return answer.replace(",", "")
+
+    if answer.startswith("[") and answer.endswith("]"):
+        try:
+            parsed = ast.literal_eval(answer)
+        except (ValueError, SyntaxError):
+            parsed = None
+        if isinstance(parsed, (list, tuple)) and parsed:
+            candidates = [str(value).strip() for value in parsed]
+        else:
+            candidates = [answer]
+    elif "," in answer:
+        candidates = [part.strip() for part in answer.split(",") if part.strip()]
+    else:
+        return answer
+
+    if not candidates:
+        return answer
+    for candidate in candidates:
+        if "/" in candidate:
+            return candidate
+    return candidates[0]
 
 
 # A dollar sign that means money, not math. Left alone it becomes a delimiter
@@ -106,8 +154,14 @@ _CURRENCY_WITH_SEPARATOR = re.compile(r"(?<!\\)\$(?=\d{1,3}(?:,\d{3})+)")
 # Any $ the source has not already escaped. The lookbehind is the whole point:
 # some legacy rows write `\( \$19 \)`, escaping the dollar correctly for LaTeX,
 # and escaping it a second time yields `\\$` — a literal backslash followed by a
-# delimiter, which is worse than what we started with.
+# delimiter, which is worse than what we started with. The same test answers
+# "is this one a delimiter?", which is what _has_odd_dollars counts.
 _UNESCAPED_DOLLAR = re.compile(r"(?<!\\)\$")
+
+
+def _has_odd_dollars(text):
+    """A lone delimiter, which will pair with the next $ and swallow the middle."""
+    return bool(text) and len(_UNESCAPED_DOLLAR.findall(text)) % 2 == 1
 
 
 def _escape_currency(text):
@@ -313,9 +367,17 @@ class Command(BaseCommand):
                 continue
 
             is_grid_in = _clean(row.get("question_type")) == "NUMERIC"
-            answer = _clean(row.get("correct_answer"))
+            answer = _canonical_answer(row.get("correct_answer"))
             if not answer:
                 reasons["no correct answer"] = reasons.get("no correct answer", 0) + 1
+                skipped += 1
+                continue
+            if len(answer) > ANSWER_MAX:
+                # Truncating would store a key that is simply wrong, and mark
+                # every correct student wrong for the life of the question.
+                reasons["answer longer than the column"] = (
+                    reasons.get("answer longer than the column", 0) + 1
+                )
                 skipped += 1
                 continue
             if not is_grid_in and answer.upper() not in ("A", "B", "C", "D"):
@@ -491,9 +553,15 @@ class Command(BaseCommand):
                 skipped += 1
                 continue
 
-            answer = _clean(row.get("correct_answer"))
+            answer = _canonical_answer(row.get("correct_answer"))
             if not answer:
                 reasons["no correct answer"] = reasons.get("no correct answer", 0) + 1
+                skipped += 1
+                continue
+            if len(answer) > ANSWER_MAX:
+                reasons["answer longer than the column"] = (
+                    reasons.get("answer longer than the column", 0) + 1
+                )
                 skipped += 1
                 continue
 
