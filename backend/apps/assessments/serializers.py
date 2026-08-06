@@ -52,7 +52,14 @@ class SessionSectionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ExamSection
-        fields = ["section_number", "title", "module", "time_limit", "questions"]
+        fields = [
+            "section_number",
+            "title",
+            "module",
+            "time_limit",
+            "break_after_minutes",
+            "questions",
+        ]
 
     def get_questions(self, obj):
         exam_questions = obj.exam_questions.select_related("question").prefetch_related(
@@ -75,6 +82,8 @@ class ExamMiniSerializer(serializers.ModelSerializer):
             "time_limit",
             "is_adaptive",
             "allow_pause",
+            # Invigilated papers are sat in full screen; the runner gates on this.
+            "requires_fullscreen",
             # A question-bank drill is a real template, but it is not a paper:
             # the result surface reports it as practice rather than pretending a
             # 19-question set scales to 1600.

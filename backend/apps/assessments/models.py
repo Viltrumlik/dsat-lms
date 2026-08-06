@@ -54,6 +54,11 @@ class ExamTemplate(BaseModel):
     # authored in the admin. Hidden from every exam list — nobody else is meant
     # to find it — and swept once its sessions are finished.
     is_generated = models.BooleanField(default=False, db_index=True)
+    # An invigilated paper is sat in full screen. The client cannot be forced
+    # there (a browser only grants fullscreen from a user gesture), so this is
+    # what the runner reads to gate the exam behind a Begin screen and to block
+    # the paper whenever the student leaves.
+    requires_fullscreen = models.BooleanField(default=False)
     access_level = models.CharField(
         max_length=10,
         choices=AccessLevel.choices,
@@ -89,6 +94,11 @@ class ExamSection(models.Model):
     module = models.CharField(max_length=20, choices=Module.choices)
     section_number = models.SmallIntegerField()
     time_limit = models.SmallIntegerField(null=True, blank=True)  # minutes
+    # A timed rest AFTER this module. Null = straight on to the next one.
+    # The Digital SAT has exactly one, in the middle of the paper; putting it on
+    # the section it follows means the structure is the paper's, not a rule the
+    # runner has to infer from how many modules there are.
+    break_after_minutes = models.SmallIntegerField(null=True, blank=True)
     sort_order = models.SmallIntegerField(default=0)
 
     class Meta:
