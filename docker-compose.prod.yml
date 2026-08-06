@@ -142,6 +142,20 @@ services:
     # Exactly one beat, ever. Two schedulers means every periodic task fires
     # twice — two sweeps, two reminder emails, two rollups.
     command: celery -A config beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    # The image's HEALTHCHECK curls :8000/healthz, which is right for `web` and
+    # meaningless here — beat runs no web server, so it inherited a probe that
+    # can never pass and reported unhealthy forever while firing its schedule
+    # perfectly. A check that is always red is worse than none: it is the one
+    # that teaches everyone to ignore the health column.
+    #
+    # Disabled rather than replaced because beat exposes nothing cheap and
+    # honest to ask. It answers no port, and `celery inspect ping` only reaches
+    # workers. A crashed beat exits, and `restart: unless-stopped` handles that;
+    # what a probe would add is detecting a beat that is up but no longer
+    # scheduling, and there is no signal for that short of watching whether
+    # tasks arrive — which belongs in monitoring, not a container probe.
+    healthcheck:
+      disable: true
     depends_on:
       postgres: {condition: service_healthy}
       redis: {condition: service_healthy}
