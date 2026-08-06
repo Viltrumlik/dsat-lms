@@ -9,10 +9,16 @@ const nextConfig = {
   poweredByHeader: false,
   compress: true,
   images: {
-    remotePatterns: [
-      { protocol: 'https', hostname: '**' },
-      { protocol: 'http', hostname: 'localhost' },
-    ],
+    // Empty on purpose. `hostname: '**'` turned /_next/image into an open proxy:
+    // anyone could hand it any https URL and have this server fetch, cache and
+    // re-serve it — someone else's bandwidth bill, paid by us, from an IP that
+    // looks like ours.
+    //
+    // Nothing loses anything, because `next/image` is not imported anywhere in
+    // src/ — question figures, avatars and attachments are all plain <img> with
+    // an auth'd or presigned URL. If the optimizer is ever adopted, add the
+    // specific hosts here; do not restore the wildcard.
+    remotePatterns: [],
   },
 }
 

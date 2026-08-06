@@ -85,19 +85,47 @@ docker compose -f docker-compose.prod.yml run --rm web python manage.py check --
   persistent Postgres connection** (`CONN_MAX_AGE=60`), so
   `workers × replicas` must stay under `max_connections`. Add PgBouncer before
   you add workers past that.
-- `CELERY_CONCURRENCY` — worker processes. Beat must stay at **exactly one
-  replica**: two schedulers means every periodic task fires twice, which means
-  two reminder emails and two rollups.
+- `CELERY_CONCURRENCY` — worker processes for the general queues. Beat must stay
+  at **exactly one replica**: two schedulers means every periodic task fires
+  twice, which means two reminder emails and two rollups.
+- `CELERY_EMAIL_CONCURRENCY` — the separate `worker-email` service. Email has its
+  own worker so a verification code never queues behind a nightly rollup: one
+  student is waiting on a form, the other job is not waiting on anyone. Volume is
+  bounded by the mailer's quotas, not by this.
 - `REDIS_MAXMEMORY` — Redis is both cache and broker, with
   `maxmemory-policy noeviction` so a full instance refuses writes rather than
   silently dropping a queued email.
 
 ## Backups
 
+The `backup` service dumps the database on a loop (daily by default) into the
+`backups` volume, keeping `BACKUP_RETENTION_DAYS` (14) of history. It writes to a
+`.partial` name and only renames on success, so a crashed dump never leaves a
+truncated file that looks fine in `ls`; and it prunes only after a good dump, so
+a week of failures cannot quietly delete everything you have.
+
 ```bash
-docker compose -f docker-compose.prod.yml exec -T postgres \
-  pg_dump -U dsat dsat_db | gzip > backup-$(date +%F).sql.gz
+docker compose -f docker-compose.prod.yml logs backup | tail -20   # did it run?
+docker compose -f docker-compose.prod.yml run --rm backup /usr/local/bin/backup.sh   # now
 ```
+
+Copy them off the box — a backup on the same disk as the database is not a
+backup:
+
+```bash
+docker run --rm -v dsat-lms_backups:/b -v "$PWD:/out" alpine \
+  sh -c 'cp /b/backup-*.sql.gz /out/'
+```
+
+**Restore** (write this down before you need it):
+
+```bash
+gunzip -c backup-<stamp>.sql.gz | docker compose -f docker-compose.prod.yml \
+  exec -T postgres psql -U dsat -d dsat_db
+```
+
+Test a restore into a scratch database once, on a day when nothing is wrong. An
+untested backup is a hypothesis.
 
 Media lives in the `media_data` volume in a self-hosted setup, or in R2 when
 `STORAGE_BACKEND=r2` (the default in production settings). R2 objects are
