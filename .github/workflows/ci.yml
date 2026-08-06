@@ -50,3 +50,54 @@ jobs:
 
       - name: Tests
         run: pytest
+
+  backend-postgres:
+    # Production is Postgres; the job above is SQLite, and the difference is not
+    # cosmetic. A GIN index over a tsvector, partial unique constraints and
+    # SELECT ... FOR UPDATE either behave differently there or do not exist —
+    # which meant the guards against double-booking a teacher and overselling an
+    # office hour shipped with no test that ever ran. This job runs them.
+    name: Backend — tests on Postgres
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: dsat
+          POSTGRES_PASSWORD: dsat
+          POSTGRES_DB: dsat_ci
+        ports: ["5432:5432"]
+        # Without this the job starts querying before the server accepts
+        # connections, and fails as a flake rather than a bug.
+        options: >-
+          --health-cmd "pg_isready -U dsat"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DJANGO_SECRET_KEY: ci-insecure-secret-key
+      DJANGO_SETTINGS_MODULE: config.settings.development
+      DJANGO_DEBUG: "True"
+      DATABASE_URL: "postgres://dsat:dsat@localhost:5432/dsat_ci"
+      REDIS_URL: "redis://localhost:6379/0"
+      CELERY_TASK_ALWAYS_EAGER: "True"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements/development.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements/development.txt
+
+      - name: Missing migrations check (Postgres)
+        run: python manage.py makemigrations --check --dry-run
+
+      - name: Tests
+        run: pytest
