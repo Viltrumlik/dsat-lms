@@ -210,6 +210,11 @@ class ExamSession(BaseModel):
         db_table = "exam_sessions"
         indexes = [
             models.Index(fields=["user", "status"]),
+            # Every start goes through live_session_for() and the attempt cap,
+            # and both ask "this user, THIS exam, in these states". The (user,
+            # status) index above cannot answer that without also reading every
+            # session the student has ever sat.
+            models.Index(fields=["user", "exam", "status"]),
         ]
 
 
@@ -234,6 +239,14 @@ class ExamResponse(models.Model):
     class Meta:
         db_table = "exam_responses"
         unique_together = [("session", "question")]
+        indexes = [
+            # question_bank.practice.attempt_annotations runs a correlated
+            # subquery per row of every bank page: "this user's most recent
+            # answer to THIS question". The unique constraint above leads on
+            # session_id, so it cannot serve a lookup by question — without this
+            # the bank gets slower with every answer anyone ever gives.
+            models.Index(fields=["question", "-answered_at"]),
+        ]
 
 
 class ExamResult(models.Model):

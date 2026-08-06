@@ -110,7 +110,14 @@ AUTH_PASSWORD_VALIDATORS = [
 # ─────────────────────────────────────
 DATABASES = {"default": env.db("DATABASE_URL")}
 DATABASES["default"]["ATOMIC_REQUESTS"] = True
-DATABASES["default"]["CONN_MAX_AGE"] = 60
+# Persistent connections: reconnecting per request is a measurable cost against
+# Postgres. The ceiling is not comfort — every gunicorn worker holds one, so
+# workers × replicas must stay under max_connections (see deploy/README.md).
+DATABASES["default"]["CONN_MAX_AGE"] = env.int("DB_CONN_MAX_AGE", default=60)
+# Without this, the first request after a database restart or a failover gets
+# handed a dead socket from the pool and dies — one free 500 per worker, every
+# time. Django pings the connection instead.
+DATABASES["default"]["CONN_HEALTH_CHECKS"] = True
 
 # ─────────────────────────────────────
 # Cache (Redis)

@@ -22,6 +22,7 @@ from rest_framework.generics import ListAPIView, RetrieveAPIView
 from common.exceptions import PermissionError as StudyLocked
 from common.responses import success_response
 
+from . import cache as taxonomy_cache
 from .filters import QuestionFilter
 from .models import Question, QuestionCategory, QuestionTag
 from .practice import attempt_annotations
@@ -108,7 +109,13 @@ class QuestionDetailView(RetrieveAPIView):
 
 
 class CategoryListView(ListAPIView):
-    """Full category tree (no pagination) for filter UIs; filterable by module/parent."""
+    """Full category tree (no pagination) for filter UIs; filterable by module/parent.
+
+    Cached: it is the SAT taxonomy, it changes when someone edits the syllabus,
+    and it is fetched on every load of the bank, the drill builder and the admin
+    editor. The filter values go in the cache key — a cached "math only" tree
+    served to someone asking for everything is a bug, not a saving.
+    """
 
     serializer_class = CategorySerializer
     pagination_class = None
@@ -119,8 +126,14 @@ class CategoryListView(ListAPIView):
         return QuestionCategory.objects.all()
 
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
-        return success_response(self.get_serializer(queryset, many=True).data)
+        module = request.query_params.get("module") or "all"
+        parent = request.query_params.get("parent") or "all"
+
+        def build():
+            queryset = self.filter_queryset(self.get_queryset())
+            return self.get_serializer(queryset, many=True).data
+
+        return success_response(taxonomy_cache.get_or_set(f"categories:{module}:{parent}", build))
 
 
 class TagListView(ListAPIView):
@@ -131,4 +144,8 @@ class TagListView(ListAPIView):
         return QuestionTag.objects.all()
 
     def list(self, request, *args, **kwargs):
-        return success_response(self.get_serializer(self.get_queryset(), many=True).data)
+        return success_response(
+            taxonomy_cache.get_or_set(
+                "tags", lambda: self.get_serializer(self.get_queryset(), many=True).data
+            )
+        )
