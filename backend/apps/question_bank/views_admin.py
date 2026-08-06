@@ -7,7 +7,6 @@
 #             applies in place at any status and is live wherever the question is
 #             used (every exam template, every exam type).
 
-from django.db.models import Q
 from rest_framework.exceptions import NotFound
 from rest_framework.views import APIView
 
@@ -18,6 +17,7 @@ from common.permissions import IsAdmin
 from common.responses import created_response, no_content_response, success_response
 
 from .models import Question, QuestionCategory, QuestionReview, QuestionTag
+from .search import search_questions
 from .serializers_admin import (
     AdminCategorySerializer,
     AdminQuestionDetailSerializer,
@@ -71,13 +71,9 @@ class AdminQuestionListCreateView(APIView):
         if tag:
             qs = qs.filter(tags__slug__iexact=tag)
 
-        search = (request.query_params.get("search") or "").strip()
-        if search:
-            qs = qs.filter(
-                Q(stem__icontains=search)
-                | Q(passage__icontains=search)
-                | Q(source_ref__icontains=search)
-            )
+        # Shared with the student bank so the two can never search different
+        # fields — "I can find it in the studio but not in the bank" starts here.
+        qs = search_questions(qs, request.query_params.get("search"))
 
         qs = qs.distinct().order_by("-created_at")
         paginator = CursorPagination()

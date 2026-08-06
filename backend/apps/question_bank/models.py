@@ -14,9 +14,12 @@ exam type, and any session that renders it — because exams reference questions
 by FK and nothing snapshots their content.
 """
 
+from django.contrib.postgres.indexes import GinIndex
 from django.db import models
 
 from common.models import BaseModel
+
+from .search import question_search_vector
 
 
 class QuestionCategory(BaseModel):
@@ -174,6 +177,12 @@ class Question(BaseModel):
             models.Index(fields=["status", "module"]),
             models.Index(fields=["status", "category"]),
             models.Index(fields=["status", "difficulty"]),
+            # Full-text search over stem/passage/source_ref. Postgres only — the
+            # migration that adds it no-ops elsewhere, and search.py falls back
+            # to LIKE on a backend that has no tsvector. The expression MUST stay
+            # `question_search_vector()`: the planner only reaches for a
+            # functional index when the query builds the same expression.
+            GinIndex(question_search_vector(), name="questions_search_gin"),
         ]
 
     def __str__(self):

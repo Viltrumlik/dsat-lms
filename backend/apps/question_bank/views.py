@@ -16,7 +16,7 @@ requester currently has open are therefore locked (see _locked_question_ids).
 """
 
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework.filters import SearchFilter
+from rest_framework.filters import BaseFilterBackend
 from rest_framework.generics import ListAPIView, RetrieveAPIView
 
 from common.exceptions import PermissionError as StudyLocked
@@ -26,12 +26,38 @@ from . import cache as taxonomy_cache
 from .filters import QuestionFilter
 from .models import Question, QuestionCategory, QuestionTag
 from .practice import attempt_annotations
+from .search import search_questions
 from .serializers import (
     CategorySerializer,
     QuestionDetailSerializer,
     QuestionListSerializer,
     TagSerializer,
 )
+
+
+class QuestionSearchBackend(BaseFilterBackend):
+    """`?search=` via search.search_questions.
+
+    DRF's own SearchFilter is `icontains` and nothing else, which is a table scan
+    per keystroke — see search.py. Same query parameter, same place in the filter
+    chain; only the predicate changed.
+    """
+
+    search_param = "search"
+
+    def filter_queryset(self, request, queryset, view):
+        return search_questions(queryset, request.query_params.get(self.search_param))
+
+    def get_schema_operation_parameters(self, view):
+        return [
+            {
+                "name": self.search_param,
+                "required": False,
+                "in": "query",
+                "description": "Full-text search over the stem, passage and source reference.",
+                "schema": {"type": "string"},
+            }
+        ]
 
 
 def _locked_question_ids(user):
@@ -65,9 +91,8 @@ class QuestionListView(ListAPIView):
     """Cursor-paginated list of published questions (ordering fixed to newest-first)."""
 
     serializer_class = QuestionListSerializer
-    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filter_backends = [DjangoFilterBackend, QuestionSearchBackend]
     filterset_class = QuestionFilter
-    search_fields = ["stem", "passage", "source_ref"]
 
     def get_queryset(self):
         return (
