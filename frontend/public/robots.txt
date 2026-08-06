@@ -1,0 +1,43 @@
+# SATFergana
+#
+# Public: the landing page and the credential forms people arrive on. Everything
+# else is behind a session, so an anonymous crawl of it gets a redirect to
+# /login — indexing those URLs costs us render time and gains a searcher a dead
+# result pointing at a form.
+#
+# This is a courtesy notice, not access control. Authorization lives on the
+# server (common/permissions.py); a crawler that ignores this file still gets
+# 401/403/404. No Sitemap line: there is no sitemap yet, and pointing at one
+# that 404s is worse than saying nothing.
+
+User-agent: *
+
+# Signed-in surfaces
+Disallow: /dashboard
+Disallow: /admin/
+Disallow: /teacher/
+Disallow: /student/
+Disallow: /session/
+Disallow: /results/
+Disallow: /classes
+Disallow: /courses
+Disallow: /homework
+Disallow: /support
+Disallow: /vocabulary
+Disallow: /questions
+Disallow: /analytics
+Disallow: /notifications
+Disallow: /settings
+Disallow: /tests/
+
+# Backend
+Disallow: /api/
+
+# Credential flows — one-time links and codes have no business in an index
+Disallow: /verify-email
+Disallow: /reset-password
+Disallow: /forgot-password
+
+Allow: /$
+Allow: /login
+Allow: /register
