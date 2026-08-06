@@ -28,10 +28,35 @@ MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")  # noqa: F405
 SILENCED_SYSTEM_CHECKS = ["drf_spectacular.W001", "drf_spectacular.W002"]
 
 # ─────────────────────────────────────
+# Host validation
+# ─────────────────────────────────────
+# The container's own healthcheck curls http://localhost:8000/healthz — from
+# inside, so it never passes through Nginx and its Host header is literally
+# "localhost". Without these the probe gets a 400 DisallowedHost and the
+# container is marked unhealthy forever, on every deploy, whatever the domain.
+# That makes this a property of running in a container, not of one .env, so it
+# belongs here rather than in a variable someone has to remember.
+#
+# Safe because nothing in this codebase builds a URL from request.get_host():
+# reset links read FRONTEND_URL and attachment URLs read BACKEND_PUBLIC_URL,
+# both fixed settings. Host-header poisoning needs a URL built from the header,
+# and there isn't one.
+for _local_host in ("localhost", "127.0.0.1"):
+    if _local_host not in ALLOWED_HOSTS:  # noqa: F405
+        ALLOWED_HOSTS.append(_local_host)  # noqa: F405
+
+# ─────────────────────────────────────
 # Security
 # ─────────────────────────────────────
 SECURE_SSL_REDIRECT = env.bool("DJANGO_SECURE_SSL_REDIRECT", default=True)
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+# The probes are asked over plain HTTP from inside the container, with no
+# X-Forwarded-Proto to make them look secure. Redirected, they answer 301 — and
+# `curl -f` treats a 301 as success, so the liveness check would pass while the
+# app was hung. A probe that cannot fail is not a probe. Exempting them leaks
+# nothing: both are unauthenticated and deliberately terse, and Nginx still
+# 301s the whole of port 80 to TLS before anything outside can reach them.
+SECURE_REDIRECT_EXEMPT = [r"^healthz$", r"^readyz$"]
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 SECURE_CONTENT_TYPE_NOSNIFF = True

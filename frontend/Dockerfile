@@ -43,6 +43,14 @@ ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     PORT=3000
 
+# Next's standalone server binds to $HOSTNAME, and Docker sets HOSTNAME to the
+# container id — so it listened on `edec6c3a66b6:3000` and nothing reached it at
+# localhost. Proxying still worked (Docker DNS resolves the service name to the
+# same address), which is what made this quiet: only the container's own
+# healthcheck failed, forever, on a container that was serving perfectly. Bind
+# to every interface and both are true.
+ENV HOSTNAME=0.0.0.0
+
 RUN addgroup -g 10001 -S app && adduser -u 10001 -S app -G app
 
 # The standalone output already carries the server and its real dependencies;
