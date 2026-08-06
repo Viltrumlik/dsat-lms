@@ -174,6 +174,10 @@ export const uz: Dictionary = {
       failed: 'Roʻyxatdan oʻtishda xatolik',
     },
     verify: {
+      codeLabel: 'Tasdiqlash kodi',
+      codeSentTo: '{email} manziliga 6 xonali kod yubordik.',
+      confirm: 'Emailni tasdiqlash',
+      resendIn: '{seconds} soniyadan keyin qayta yuborish',
       checkEmail: 'Emailingizni tekshiring',
       checkEmailBody:
         'Pochtangizga tasdiqlash havolasini yubordik. Manzilingizni tasdiqlash uchun unga bosing.',
@@ -199,6 +203,10 @@ export const uz: Dictionary = {
       backToLogin: 'Kirishga qaytish',
     },
     reset: {
+      codeLabel: 'Tiklash kodi',
+      codeSentTo: 'Agar {email} uchun hisob mavjud boʻlsa, 6 xonali kod yuborildi.',
+      resend: 'Kodni qayta yuborish',
+      resentTitle: 'Kod yuborildi',
       title: 'Yangi parol tanlang',
       subtitle: 'Yangi parolingizni kiriting va tasdiqlang.',
       password: 'Yangi parol',

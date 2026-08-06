@@ -3,7 +3,7 @@
 // Domain: Identity
 // Description: Register / login / logout / refresh / me + email & password flows.
 //   Access token lives in memory (AuthProvider); refresh is an HttpOnly cookie.
-//   Verification & reset links carry uid + token and land on the frontend, which
+//   Verification & reset are six-digit CODES, not links — see apps/mailer.
 //   POSTs them to the matching /confirm/ endpoint.
 // ═══════════════════════════════════════
 
@@ -46,16 +46,18 @@ export const authAPI = {
   }) => patch<{ user: User }>('/auth/me/', payload),
 
   /** Resend verification to the logged-in user (authenticated, no body). */
-  resendVerification: () => post<{ detail: string }>('/auth/verify-email/resend/'),
+  resendVerification: () =>
+    post<{ detail: string; expiresInMinutes: number }>('/auth/verify-email/resend/'),
 
-  confirmVerification: (payload: { uid: string; token: string }) =>
-    post<unknown>('/auth/verify-email/confirm/', payload),
+  /** Verify an address with the code that was emailed to it. */
+  confirmVerification: (payload: { email: string; code: string }) =>
+    post<{ detail: string; user?: User }>('/auth/verify-email/confirm/', payload),
 
   requestPasswordReset: (email: string) =>
-    post<{ detail: string }>('/auth/password/reset/', { email }),
+    post<{ detail: string; expiresInMinutes: number }>('/auth/password/reset/', { email }),
 
-  confirmPasswordReset: (payload: { uid: string; token: string; newPassword: string }) =>
-    post<unknown>('/auth/password/reset/confirm/', payload),
+  confirmPasswordReset: (payload: { email: string; code: string; newPassword: string }) =>
+    post<{ detail: string }>('/auth/password/reset/confirm/', payload),
 
   changePassword: (payload: { currentPassword: string; newPassword: string }) =>
     post<unknown>('/auth/password/change/', payload),

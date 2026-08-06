@@ -173,6 +173,10 @@ export const en = {
       failed: 'Registration failed',
     },
     verify: {
+      codeLabel: 'Verification code',
+      codeSentTo: 'We sent a 6-digit code to {email}.',
+      confirm: 'Verify email',
+      resendIn: 'Send again in {seconds}s',
       checkEmail: 'Check your email',
       checkEmailBody: 'We sent a verification link to your inbox. Click it to confirm your address.',
       resend: 'Resend email',
@@ -197,6 +201,10 @@ export const en = {
       backToLogin: 'Back to sign in',
     },
     reset: {
+      codeLabel: 'Reset code',
+      codeSentTo: 'If an account exists for {email}, a 6-digit code is on its way.',
+      resend: 'Send the code again',
+      resentTitle: 'Code sent',
       title: 'Choose a new password',
       subtitle: 'Enter and confirm your new password.',
       password: 'New password',
