@@ -8,10 +8,21 @@
 # network, which is the difference between a database behind a password and a
 # database on the internet.
 
+# Every container writes to the json-file driver, and its default is no limit at
+# all: logs grow until the disk is full, which takes the database down with them
+# and is the most ordinary way a small server dies. 10MB x 5 caps each container
+# at 50MB and keeps a few days of history at this traffic.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
+    logging: *logging
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-dsat_db}
       POSTGRES_USER: ${POSTGRES_USER:-dsat}
@@ -27,6 +38,7 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
+    logging: *logging
     # Cache AND broker. `appendonly` keeps queued tasks across a restart;
     # maxmemory-policy protects the broker from being evicted by cache churn —
     # noeviction means a full Redis refuses writes instead of silently dropping
@@ -47,6 +59,7 @@ services:
     build:
       context: ./backend
     restart: unless-stopped
+    logging: *logging
     env_file: .env
     environment:
       DJANGO_SETTINGS_MODULE: config.settings.production
@@ -66,6 +79,7 @@ services:
     environment:
       DJANGO_SETTINGS_MODULE: config.settings.production
     command: python manage.py migrate --noinput
+    logging: *logging
     depends_on:
       postgres: {condition: service_healthy}
     restart: "no"
@@ -74,6 +88,7 @@ services:
     build:
       context: ./backend
     restart: unless-stopped
+    logging: *logging
     env_file: .env
     environment:
       DJANGO_SETTINGS_MODULE: config.settings.production
@@ -109,6 +124,7 @@ services:
     build:
       context: ./backend
     restart: unless-stopped
+    logging: *logging
     env_file: .env
     environment:
       DJANGO_SETTINGS_MODULE: config.settings.production
@@ -136,6 +152,7 @@ services:
     build:
       context: ./backend
     restart: unless-stopped
+    logging: *logging
     env_file: .env
     environment:
       DJANGO_SETTINGS_MODULE: config.settings.production
@@ -168,12 +185,14 @@ services:
         NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:?set NEXT_PUBLIC_APP_URL}
         NEXT_PUBLIC_DESMOS_API_KEY: ${NEXT_PUBLIC_DESMOS_API_KEY:-}
     restart: unless-stopped
+    logging: *logging
     depends_on:
       - web
 
   nginx:
     image: nginx:1.27-alpine
     restart: unless-stopped
+    logging: *logging
     ports:
       - "80:80"
       - "443:443"
@@ -207,6 +226,7 @@ services:
   certbot:
     image: certbot/certbot:latest
     restart: unless-stopped
+    logging: *logging
     volumes:
       - certbot_conf:/etc/letsencrypt
       - certbot_www:/var/www/certbot
@@ -224,6 +244,7 @@ services:
   backup:
     image: postgres:16-alpine
     restart: unless-stopped
+    logging: *logging
     env_file: .env
     environment:
       POSTGRES_HOST: postgres
