@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import { useSessionStore, selectAutoSavePayload } from '@/lib/stores/sessionStore'
 import { useAutoSave } from '@/lib/hooks/useAutoSave'
+import { shouldBlock, useFullscreen } from '@/lib/hooks/useFullscreen'
 import { queueAnswer, flushAnswers } from '@/lib/hooks/useAnswerSync'
 import { sessionAPI } from '@/lib/api/sessions'
 import { useToast } from '@/components/ui/toast'
@@ -24,6 +25,7 @@ import { SubmitDialog } from './SubmitDialog'
 import { ExamBanner } from './ExamBanner'
 import { DirectionsPanel } from './DirectionsPanel'
 import { DesmosPanel } from './DesmosPanel'
+import { FullscreenBlocker, FullscreenStart } from './FullscreenGate'
 import { useExamShortcuts } from './useExamShortcuts'
 
 export function TestShell() {
@@ -53,13 +55,32 @@ export function TestShell() {
   const [submitting, setSubmitting] = React.useState(false)
   const [directionsOpen, setDirectionsOpen] = React.useState(false)
 
+  // An invigilated paper is sat in full screen. The browser only grants that
+  // from a user gesture, so the paper waits behind a Begin screen — the click
+  // there IS the gesture — and goes back behind a block the moment the student
+  // leaves. `begun` is what separates "not started yet" from "walked out".
+  const requiresFullscreen = useSessionStore((s) => s.meta?.requiresFullscreen ?? false)
+  const examTitle = useSessionStore((s) => s.meta?.examTitle ?? '')
+  const sectionCount = useSessionStore((s) => s.sections.length)
+  const fullscreen = useFullscreen()
+  const [begun, setBegun] = React.useState(false)
+
   // Directions belong to the section — close them when the section changes.
   const sectionIndex = useSessionStore((s) => s.currentSectionIndex)
   React.useEffect(() => {
     setDirectionsOpen(false)
   }, [sectionIndex])
 
-  useExamShortcuts({ enabled: status === 'active' && !submitOpen && !directionsOpen })
+  const blocked = shouldBlock({
+    requiresFullscreen,
+    begun,
+    everEntered: fullscreen.everEntered,
+    isFullscreen: fullscreen.isFullscreen,
+  })
+
+  useExamShortcuts({
+    enabled: status === 'active' && !submitOpen && !directionsOpen && !blocked,
+  })
 
   const handleSubmit = React.useCallback(async () => {
     const { meta, questionStates, setStatus } = useSessionStore.getState()
@@ -114,10 +135,39 @@ export function TestShell() {
     return <FullPageSpinner label={t('testEngine.grading')} />
   }
 
+  if (requiresFullscreen && !begun) {
+    return (
+      <FullscreenStart
+        examTitle={examTitle}
+        sectionCount={sectionCount}
+        questionCount={totalCount}
+        supported={fullscreen.supported}
+        onBegin={() => {
+          // Fire and forget: a browser that refuses (or does not support it)
+          // must not keep the student out of their own exam.
+          void fullscreen.enter()
+          setBegun(true)
+        }}
+      />
+    )
+  }
+
+  const blocker = blocked ? (
+    <FullscreenBlocker
+      exits={fullscreen.exits}
+      onReturn={() => void fullscreen.enter()}
+      onSubmit={() => {
+        void fullscreen.exit()
+        void handleSubmit()
+      }}
+    />
+  ) : null
+
   if (status === 'break') {
     return (
       <div className="flex h-[100dvh] flex-col bg-white">
         <BreakScreen />
+        {blocker}
       </div>
     )
   }
@@ -126,6 +176,7 @@ export function TestShell() {
     return (
       <div className="flex h-[100dvh] flex-col bg-white">
         <ReviewScreen onSubmit={() => setSubmitOpen(true)} />
+        {blocker}
         <SubmitDialog
           open={submitOpen}
           onOpenChange={setSubmitOpen}
@@ -161,6 +212,7 @@ export function TestShell() {
       {/* Floats above the whole surface — every exam type gets the calculator,
           exactly as the official app does on a Math module. */}
       <DesmosPanel />
+      {blocker}
       <SubmitDialog
         open={submitOpen}
         onOpenChange={setSubmitOpen}

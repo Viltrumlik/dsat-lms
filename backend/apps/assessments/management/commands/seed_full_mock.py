@@ -25,12 +25,16 @@ from apps.question_bank.models import Question
 
 TITLE = "Full Mock Exam 1"
 
-# (title, module, minutes, questions, break after this module)
+# (subject, module, minutes, questions, break after this module)
+#
+# The title is the SUBJECT only. The runner derives "Section N, Module M: …"
+# itself by grouping consecutive same-module sections, so a title of
+# "Module 1: Math" would render as "Section 1, Module 1: Module 1: Math".
 MODULES = [
-    ("Module 1: Math", ExamSection.Module.MATH, 35, 22, None),
-    ("Module 2: Math", ExamSection.Module.MATH, 35, 22, 10),
-    ("Module 1: English", ExamSection.Module.READING_WRITING, 32, 27, None),
-    ("Module 2: English", ExamSection.Module.READING_WRITING, 32, 27, None),
+    ("Math", ExamSection.Module.MATH, 35, 22, None),
+    ("Math", ExamSection.Module.MATH, 35, 22, 10),
+    ("English", ExamSection.Module.READING_WRITING, 32, 27, None),
+    ("English", ExamSection.Module.READING_WRITING, 32, 27, None),
 ]
 
 
@@ -108,12 +112,14 @@ class Command(BaseCommand):
             if len(pool) < wanted:
                 self.stdout.write(
                     self.style.WARNING(
-                        f"  {name}: only {len(pool)} of {wanted} questions — "
+                        f"  Module {number}: {name}: only {len(pool)} of {wanted} questions — "
                         f"the bank is short on published {module} items."
                     )
                 )
             else:
-                self.stdout.write(f"  {name}: {len(pool)} questions, {minutes} min")
+                self.stdout.write(
+                    f"  Module {number}: {name}: {len(pool)} questions, {minutes} min"
+                )
             if break_after:
                 self.stdout.write(f"  — {break_after}-minute break —")
 

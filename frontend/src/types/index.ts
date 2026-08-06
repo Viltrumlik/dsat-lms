@@ -944,6 +944,10 @@ export interface ExamSummary {
   /** Whether the clock may be stopped. Off for invigilated papers — pausing a
    *  timed test is unlimited time, so the server refuses it there. */
   allowPause: boolean
+  /** Sat in full screen. A browser only grants fullscreen from a user gesture,
+   *  so the runner gates the paper behind a Begin screen and blocks it whenever
+   *  the student leaves. */
+  requiresFullscreen: boolean
   /** Built by the question bank rather than authored. A drill is scored as a
    *  drill: accuracy and a per-skill breakdown, not a scaled SAT total. */
   isGenerated: boolean
@@ -983,6 +987,8 @@ export interface SessionSectionRaw {
   title: string
   module: QuestionModule
   timeLimit: number | null // minutes
+  /** A timed rest AFTER this module. Null = straight on to the next. */
+  breakAfterMinutes: number | null
   questions: Array<{ position: number; question: SessionQuestion }>
 }
 
@@ -992,6 +998,7 @@ export interface EngineSection {
   title: string
   module: QuestionModule
   timeLimit: number | null
+  breakAfterMinutes: number | null
   questions: SessionQuestion[]
 }
 

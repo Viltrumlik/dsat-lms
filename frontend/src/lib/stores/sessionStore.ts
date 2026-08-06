@@ -32,6 +32,8 @@ interface SessionMeta {
   /** Whether the clock may be stopped. The server refuses pause on invigilated
    *  papers, so the engine must not offer it there either. */
   allowPause: boolean
+  /** Sat in full screen — the runner gates the paper behind a Begin screen. */
+  requiresFullscreen: boolean
   assignmentId: string | null
 }
 

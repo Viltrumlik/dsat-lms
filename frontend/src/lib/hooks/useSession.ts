@@ -30,6 +30,7 @@ function toEngineSections(detail: SessionDetail): EngineSection[] {
     title: section.title,
     module: section.module,
     timeLimit: section.timeLimit,
+    breakAfterMinutes: section.breakAfterMinutes,
     questions: section.questions
       .slice()
       .sort((a, b) => a.position - b.position)
@@ -110,6 +111,7 @@ export function useSession(sessionId: string): { state: SessionLoadState } {
             examTitle: detail.exam.title,
             examType: detail.exam.type,
             allowPause: detail.exam.allowPause,
+            requiresFullscreen: detail.exam.requiresFullscreen,
             assignmentId: null,
           },
           sections,

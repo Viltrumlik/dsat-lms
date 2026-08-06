@@ -25,6 +25,7 @@ const section = (module: QuestionModule, title = ''): EngineSection => ({
   title,
   module,
   timeLimit: null,
+  breakAfterMinutes: null,
   questions: [],
 })
 

@@ -1,5 +1,12 @@
 // Domain: Test Engine
-// Description: Between-section interstitial. Advances to the next section.
+// Description: Between-module interstitial. Two different screens, really: a
+//   plain "next module" hand-off, and — where the paper says so — a TIMED break.
+//
+// The countdown is a display that auto-advances, not a rule the server enforces.
+// It does not need to be: each module is timed separately from the moment the
+// advance lands server-side, so resting longer never buys module time. What the
+// break must not do is COST time, and it does not — a full mock deliberately has
+// no whole-paper clock, only per-module ones.
 'use client'
 
 import * as React from 'react'
@@ -26,6 +33,8 @@ export function BreakScreen() {
 
   const finished = sections[sectionIndex]
   const next = sections[sectionIndex + 1]
+  const breakMinutes = finished?.breakAfterMinutes ?? null
+  const [secondsLeft, setSecondsLeft] = React.useState(() => (breakMinutes ?? 0) * 60)
 
   const progress = React.useMemo(() => {
     if (!finished) return { answered: 0, total: 0 }
@@ -49,7 +58,7 @@ export function BreakScreen() {
   // a module where every write is rejected; send them to submit instead. A bare
   // network hiccup still falls through to local navigation, and the next
   // autosave re-syncs.
-  const begin = async () => {
+  const begin = React.useCallback(async () => {
     const nextIndex = sectionIndex + 1
     const meta = useSessionStore.getState().meta
     setStarting(true)
@@ -73,15 +82,42 @@ export function BreakScreen() {
     }
     navigateTo(nextIndex, 0)
     setStatus('active')
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sectionIndex, navigateTo, setStatus, setTimeRemaining, t, toast])
+
+  // Tick the rest down, and walk into the next module when it runs out — a
+  // break the student has to remember to end is a break that swallows the exam.
+  React.useEffect(() => {
+    if (breakMinutes === null || !next) return
+    if (secondsLeft <= 0) {
+      void begin()
+      return
+    }
+    const id = setTimeout(() => setSecondsLeft((n) => n - 1), 1000)
+    return () => clearTimeout(id)
+  }, [breakMinutes, next, secondsLeft, begin])
+
+  const clock = `${Math.floor(Math.max(0, secondsLeft) / 60)}:${String(Math.max(0, secondsLeft) % 60).padStart(2, '0')}`
 
   return (
     <div className="flex flex-1 items-center justify-center bg-white p-6">
       <div className="w-full max-w-xl text-center">
         <CheckCircle2 className="mx-auto h-14 w-14 text-bb-blue" />
         <h2 className="mt-5 text-[28px] font-bold text-bb-ink">
-          {t('testEngine.break.heading')}
+          {breakMinutes !== null && next
+            ? t('testEngine.break.restHeading')
+            : t('testEngine.break.heading')}
         </h2>
+        {breakMinutes !== null && next && (
+          <>
+            <p className="mt-6 font-mono text-[64px] font-bold leading-none tabular-nums text-bb-ink">
+              {clock}
+            </p>
+            <p className="mt-1 text-[15px] text-neutral-700">
+              {t('testEngine.break.restBody', { minutes: breakMinutes })}
+            </p>
+          </>
+        )}
         <p className="mt-2 font-exam text-[19px] text-bb-ink">
           {t('testEngine.break.summary', {
             answered: progress.answered,
@@ -107,7 +143,10 @@ export function BreakScreen() {
               onClick={begin}
               loading={starting}
             >
-              {t('testEngine.break.beginNext')} <ArrowRight className="h-4 w-4" />
+              {breakMinutes !== null
+                ? t('testEngine.break.resumeEarly')
+                : t('testEngine.break.beginNext')}{' '}
+              <ArrowRight className="h-4 w-4" />
             </Button>
           </>
         ) : (
