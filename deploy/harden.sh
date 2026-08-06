@@ -89,13 +89,25 @@ findtime = 10m
 maxretry = 5
 backend  = auto
 # Never ban the machine itself, or the health probes take the site out.
-ignoreip = 127.0.0.1/8 ::1 172.16.0.0/12
+# ignoreself covers every address this host holds; the ranges cover loopback and
+# the Docker networks the containers talk to each other on.
+ignoreself = true
+ignoreip = 127.0.0.1/8 ::1 172.16.0.0/12 10.0.0.0/8
 
 [sshd]
 enabled  = true
 port     = 22
-maxretry = 4
-bantime  = 48h
+# NOT 4, which is what this said and which locked the author out of his own
+# server within an hour. An ssh client offers every key it holds until one is
+# accepted, and sshd logs each rejected offer as a failed attempt — so an admin
+# with three keys in ~/.ssh spends three of four attempts on a single successful
+# login. A brute force makes thousands of tries; ten stops it just as dead and
+# leaves room for a person with more than one key.
+maxretry = 10
+# An hour, not two days. The cost of banning an attacker for an hour is nothing
+# — they were never getting in. The cost of banning the owner for two days is
+# the owner going to the provider console to get their own server back.
+bantime  = 1h
 
 [dsat-nginx-limit]
 enabled  = true
