@@ -92,6 +92,25 @@ Migrations run as their own unit, never in the web container's start command:
 two replicas both migrating on boot is a race, and a failed migration should
 stop the deploy rather than crash-loop a container that was serving fine.
 
+### If the deploy touched anything under `deploy/`
+
+**Recreate Nginx. A reload is not enough, and it fails silently.**
+
+```bash
+docker compose -f docker-compose.prod.yml up -d --force-recreate nginx
+docker compose -f docker-compose.prod.yml exec nginx grep -n "location /" /etc/nginx/conf.d/default.conf
+```
+
+The config files are bind-mounted **file by file**, and a file bind mount
+follows the inode, not the path. `git pull` does not edit those files in place —
+it writes new ones — so the container goes on reading the old inode, which still
+exists because the container holds it open. `nginx -s reload` then re-reads the
+same stale file and reports success, `nginx -t` passes, and the config you are
+looking at on disk is not the config being served.
+
+The second command above is the check: read the config **out of the container**,
+not off the disk, and confirm it says what you just committed.
+
 ## Checking it worked
 
 ```bash
