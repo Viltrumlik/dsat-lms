@@ -202,6 +202,13 @@ services:
       - ./deploy/security_headers.conf:/etc/nginx/security_headers.conf:ro
       - certbot_conf:/etc/letsencrypt:ro
       - certbot_www:/var/www/certbot:ro
+      # A STABLE path for the logs, because fail2ban has to watch them from the
+      # host. Docker's own log file lives under the container id, so it moves
+      # every time nginx is recreated — and a jail pointed at the old path does
+      # not fail, it just silently stops banning anyone. Rotation for these is
+      # installed by deploy/harden.sh; nginx also still writes to stdout, so
+      # `docker compose logs nginx` is unchanged.
+      - ./logs/nginx:/var/log/nginx
     # Reload every 6h so a renewed certificate is actually served. Nginx reads
     # the certificate once, at start: renewal writes a new file and the running
     # process keeps presenting the old one until told otherwise — so the site

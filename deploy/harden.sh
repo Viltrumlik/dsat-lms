@@ -50,12 +50,13 @@ actionban   = iptables -I f2b-docker-<name> 1 -s <ip> -j DROP
 actionunban = iptables -D f2b-docker-<name> -s <ip> -j DROP
 EOF
 
-# nginx logs to the container's stdout, which Docker writes as JSON. These
-# filters read the message field out of it rather than a conventional access log.
+# nginx writes plain combined/error logs to a bind-mounted directory (see the
+# nginx service in docker-compose.prod.yml), so these are ordinary filters — no
+# JSON unwrapping, and no dependence on Docker's storage layout.
 cat > /etc/fail2ban/filter.d/dsat-nginx-limit.conf <<'EOF'
 [Definition]
 # nginx's own words when a limit_req / limit_conn zone rejects a client.
-failregex = limiting (requests|connections) by zone .*client: <HOST>
+failregex = limiting (requests|connections) by zone .*client: <HOST>,
 ignoreregex =
 EOF
 
@@ -63,12 +64,16 @@ cat > /etc/fail2ban/filter.d/dsat-nginx-probe.conf <<'EOF'
 [Definition]
 # 444 is only ever returned by the scanner-path block in deploy/nginx.conf, and
 # 401/403 in volume is someone working through credentials or ids.
-failregex = ^.*"remote_addr":"<HOST>".*"status":"(444|401|403)".*$
-            <HOST> - - \[.*\] "[^"]*" (444|401|403) .*$
+failregex = ^<HOST> \S+ \S+ \[[^]]+\] "[^"]*" (444|401|403) 
 ignoreregex =
 EOF
 
-NGINX_LOG=$(docker inspect dsat-lms-nginx-1 --format '{{.LogPath}}' 2>/dev/null || true)
+# The bind-mounted path from docker-compose.prod.yml, NOT docker inspect's
+# LogPath. That one lives under the container id, so it moves every time nginx
+# is recreated and the jail silently goes on watching a file that no longer
+# exists — protection that reads as enabled and bans nobody.
+NGINX_LOG_DIR=/opt/dsat-lms/logs/nginx
+mkdir -p "$NGINX_LOG_DIR"
 
 cat > /etc/fail2ban/jail.d/dsat.conf <<EOF
 [DEFAULT]
@@ -90,7 +95,7 @@ bantime  = 48h
 [dsat-nginx-limit]
 enabled  = true
 filter   = dsat-nginx-limit
-logpath  = ${NGINX_LOG:-/var/log/nginx/error.log}
+logpath  = ${NGINX_LOG_DIR}/error.log
 maxretry = 20
 findtime = 2m
 bantime  = 1h
@@ -99,7 +104,7 @@ action   = docker-user[name=limit]
 [dsat-nginx-probe]
 enabled  = true
 filter   = dsat-nginx-probe
-logpath  = ${NGINX_LOG:-/var/log/nginx/access.log}
+logpath  = ${NGINX_LOG_DIR}/access.log
 maxretry = 15
 findtime = 5m
 bantime  = 24h
@@ -170,6 +175,22 @@ Persistent=true
 
 [Install]
 WantedBy=timers.target
+EOF
+
+# The bind-mounted nginx logs are outside Docker's log driver, so its size cap
+# does not apply to them — they need their own rotation or they are the next
+# thing to fill the disk. copytruncate because nginx holds the file open and is
+# not signalled from here.
+cat > /etc/logrotate.d/dsat-nginx <<'EOF'
+/opt/dsat-lms/logs/nginx/*.log {
+    daily
+    rotate 14
+    missingok
+    notifempty
+    compress
+    delaycompress
+    copytruncate
+}
 EOF
 
 systemctl daemon-reload
