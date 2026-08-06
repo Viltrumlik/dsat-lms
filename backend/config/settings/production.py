@@ -5,6 +5,8 @@ Description: Hardened settings for production. Inherits base; flips DEBUG off,
             enforces TLS/security headers, wires R2 storage, SMTP email, Sentry.
 """
 
+from django.core.exceptions import ImproperlyConfigured
+
 from .base import *  # noqa: F403
 
 DEBUG = False
@@ -52,15 +54,28 @@ if STORAGE_BACKEND == "r2":
     }
 
 # ─────────────────────────────────────
-# Email — SMTP (Resend / SES both speak SMTP)
+# Email — SMTP (Mailgun by default; Resend / SES speak the same protocol)
 # ─────────────────────────────────────
+# Mailgun gives you an SMTP username that looks like an address
+# (postmaster@mg.yourdomain.com) and a password that is NOT your API key — it is
+# the domain's SMTP password, from Sending → Domain settings → SMTP credentials.
+# EU-region domains must point EMAIL_HOST at smtp.eu.mailgun.org.
+#
+# Port 587 with STARTTLS, not 465: 465 needs implicit TLS (EMAIL_USE_SSL), and
+# setting both TLS flags makes Django raise rather than guess.
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST = env("EMAIL_HOST", default="smtp.resend.com")
+EMAIL_HOST = env("EMAIL_HOST", default="smtp.mailgun.org")
 EMAIL_PORT = env.int("EMAIL_PORT", default=587)
-EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="resend")
-EMAIL_HOST_PASSWORD = env("RESEND_API_KEY", default="")
-EMAIL_USE_TLS = True
+EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default=env("MAILGUN_SMTP_PASSWORD", default=""))
+EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
+EMAIL_USE_SSL = env.bool("EMAIL_USE_SSL", default=False)
+# A hung SMTP handshake must not hold a Celery worker open indefinitely.
+EMAIL_TIMEOUT = env.int("EMAIL_TIMEOUT", default=20)
 DEFAULT_FROM_EMAIL = env("EMAIL_FROM", default="noreply@example.com")
+
+if EMAIL_USE_TLS and EMAIL_USE_SSL:
+    raise ImproperlyConfigured("Set EMAIL_USE_TLS (port 587) or EMAIL_USE_SSL (465), not both.")
 
 # ─────────────────────────────────────
 # Sentry (optional)

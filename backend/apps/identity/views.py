@@ -17,8 +17,13 @@ from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from apps.mailer import codes as mail_codes
+from apps.mailer import quota as mail_quota
+from apps.mailer.models import VerificationCode
+from common.exceptions import ValidationError
 from common.responses import created_response, success_response
 
+from . import emails
 from .cookies import REFRESH_COOKIE_NAME, clear_refresh_cookie, set_refresh_cookie
 from .models import User
 from .serializers import (
@@ -31,9 +36,28 @@ from .serializers import (
     RegisterSerializer,
     UserSerializer,
 )
-from .tasks import send_password_reset_email, send_verification_email
 
 logger = logging.getLogger("apps.identity")
+
+
+def _quota_response(exc):
+    """A refused email, as a 429 the caller can act on.
+
+    Told plainly, with the wait: "try again in 40 seconds" is something a student
+    can do, and hiding it behind a generic error just makes them press the button
+    again — which is the behaviour the cooldown exists to stop.
+    """
+    from rest_framework import status
+    from rest_framework.response import Response
+
+    body = {
+        "success": False,
+        "error": {"code": "EMAIL_RATE_LIMITED", "message": exc.message, "field": None},
+    }
+    response = Response(body, status=status.HTTP_429_TOO_MANY_REQUESTS)
+    if exc.retry_after:
+        response["Retry-After"] = str(exc.retry_after)
+    return response
 
 
 def _issue_tokens(user):
@@ -58,11 +82,14 @@ class RegisterView(APIView):
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
 
-        # Fire-and-forget: a failing broker/mail server must not break registration.
+        # A failing mail server must not break registration — the account exists
+        # either way, and the verify screen offers a resend.
         try:
-            send_verification_email.delay(user.id)
+            emails.send_verification_code(user)
+        except mail_quota.QuotaExceededError as exc:
+            logger.info("Verification code for %s refused: %s", user.email, exc.reason)
         except Exception:  # noqa: BLE001
-            logger.exception("Failed to enqueue verification email for %s", user.email)
+            logger.exception("Failed to send verification code for %s", user.email)
 
         access, refresh = _issue_tokens(user)
         response = created_response({"user": UserSerializer(user).data, "access_token": access})
@@ -143,24 +170,34 @@ class MeView(APIView):
 
 
 class VerifyEmailResendView(APIView):
-    """Resend the verification email to the logged-in user."""
+    """Send the logged-in user a fresh verification code.
+
+    The quota is enforced HERE rather than on a worker, because this is the one
+    request someone is actually waiting on: a refusal has to come back as a
+    number of seconds, not vanish into a log.
+    """
 
     permission_classes = [IsAuthenticated]
-    throttle_scope = "auth_verify_email"  # each POST triggers an email send
+    throttle_scope = "auth_verify_email"  # per-IP; the real limit is the mailer's
 
     def post(self, request):
         user = request.user
         if user.is_email_verified:
             return success_response({"detail": "Email is already verified."})
         try:
-            send_verification_email.delay(user.id)
+            emails.send_verification_code(user)
+        except mail_quota.QuotaExceededError as exc:
+            return _quota_response(exc)
         except Exception:  # noqa: BLE001
-            logger.exception("Failed to enqueue verification email for %s", user.email)
-        return success_response({"detail": "Verification email sent."})
+            logger.exception("Failed to send verification code for %s", user.email)
+            return ValidationError("Could not send the code. Please try again.").to_response()
+        return success_response(
+            {"detail": "Verification code sent.", "expires_in_minutes": mail_codes.ttl_minutes()}
+        )
 
 
 class VerifyEmailConfirmView(APIView):
-    """Confirm an email from the uid + token in the verification link."""
+    """Verify an address with the six-digit code that was emailed to it."""
 
     permission_classes = [AllowAny]
     throttle_scope = "auth_verify_email"
@@ -169,15 +206,43 @@ class VerifyEmailConfirmView(APIView):
     def post(self, request):
         serializer = EmailVerifyConfirmSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user = serializer.validated_data["user"]
-        if not user.is_email_verified:
-            user.is_email_verified = True
-            user.save(update_fields=["is_email_verified"])
+        email = serializer.validated_data["email"].lower().strip()
+        user = User.objects.filter(email__iexact=email).first()
+
+        # An unknown address gets the generic refusal — never "no such account".
+        #
+        # It is NOT indistinguishable from a wrong code: that path counts down
+        # ("3 attempts left"), which does tell a stranger the address has a code
+        # in flight. Kept deliberately — the hint is what stops a student
+        # retyping a code they have already burned — and it costs little, since
+        # registration already refuses a taken address outright. What is withheld
+        # is the direct answer.
+        wrong = ValidationError("That code is not valid. Please request a new one.", field="code")
+        if user is None:
+            return wrong.to_response()
+        if user.is_email_verified:
+            return success_response(
+                {"detail": "Email is already verified.", "user": UserSerializer(user).data}
+            )
+        try:
+            mail_codes.verify(
+                user, VerificationCode.Purpose.VERIFY_EMAIL, serializer.validated_data["code"]
+            )
+        except mail_codes.CodeError as exc:
+            return ValidationError(exc.message, field="code").to_response()
+
+        user.is_email_verified = True
+        user.save(update_fields=["is_email_verified"])
         return success_response({"detail": "Email verified.", "user": UserSerializer(user).data})
 
 
 class PasswordResetRequestView(APIView):
-    """Send a reset link. Always 200 — never reveals whether the email exists."""
+    """Email a reset code. Always 200 — never reveals whether the account exists.
+
+    A quota refusal is swallowed here for the same reason: a 429 for a known
+    address and a 200 for an unknown one would turn the cooldown into an account
+    oracle. The per-IP throttle above still bounds the abuse.
+    """
 
     permission_classes = [AllowAny]
     serializer_class = PasswordResetRequestSerializer
@@ -190,28 +255,59 @@ class PasswordResetRequestView(APIView):
         user = User.objects.filter(email__iexact=email, is_active=True).first()
         if user:
             try:
-                send_password_reset_email.delay(user.id)
+                emails.send_password_reset_code(user)
+            except mail_quota.QuotaExceededError as exc:
+                logger.info("Reset code for %s refused: %s", email, exc.reason)
             except Exception:  # noqa: BLE001
-                logger.exception("Failed to enqueue password reset email for %s", email)
+                logger.exception("Failed to send reset code for %s", email)
         return success_response(
-            {"detail": "If an account exists for that email, a reset link has been sent."}
+            {
+                "detail": "If an account exists for that email, a reset code has been sent.",
+                "expires_in_minutes": mail_codes.ttl_minutes(),
+            }
         )
 
 
 class PasswordResetConfirmView(APIView):
-    """Set a new password from the uid + token in the reset link."""
+    """Set a new password from the emailed code."""
 
     permission_classes = [AllowAny]
     serializer_class = PasswordResetConfirmSerializer
     throttle_scope = "auth_password_reset"
 
     def post(self, request):
+        from django.contrib.auth.password_validation import validate_password
+        from django.core.exceptions import ValidationError as DjangoValidationError
+
         serializer = PasswordResetConfirmSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user = serializer.validated_data["user"]
+        email = serializer.validated_data["email"].lower().strip()
+        user = User.objects.filter(email__iexact=email, is_active=True).first()
+
+        wrong = ValidationError("That code is not valid. Please request a new one.", field="code")
+        if user is None:
+            return wrong.to_response()
+        try:
+            mail_codes.verify(
+                user, VerificationCode.Purpose.PASSWORD_RESET, serializer.validated_data["code"]
+            )
+        except mail_codes.CodeError as exc:
+            return ValidationError(exc.message, field="code").to_response()
+
+        # Strength is checked only once the code is accepted: `validate_password`
+        # compares the password against the user's own name and email, so it
+        # needs the user — and an unauthenticated caller must not be able to
+        # probe the rules against an address they do not control.
+        try:
+            validate_password(serializer.validated_data["new_password"], user)
+        except DjangoValidationError as exc:
+            return ValidationError(" ".join(exc.messages), field="new_password").to_response()
+
         user.set_password(serializer.validated_data["new_password"])
         user.save(update_fields=["password"])
-        _blacklist_user_tokens(user)  # log out every existing session
+        # Reaching this point proves control of the inbox, so every existing
+        # session is now suspect — a reset is also how you kick out an intruder.
+        _blacklist_user_tokens(user)
         return success_response({"detail": "Password has been reset. Please log in again."})
 
 

@@ -68,6 +68,7 @@ LOCAL_APPS = [
     "apps.crm",
     "apps.automation",
     "apps.vocabulary",
+    "apps.mailer",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -140,12 +141,16 @@ CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 CELERY_TASK_ROUTES = {
     "apps.analytics.tasks.*": {"queue": "analytics"},
     "apps.notifications.tasks.*": {"queue": "notifications"},
-    "apps.identity.tasks.*": {"queue": "email"},
+    "apps.mailer.tasks.*": {"queue": "email"},
 }
 
 # django_celery_beat's DatabaseScheduler installs these entries into the DB on
 # beat startup, so the schedule ships with the code (still editable in admin).
 CELERY_BEAT_SCHEDULE = {
+    "purge-expired-verification-codes": {
+        "task": "apps.mailer.tasks.purge_expired_codes",
+        "schedule": crontab(hour=3, minute=20),
+    },
     "send-homework-due-reminders": {
         "task": "apps.notifications.tasks.send_homework_due_reminders",
         "schedule": crontab(hour=8, minute=0),  # daily, CELERY_TIMEZONE
@@ -211,6 +216,31 @@ CELERY_BEAT_SCHEDULE = {
 # ─────────────────────────────────────
 # DRF
 # ─────────────────────────────────────
+# ─────────────────────────────────────
+# Email quotas (apps.mailer)
+# ─────────────────────────────────────
+# Counted off the OUTBOX, not off HTTP requests: a per-IP throttle does not stop
+# one address being mailed from a dozen IPs, and does not see a Celery task or a
+# management command sending with no request at all.
+#
+#   COOLDOWN  the impatient resend — one email, not six.
+#   RECIPIENT one address being farmed for codes all afternoon.
+#   PER_DAY   the runaway: a bug must not burn the month's allowance overnight.
+#
+# Defaults suit a small academy on a modest plan; raise them with the plan.
+MAIL_COOLDOWN_SECONDS = env.int("MAIL_COOLDOWN_SECONDS", default=60)
+MAIL_MAX_PER_RECIPIENT_PER_DAY = env.int("MAIL_MAX_PER_RECIPIENT_PER_DAY", default=10)
+# Codes are counted separately from broadcast mail: a class that got ten
+# announcements this morning must still be able to reset a password this
+# afternoon.
+MAIL_MAX_CODES_PER_RECIPIENT_PER_DAY = env.int("MAIL_MAX_CODES_PER_RECIPIENT_PER_DAY", default=5)
+MAIL_MAX_PER_DAY = env.int("MAIL_MAX_PER_DAY", default=2000)
+# Bulk mail stops this many sends before the global cap, so the end of the day's
+# allowance is still there for someone locked out of their account.
+MAIL_RESERVE_FOR_CODES = env.int("MAIL_RESERVE_FOR_CODES", default=200)
+# How long a six-digit code stays usable.
+MAIL_CODE_TTL_MINUTES = env.int("MAIL_CODE_TTL_MINUTES", default=15)
+
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework_simplejwt.authentication.JWTAuthentication",
