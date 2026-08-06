@@ -36,19 +36,15 @@ export function TestShell() {
   useAutoSave()
 
   const status = useSessionStore((s) => s.status)
+  // Counted off `questionCount`, not off the questions themselves: only the
+  // open module carries any, so summing the arrays would report the paper as
+  // one module long.
   const totalCount = useSessionStore((s) =>
-    s.sections.reduce((n, sec) => n + sec.questions.length, 0)
+    s.sections.reduce((n, sec) => n + sec.questionCount, 0)
   )
-  const answeredCount = useSessionStore((s) =>
-    s.sections.reduce(
-      (n, sec) =>
-        n +
-        sec.questions.filter((q) => {
-          const a = s.questionStates[q.id]?.answer
-          return a != null && a !== ''
-        }).length,
-      0
-    )
+  const answeredCount = useSessionStore(
+    (s) =>
+      Object.values(s.questionStates).filter((st) => st.answer != null && st.answer !== '').length
   )
 
   const [submitOpen, setSubmitOpen] = React.useState(false)

@@ -97,6 +97,44 @@ class TestShape:
         assert r.status_code == 400
 
 
+class TestOnlyTheOpenModuleIsServed:
+    """The break used to be a window with every remaining question already in
+    the tab: the whole paper arrived at start. Modules are now fetched one at a
+    time, which is safe precisely because sections are forward-only."""
+
+    def test_start_ships_only_module_one(self, sitting):
+        _, detail = sitting
+        served = [len(s["questions"]) for s in detail["sections"]]
+        assert served == [1, 0, 0, 0]
+
+    def test_every_module_still_reports_its_size(self, sitting):
+        _, detail = sitting
+        assert [s["question_count"] for s in detail["sections"]] == [1, 1, 1, 1]
+        # ...and its shape, so the break screen and the numbering still work.
+        assert [s["break_after_minutes"] for s in detail["sections"]] == [None, 10, None, None]
+
+    def test_advancing_hands_over_the_next_module(self, auth_client, sitting):
+        _, detail = sitting
+        after = auth_client.patch(
+            f"{SESSIONS}{detail['id']}/",
+            {"current_section": 2, "current_question": 1},
+            format="json",
+        )
+        served = [len(s["questions"]) for s in after.data["data"]["sections"]]
+        assert served == [0, 1, 0, 0]
+
+    def test_a_reload_mid_paper_gets_only_the_module_in_hand(self, auth_client, sitting):
+        _, detail = sitting
+        auth_client.patch(
+            f"{SESSIONS}{detail['id']}/",
+            {"current_section": 3, "current_question": 1},
+            format="json",
+        )
+        reloaded = auth_client.get(f"{SESSIONS}{detail['id']}/")
+        served = [len(s["questions"]) for s in reloaded.data["data"]["sections"]]
+        assert served == [0, 0, 1, 0]
+
+
 class TestBreakDoesNotCostTime:
     def test_the_next_module_starts_its_own_clock_on_advance(self, auth_client, sitting):
         """A long rest delays the next module; it does not shorten it."""

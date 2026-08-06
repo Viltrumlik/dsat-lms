@@ -25,7 +25,9 @@ export function BottomBar() {
   const popoverRef = React.useRef<HTMLDivElement>(null)
 
   const section = sections[sectionIndex]
-  const total = section?.questions.length ?? 0
+  // The module's real size, not the array's — the paper is served a module
+  // at a time and the array is empty until this one is handed over.
+  const total = section?.questionCount ?? 0
   const isLastSection = sectionIndex === sections.length - 1
   const isLastInSection = total > 0 && questionIndex === total - 1
 

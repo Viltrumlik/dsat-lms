@@ -13,6 +13,7 @@ import * as React from 'react'
 import { ArrowRight, CheckCircle2 } from 'lucide-react'
 import { useSessionStore } from '@/lib/stores/sessionStore'
 import { sessionAPI } from '@/lib/api/sessions'
+import { toEngineSections } from '@/lib/hooks/useSession'
 import { useT } from '@/lib/i18n/I18nProvider'
 import { parseApiError } from '@/lib/api/errors'
 import { Button } from '@/components/ui/button'
@@ -26,6 +27,7 @@ export function BreakScreen() {
   const sections = useSessionStore((s) => s.sections)
   const questionStates = useSessionStore((s) => s.questionStates)
   const navigateTo = useSessionStore((s) => s.navigateTo)
+  const loadSections = useSessionStore((s) => s.loadSections)
   const setStatus = useSessionStore((s) => s.setStatus)
   const setTimeRemaining = useSessionStore((s) => s.setTimeRemaining)
 
@@ -42,7 +44,7 @@ export function BreakScreen() {
       const a = questionStates[q.id]?.answer
       return a != null && a !== ''
     }).length
-    return { answered, total: finished.questions.length }
+    return { answered, total: finished.questionCount }
   }, [finished, questionStates])
 
   // Persist the section change BEFORE activating, then adopt the server's
@@ -69,6 +71,9 @@ export function BreakScreen() {
           currentQuestion: 1,
           clientSessionData: { questions: useSessionStore.getState().questionStates },
         })
+        // The response carries the module being walked into — the server ships
+        // one at a time, so this IS the questions arriving.
+        loadSections(toEngineSections(detail))
         setTimeRemaining(detail.serverTimeRemaining ?? detail.timeRemaining ?? 0)
       } catch (err) {
         const { code, message } = parseApiError(err)
@@ -83,7 +88,7 @@ export function BreakScreen() {
     navigateTo(nextIndex, 0)
     setStatus('active')
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sectionIndex, navigateTo, setStatus, setTimeRemaining, t, toast])
+  }, [sectionIndex, navigateTo, loadSections, setStatus, setTimeRemaining, t, toast])
 
   // Tick the rest down, and walk into the next module when it runs out — a
   // break the student has to remember to end is a break that swallows the exam.
@@ -135,7 +140,9 @@ export function BreakScreen() {
                 {sectionLabel(sections, sectionIndex + 1, t)}
               </p>
               <p className="text-[15px] text-neutral-700">
-                {t('testEngine.questionsCount', { count: next.questions.length })}
+                {/* questionCount, not questions.length — the module has not
+                    been handed over yet, and its array is empty until it is. */}
+                {t('testEngine.questionsCount', { count: next.questionCount })}
               </p>
             </div>
             <Button

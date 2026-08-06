@@ -25,8 +25,8 @@ function q(id: string): SessionQuestion {
 }
 
 const sections: EngineSection[] = [
-  { sectionNumber: 1, title: 'RW', module: 'reading_writing', timeLimit: null, breakAfterMinutes: 10, questions: [q('q1'), q('q2')] },
-  { sectionNumber: 2, title: 'Math', module: 'math', timeLimit: null, breakAfterMinutes: null, questions: [q('q3')] },
+  { sectionNumber: 1, title: 'RW', module: 'reading_writing', timeLimit: null, breakAfterMinutes: 10, questionCount: 2, questions: [q('q1'), q('q2')] },
+  { sectionNumber: 2, title: 'Math', module: 'math', timeLimit: null, breakAfterMinutes: null, questionCount: 1, questions: [q('q3')] },
 ]
 
 const meta = {

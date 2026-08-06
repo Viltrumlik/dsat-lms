@@ -1,6 +1,12 @@
 // Domain: Test Engine
-// Description: Bluebook's "Check Your Work" review page — the same jump grid as
-//   the navigator, per section, with the submit action beneath it.
+// Description: Bluebook's "Check Your Work" page — the jump grid for the module
+//   the student is IN, with the submit action beneath it.
+//
+// This module only, deliberately. Modules are forward-only: the server refuses
+// a backward section move and rejects answers for a module already left, so a
+// grid spanning the whole paper was offering jumps into a module where every
+// write would bounce. It is also the module the client HAS — the paper is
+// served a module at a time.
 'use client'
 
 import { MapPin } from 'lucide-react'
@@ -12,6 +18,7 @@ import { sectionLabel } from './examLabels'
 export function ReviewScreen({ onSubmit }: { onSubmit: () => void }) {
   const t = useT()
   const sections = useSessionStore((s) => s.sections)
+  const sectionIndex = useSessionStore((s) => s.currentSectionIndex)
   const questionStates = useSessionStore((s) => s.questionStates)
   const navigateTo = useSessionStore((s) => s.navigateTo)
   const setStatus = useSessionStore((s) => s.setStatus)
@@ -45,7 +52,8 @@ export function ReviewScreen({ onSubmit }: { onSubmit: () => void }) {
           </span>
         </div>
 
-        {sections.map((section, sIdx) => {
+        {sections.slice(sectionIndex, sectionIndex + 1).map((section, offset) => {
+          const sIdx = sectionIndex + offset
           const answered = section.questions.filter((q) => {
             const a = questionStates[q.id]?.answer
             return a != null && a !== ''
@@ -59,7 +67,7 @@ export function ReviewScreen({ onSubmit }: { onSubmit: () => void }) {
                 <span className="text-[15px] text-neutral-700">
                   {t('testEngine.reviewScreen.answeredOf', {
                     answered,
-                    total: section.questions.length,
+                    total: section.questionCount,
                   })}
                 </span>
               </div>

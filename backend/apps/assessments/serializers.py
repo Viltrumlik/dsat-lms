@@ -48,7 +48,21 @@ class TestQuestionSerializer(serializers.ModelSerializer):
 
 
 class SessionSectionSerializer(serializers.ModelSerializer):
+    """One module of the paper.
+
+    Only the module the student is CURRENTLY in carries its questions. The rest
+    are shape only — how many, how long, what comes next — which is everything
+    the runner needs to number the modules, size the break screen and count the
+    paper, and nothing a student could read ahead with.
+
+    That mattered most on a four-module mock: the whole paper used to arrive at
+    start, so the ten-minute break was a window in which every remaining
+    question was already sitting in the tab. Sections are forward-only, so a
+    module is fetched exactly once, when it opens.
+    """
+
     questions = serializers.SerializerMethodField()
+    question_count = serializers.SerializerMethodField()
 
     class Meta:
         model = ExamSection
@@ -58,16 +72,20 @@ class SessionSectionSerializer(serializers.ModelSerializer):
             "module",
             "time_limit",
             "break_after_minutes",
+            "question_count",
             "questions",
         ]
 
+    def get_question_count(self, obj):
+        # len() over the prefetch, not .count() — one query for the whole paper.
+        return len(obj.exam_questions.all())
+
     def get_questions(self, obj):
-        exam_questions = obj.exam_questions.select_related("question").prefetch_related(
-            "question__choices"
-        )
+        if obj.section_number != self.context.get("current_section"):
+            return []
         return [
             {"position": eq.position, "question": TestQuestionSerializer(eq.question).data}
-            for eq in exam_questions
+            for eq in obj.exam_questions.all()
         ]
 
 
@@ -210,8 +228,11 @@ class SessionDetailSerializer(serializers.ModelSerializer):
         ]
 
     def get_sections(self, obj):
+        """Shape for every module, questions for the one being sat."""
         sections = obj.exam.sections.prefetch_related("exam_questions__question__choices")
-        return SessionSectionSerializer(sections, many=True).data
+        return SessionSectionSerializer(
+            sections, many=True, context={"current_section": obj.current_section}
+        ).data
 
     def get_responses(self, obj):
         """Correctness is withheld until the paper is in — see TestResponseSerializer."""

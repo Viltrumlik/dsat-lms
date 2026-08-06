@@ -989,6 +989,10 @@ export interface SessionSectionRaw {
   timeLimit: number | null // minutes
   /** A timed rest AFTER this module. Null = straight on to the next. */
   breakAfterMinutes: number | null
+  /** Always present. `questions` is EMPTY for every module but the one being
+   *  sat — the paper is served a module at a time so a student cannot read
+   *  ahead during the break. */
+  questionCount: number
   questions: Array<{ position: number; question: SessionQuestion }>
 }
 
@@ -999,6 +1003,9 @@ export interface EngineSection {
   module: QuestionModule
   timeLimit: number | null
   breakAfterMinutes: number | null
+  /** How many questions the module HAS — `questions` is only filled for the
+   *  module currently open (the server ships one at a time). */
+  questionCount: number
   questions: SessionQuestion[]
 }
 

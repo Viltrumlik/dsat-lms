@@ -79,6 +79,11 @@ interface SessionState {
   initSession: (meta: SessionMeta, sections: EngineSection[], savedState?: Partial<SessionState>) => void
   resetSession: () => void
 
+  /** Fill in a module the server has just handed over.
+   *  The paper arrives one module at a time, so the section the student is
+   *  walking into has to be merged in before they walk. */
+  loadSections: (sections: EngineSection[]) => void
+
   // Navigation
   navigateTo: (sectionIndex: number, questionIndex: number) => void
   nextQuestion: () => void
@@ -207,6 +212,20 @@ export const useSessionStore = create<SessionState>()(
       // ─────────────────────────────────────
       // Navigation
       // ─────────────────────────────────────
+
+      loadSections: (incoming) => {
+        // Keep whatever we already hold: an earlier module comes back EMPTY
+        // once it is closed, and dropping its questions would break the
+        // answered-count and the store's own view of the paper.
+        const held = get().sections
+        set({
+          sections: incoming.map((section, index) => {
+            const before = held[index]
+            if (section.questions.length > 0 || !before) return section
+            return { ...section, questions: before.questions }
+          }),
+        })
+      },
 
       navigateTo: (sectionIndex, questionIndex) => {
         set({ currentSectionIndex: sectionIndex, currentQuestionIndex: questionIndex })

@@ -24,13 +24,16 @@ import type {
 
 export type SessionLoadState = 'loading' | 'ready' | 'error' | 'redirecting'
 
-function toEngineSections(detail: SessionDetail): EngineSection[] {
+/** Flatten the payload. Only the open module carries questions; the rest are
+ *  shape, and are filled in when the student reaches them. */
+export function toEngineSections(detail: SessionDetail): EngineSection[] {
   return detail.sections.map((section) => ({
     sectionNumber: section.sectionNumber,
     title: section.title,
     module: section.module,
     timeLimit: section.timeLimit,
     breakAfterMinutes: section.breakAfterMinutes,
+    questionCount: section.questionCount,
     questions: section.questions
       .slice()
       .sort((a, b) => a.position - b.position)
